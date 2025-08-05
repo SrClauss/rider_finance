@@ -1,0 +1,47 @@
+# Rust build artifacts
+/backend/target/
+/target/
+**/*.rs.bk
+Cargo.lock
+
+# Environment files
+.env
+.env.*
+
+# Editor temporary files
+*.swp
+*.tmp
+*.bak
+
+# Logs
+*.log
+/backend/logs/
+/logs/
+
+# Nginx directory (ignore all nginx files)
+/nginx/
+
+# Next.js build artifacts e dependências
+/frontend/.next/
+/frontend/node_modules/
+/frontend/.env*
+/frontend/coverage/
+/frontend/.turbo/
+/frontend/.eslintcache
+/frontend/.vercel/
+/frontend/.DS_Store
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build artifacts grandes
+/backend/target/
+**/target/
+**/node_modules/
