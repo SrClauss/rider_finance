@@ -4,18 +4,30 @@ Write-Host "=====================================" -ForegroundColor Cyan
 # Função para ler variável DATABASE_URL de um arquivo .env
 function Get-DatabaseUrlFromEnv {
     param([string]$envFile)
+    Write-Host "[DEBUG] Lendo arquivo: $envFile" -ForegroundColor Cyan
     if (Test-Path $envFile) {
-        $lines = Get-Content $envFile | Where-Object { $_ -match '^DATABASE_URL=' }
-        if ($lines) {
-            return $lines[0].Substring(13)
+        $allText = Get-Content $envFile -Raw -Encoding UTF8 -ErrorAction Stop
+        Write-Host "[DEBUG] Conteúdo do arquivo:" -ForegroundColor Cyan
+        $allText -split "`n" | ForEach-Object { Write-Host $_ -ForegroundColor DarkGray }
+        $match = [regex]::Match($allText, "DATABASE_URL=([^\r\n]+)")
+        if ($match.Success) {
+            $url = $match.Groups[1].Value
+            Write-Host "[DEBUG] DATABASE_URL extraído: '$url'" -ForegroundColor Cyan
+            return $url
+        } else {
+            Write-Host "[DEBUG] Nenhuma linha DATABASE_URL encontrada." -ForegroundColor Yellow
         }
+    } else {
+        Write-Host "[DEBUG] Arquivo não encontrado: $envFile" -ForegroundColor Yellow
     }
     return $null
 }
 
+
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $envs = @(
-    @{ name = "dev"; file = ".env" },
-    @{ name = "test"; file = ".env.test" }
+    @{ name = "dev"; file = Join-Path $scriptDir ".env" },
+    @{ name = "test"; file = Join-Path $scriptDir ".env.test" }
 )
 
 foreach ($env in $envs) {
