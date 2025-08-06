@@ -3,7 +3,21 @@ use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 use chrono::{NaiveDateTime};
 
-use crate::schema::configuracoes;
+// Definição da tabela configuracoes
+diesel::table! {
+    configuracoes (id) {
+        id -> Text,
+        id_usuario -> Text,
+        chave -> Varchar,
+        valor -> Nullable<Text>,
+        categoria -> Nullable<Varchar>,
+        descricao -> Nullable<Varchar>,
+        tipo_dado -> Nullable<Varchar>,
+        eh_publica -> Bool,
+        criado_em -> Timestamp,
+        atualizado_em -> Timestamp,
+    }
+}
 
 #[derive(Debug, Clone, Queryable, Identifiable, Associations, Serialize, Deserialize)]
 #[diesel(table_name = configuracoes)]

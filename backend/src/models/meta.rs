@@ -3,7 +3,29 @@ use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 use chrono::{NaiveDateTime};
 
-use crate::schema::metas;
+// Definição da tabela metas
+diesel::table! {
+    metas (id) {
+        id -> Text,
+        id_usuario -> Text,
+        titulo -> Varchar,
+        descricao -> Nullable<Text>,
+        tipo -> Varchar,
+        categoria -> Varchar,
+        valor_alvo -> Integer,
+        valor_atual -> Integer,
+        unidade -> Nullable<Varchar>,
+        data_inicio -> Timestamp,
+        data_fim -> Nullable<Timestamp>,
+        eh_ativa -> Bool,
+        eh_concluida -> Bool,
+        concluida_em -> Nullable<Timestamp>,
+        lembrete_ativo -> Bool,
+        frequencia_lembrete -> Nullable<Varchar>,
+        criado_em -> Timestamp,
+        atualizado_em -> Timestamp,
+    }
+}
 
 #[derive(Debug, Clone, Queryable, Identifiable, Associations, Serialize, Deserialize)]
 #[diesel(table_name = metas)]

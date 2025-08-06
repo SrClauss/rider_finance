@@ -3,7 +3,27 @@ use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 use chrono::{NaiveDate, NaiveDateTime};
 
-use crate::schema::usuarios;
+// Definição da tabela usuarios
+diesel::table! {
+    usuarios (id) {
+        id -> Text,
+        nome_usuario -> Varchar,
+        email -> Varchar,
+        senha -> Varchar,
+        nome_completo -> Nullable<Varchar>,
+        telefone -> Nullable<Varchar>,
+        veiculo -> Nullable<Varchar>,
+        data_inicio_atividade -> Nullable<Date>,
+        eh_pago -> Bool,
+        id_pagamento -> Nullable<Varchar>,
+        metodo_pagamento -> Nullable<Varchar>,
+        status_pagamento -> Varchar,
+        tipo_assinatura -> Varchar,
+        trial_termina_em -> Nullable<Timestamp>,
+        criado_em -> Timestamp,
+        atualizado_em -> Timestamp,
+    }
+}
 
 #[derive(Debug, Clone, Queryable, Identifiable, Serialize, Deserialize)]
 #[diesel(table_name = usuarios)]

@@ -3,7 +3,25 @@ use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 use chrono::{NaiveDateTime};
 
-use crate::schema::transacoes;
+// Definição da tabela transacoes
+diesel::table! {
+    transacoes (id) {
+        id -> Text,
+        id_usuario -> Text,
+        id_categoria -> Text,
+        valor -> Integer,
+        descricao -> Nullable<Text>,
+        tipo -> Varchar,
+        data -> Timestamp,
+        origem -> Nullable<Varchar>,
+        id_externo -> Nullable<Varchar>,
+        plataforma -> Nullable<Varchar>,
+        observacoes -> Nullable<Text>,
+        tags -> Nullable<Varchar>,
+        criado_em -> Timestamp,
+        atualizado_em -> Timestamp,
+    }
+}
 
 #[derive(Debug, Clone, Queryable, Identifiable, Associations, Serialize, Deserialize)]
 #[diesel(table_name = transacoes)]
