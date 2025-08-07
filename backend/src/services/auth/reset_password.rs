@@ -1,9 +1,29 @@
+
+// --- Payload ---
+use serde::Deserialize;
+
+#[derive(Deserialize)]
+pub struct ResetPasswordPayload {
+    pub nova_senha: String,
+}
+
+// --- Handler ---
+use axum::{Json, extract::Path};
+
+pub async fn reset_password_handler(Path(user_id): Path<String>, Json(payload): Json<ResetPasswordPayload>) -> Json<String> {
+    match reset_password(&user_id, &payload.nova_senha) {
+        Ok(_) => Json("Senha redefinida com sucesso".to_string()),
+        Err(e) => Json(format!("Erro: {}", e)),
+    }
+}
+
+// --- Serviço ---
 use diesel::prelude::*;
 use crate::db;
 use bcrypt::{hash, DEFAULT_COST};
 use crate::models::usuarios::dsl::*;
 
-/// Atualiza a senha de um usuário pelo id
+
 pub fn reset_password(user_id: &str, nova_senha: &str) -> Result<(), String> {
     let conn = &mut db::establish_connection();
     let senha_hash = hash(nova_senha, DEFAULT_COST)

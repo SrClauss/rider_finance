@@ -21,3 +21,8 @@ bcrypt = "0.15.1"
 hyper = "1.6.0"
 tower = { version = "0.5.2", features = ["util"] }
 jsonwebtoken = "9.3.1"
+captcha = "1.0.0"
+uuid = { version = "1.17.0", features = ["v4"] }
+lazy_static = "1.4.0"
+mutex = "1.0.2"
+base64 = "0.22.1"

@@ -2,23 +2,7 @@ use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
 use chrono::{NaiveDateTime};
 use crate::models::Usuario;
-
-// Definição da tabela assinaturas
-diesel::table! {
-    assinaturas (id) {
-        id -> Text,
-        id_usuario -> Text,
-        tipo_plano -> Varchar,
-        status -> Varchar,
-        asaas_customer_id -> Varchar,
-        asaas_subscription_id -> Nullable<Varchar>,
-        periodo_inicio -> Timestamp,
-        periodo_fim -> Timestamp,
-        cancelada_em -> Nullable<Timestamp>,
-        criado_em -> Timestamp,
-        atualizado_em -> Timestamp,
-    }
-}
+use crate::schema::assinaturas;
 
 #[derive(Debug, Clone, Queryable, Identifiable, Associations, Serialize, Deserialize)]
 #[diesel(table_name = assinaturas)]

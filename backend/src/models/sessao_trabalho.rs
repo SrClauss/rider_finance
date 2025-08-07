@@ -1,30 +1,9 @@
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
-
 use chrono::{NaiveDateTime};
 use crate::models::Usuario;
+use crate::schema::sessoes_trabalho;
 
-// Definição da tabela sessoes_trabalho
-diesel::table! {
-    sessoes_trabalho (id) {
-        id -> Text,
-        id_usuario -> Text,
-        inicio -> Timestamp,
-        fim -> Nullable<Timestamp>,
-        total_minutos -> Nullable<Integer>,
-        local_inicio -> Nullable<Varchar>,
-        local_fim -> Nullable<Varchar>,
-        total_corridas -> Integer,
-        total_ganhos -> Integer,
-        total_gastos -> Integer,
-        plataforma -> Nullable<Varchar>,
-        observacoes -> Nullable<Text>,
-        clima -> Nullable<Varchar>,
-        eh_ativa -> Bool,
-        criado_em -> Timestamp,
-        atualizado_em -> Timestamp,
-    }
-}
 
 #[derive(Debug, Clone, Queryable, Identifiable, Associations, Serialize, Deserialize)]
 #[diesel(table_name = sessoes_trabalho)]

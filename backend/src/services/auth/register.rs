@@ -1,3 +1,26 @@
+use axum::Json;
+use serde::Deserialize;
+
+#[derive(Deserialize)]
+pub struct RegisterPayload {
+    pub nome_usuario: String,
+    pub email: String,
+    pub senha: String,
+}
+
+pub async fn register_user_handler(Json(payload): Json<RegisterPayload>) -> Json<String> {
+    let usuario = NewUsuario::new(
+        None,
+        payload.nome_usuario,
+        payload.email,
+        payload.senha,
+        None, None, None, None, false, None, None, None, None, None, None, None
+    );
+    match crate::services::auth::register::register_user(usuario) {
+        Ok(_) => Json("Usuário registrado com sucesso".to_string()),
+        Err(e) => Json(format!("Erro: {}", e)),
+    }
+}
 use diesel::prelude::*;
 use crate::models::NewUsuario;
 use crate::db;

@@ -3,22 +3,8 @@ use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 use chrono::{NaiveDateTime};
 use crate::models::Usuario;
+use crate::schema::categorias;
 
-// Definição da tabela categorias
-diesel::table! {
-    categorias (id) {
-        id -> Text,
-        id_usuario -> Nullable<Text>,
-        nome -> Varchar,
-        tipo -> Varchar,
-        icone -> Nullable<Varchar>,
-        cor -> Nullable<Varchar>,
-        eh_padrao -> Bool,
-        eh_ativa -> Bool,
-        criado_em -> Timestamp,
-        atualizado_em -> Timestamp,
-    }
-}
 
 #[derive(Debug, Clone, Queryable, Identifiable, Associations, Serialize, Deserialize)]
 #[diesel(table_name = categorias)]

@@ -1,3 +1,25 @@
+use axum::Json;
+use serde::Deserialize;
+
+#[derive(Deserialize)]
+pub struct RegisterPendingPayload {
+    pub nome_usuario: String,
+    pub email: String,
+}
+
+pub async fn register_pending_user_handler(Json(payload): Json<RegisterPendingPayload>) -> Json<String> {
+    let usuario = NewUsuario::new(
+        None,
+        payload.nome_usuario,
+        payload.email,
+        "".to_string(),
+        None, None, None, None, false, None, None, None, None, None, None, None
+    );
+    match crate::services::auth::register_pending::register_pending_user(usuario) {
+        Ok(_) => Json("Usuário pendente registrado com sucesso".to_string()),
+        Err(e) => Json(format!("Erro: {}", e)),
+    }
+}
 use diesel::prelude::*;
 use crate::models::NewUsuario;
 use crate::db;

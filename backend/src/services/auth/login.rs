@@ -1,4 +1,56 @@
+
+use axum::Json;
+use serde::Deserialize;
 use crate::models::Usuario;
+use crate::db;
+use crate::models::usuarios::dsl::*;
+use diesel::QueryDsl;
+use diesel::ExpressionMethods;
+use diesel::BoolExpressionMethods;
+use diesel::RunQueryDsl;
+
+#[derive(Deserialize)]
+pub struct LoginPayload {
+    pub usuario: String,
+    pub senha: String,
+}
+
+pub async fn login_handler(Json(payload): Json<LoginPayload>) -> Json<serde_json::Value> {
+    let conn = &mut db::establish_connection();
+    // Busca por nome_usuario OU email
+    match usuarios
+        .filter(nome_usuario.eq(&payload.usuario).or(email.eq(&payload.usuario)))
+        .first::<Usuario>(conn) {
+        Ok(user) => {
+            match crate::services::auth::login::login(&user, &payload.senha) {
+                Ok(token) => {
+                    let resp = serde_json::json!({
+                        "message": format!("Login bem-sucedido: {}", user.nome_usuario),
+                        "token": token
+                    });
+                    Json(resp)
+                },
+                Err(e) => {
+                    let resp = serde_json::json!({
+                        "message": format!("Erro de login: {}", e),
+                        "token": null
+                    });
+                    Json(resp)
+                },
+            }
+        }
+        Err(_) => {
+            let resp = serde_json::json!({
+                "message": "Erro de login: usuário não encontrado",
+                "token": null
+            });
+            Json(resp)
+        },
+    }
+}
+
+
+
 use bcrypt::verify;
 use jsonwebtoken::{encode, Header, EncodingKey};
 use serde::{Serialize};
@@ -11,10 +63,10 @@ struct Claims {
     exp: usize,
 }
 
-/// Serviço de login recebendo struct Usuario já carregada do banco
-/// Se login OK, retorna token JWT. Se falhar, retorna Err.
-pub fn login(usuario: &Usuario, senha: &str) -> Result<String, String> {
-    if verify(senha, &usuario.senha).map_err(|_| "Erro ao verificar senha".to_string())? {
+
+pub fn login(usuario: &Usuario, senha_plain: &str) -> Result<String, String> {
+    // usuario.senha é String (hash da senha)
+    if verify(senha_plain, &usuario.senha).map_err(|_| "Erro ao verificar senha".to_string())? {
         // Gerar token JWT
         let expiration = chrono::Utc::now().timestamp() as usize + 60 * 60 * 24; // 24h
         let claims = Claims {

@@ -22,6 +22,7 @@ diesel::table! {
         trial_termina_em -> Nullable<Timestamp>,
         criado_em -> Timestamp,
         atualizado_em -> Timestamp,
+        ultima_tentativa_redefinicao -> Nullable<Timestamp>,
     }
 }
 
@@ -44,6 +45,7 @@ pub struct Usuario {
     pub trial_termina_em: Option<NaiveDateTime>,
     pub criado_em: NaiveDateTime,
     pub atualizado_em: NaiveDateTime,
+    pub ultima_tentativa_redefinicao: Option<NaiveDateTime>,
 }
 
 #[derive(Debug, Clone, Insertable, Serialize, Deserialize)]
@@ -65,6 +67,7 @@ pub struct NewUsuario {
     pub trial_termina_em: Option<NaiveDateTime>,
     pub criado_em: NaiveDateTime,
     pub atualizado_em: NaiveDateTime,
+    pub ultima_tentativa_redefinicao: Option<NaiveDateTime>,
 }
 
 #[derive(Debug, Clone, Insertable)]
@@ -127,6 +130,7 @@ impl NewUsuario {
             trial_termina_em,
             criado_em: criado_em.unwrap_or(now),
             atualizado_em: atualizado_em.unwrap_or(now),
+            ultima_tentativa_redefinicao: None,
         }
     }
 }
