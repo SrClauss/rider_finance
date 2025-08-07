@@ -59,10 +59,33 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_get_list_update_delete_transacao() {
-        let conn = &mut db::establish_connection();
+        // Usa banco de dados de testes e faz limpeza total
+        let conn = &mut db::establish_connection_test();
+        diesel::sql_query("PRAGMA foreign_keys = OFF;").execute(conn).ok();
+        diesel::sql_query("DELETE FROM transacoes;").execute(conn).ok();
+        diesel::sql_query("DELETE FROM usuarios;").execute(conn).ok();
+        diesel::sql_query("DELETE FROM categorias;").execute(conn).ok();
+        diesel::sql_query("PRAGMA foreign_keys = ON;").execute(conn).ok();
+
+        // Cria usuário de teste único
         let user_id = Ulid::new().to_string();
+        let usuario = crate::models::NewUsuario::new(
+            Some(user_id.clone()),
+            format!("testuser_{}", user_id),
+            format!("{}@test.com", user_id),
+            "senha123".to_string(),
+            None, None, None, None, false, None, None, Some("ativo".to_string()), Some("free".to_string()), None, None, None
+        );
+        crate::services::auth::register::register_user_test(usuario).expect("Erro ao criar usuário de teste");
+
+        // Cria categoria de teste única
         let cat_id = Ulid::new().to_string();
-        // Cria
+        diesel::sql_query(format!(
+            "INSERT INTO categorias (id, nome, tipo, eh_padrao, eh_ativa, criado_em, atualizado_em) VALUES ('{}', '{}', 'entrada', false, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+            cat_id, format!("cat_{}", cat_id)
+        )).execute(conn).expect("Erro ao criar categoria de teste");
+
+        // Cria transação
         let payload = CreateTransacaoPayload {
             id_usuario: user_id.clone(),
             id_categoria: cat_id.clone(),

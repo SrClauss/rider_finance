@@ -1,3 +1,10 @@
+/// Conexão para banco de dados de testes
+pub fn establish_connection_test() -> PgConnection {
+    use std::env;
+    dotenvy::from_filename(".env.test").ok();
+    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL não definida");
+    PgConnection::establish(&database_url).expect("Erro ao conectar ao banco de testes")
+}
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use dotenvy::dotenv;

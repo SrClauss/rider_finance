@@ -4,7 +4,8 @@ use crate::models::Usuario;
 use crate::db;
 use chrono::{Utc, Duration};
 use diesel::prelude::*;
-use crate::models::usuarios::dsl::*;
+use crate::schema::usuarios::dsl::*;
+use crate::schema::usuarios::{email, id, ultima_tentativa_redefinicao};
 
 #[derive(Deserialize)]
 pub struct RequestPasswordResetPayload {

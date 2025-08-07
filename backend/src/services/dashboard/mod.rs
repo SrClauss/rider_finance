@@ -1,3 +1,35 @@
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::Utc;
+    use ulid::Ulid;
+    use axum::Json;
+
+    #[tokio::test]
+    async fn test_dashboard_stats_handler() {
+        let user_id = Ulid::new().to_string();
+        // Simula chamada do handler (assume DB vazio para novo usuário)
+        let resp = dashboard_stats_handler(user_id.clone()).await;
+        let stats = resp.0;
+        // Todos os valores devem ser zero ou None
+        assert_eq!(stats.ganhos_hoje, 0.0);
+        assert_eq!(stats.gastos_hoje, 0.0);
+        assert_eq!(stats.lucro_hoje, 0.0);
+        assert_eq!(stats.corridas_hoje, 0);
+        assert_eq!(stats.horas_hoje, 0.0);
+        assert_eq!(stats.eficiencia, 0.0);
+        assert_eq!(stats.ganhos_semana, 0.0);
+        assert_eq!(stats.gastos_semana, 0.0);
+        assert_eq!(stats.lucro_semana, 0.0);
+        assert_eq!(stats.corridas_semana, 0);
+        assert_eq!(stats.horas_semana, 0.0);
+        assert!(stats.meta_diaria.is_none());
+        assert!(stats.meta_semanal.is_none());
+        assert_eq!(stats.tendencia_ganhos, 0.0);
+        assert_eq!(stats.tendencia_gastos, 0.0);
+        assert_eq!(stats.tendencia_corridas, 0.0);
+    }
+}
 use axum::{Json};
 use serde::Serialize;
 use chrono::{Utc, Duration, NaiveDateTime, Datelike};

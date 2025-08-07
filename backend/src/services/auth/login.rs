@@ -3,7 +3,8 @@ use axum::Json;
 use serde::Deserialize;
 use crate::models::Usuario;
 use crate::db;
-use crate::models::usuarios::dsl::*;
+use crate::schema::usuarios::dsl::*;
+use crate::schema::usuarios::{email, nome_usuario, id, senha};
 use diesel::QueryDsl;
 use diesel::ExpressionMethods;
 use diesel::BoolExpressionMethods;
@@ -66,7 +67,7 @@ struct Claims {
 
 pub fn login(usuario: &Usuario, senha_plain: &str) -> Result<String, String> {
     // usuario.senha é String (hash da senha)
-    if verify(senha_plain, &usuario.senha).map_err(|_| "Erro ao verificar senha".to_string())? {
+    if verify(senha_plain, usuario.senha.as_deref().unwrap_or("")).map_err(|_| "Erro ao verificar senha".to_string())? {
         // Gerar token JWT
         let expiration = chrono::Utc::now().timestamp() as usize + 60 * 60 * 24; // 24h
         let claims = Claims {

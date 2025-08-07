@@ -8,6 +8,7 @@ pub use crate::services::auth::request_password_reset::request_password_reset_ha
 mod tests {
     use crate::services::auth::request_password_reset::{request_password_reset_handler, RequestPasswordResetPayload};
     use axum::Json;
+    use crate::schema::usuarios::dsl::{usuarios, email, nome_usuario};
 
     #[tokio::test]
     async fn test_request_password_reset_handler() {
@@ -20,8 +21,8 @@ mod tests {
             "senha123".to_string(),
             None, None, None, None, false, None, None, None, None, None, None, None
         );
-        let conn = &mut db::establish_connection();
-        diesel::insert_into(crate::models::usuarios::dsl::usuarios)
+        let conn = &mut db::establish_connection_test();
+        diesel::insert_into(usuarios)
             .values(&usuario)
             .execute(conn)
             .unwrap();
@@ -30,6 +31,13 @@ mod tests {
         let payload = RequestPasswordResetPayload { email: "reset@email.com".to_string() };
         let response = request_password_reset_handler(Json(payload)).await;
         assert_eq!(response.0, "Email de redefinição de senha enviado (simulado)");
+
+        // Força update do campo ultima_tentativa_redefinicao para simular bloqueio
+        use diesel::dsl::now;
+        diesel::update(usuarios.filter(email.eq("reset@email.com")))
+            .set(crate::schema::usuarios::ultima_tentativa_redefinicao.eq(now))
+            .execute(conn)
+            .unwrap();
 
         // Testa bloqueio por tempo
         let payload = RequestPasswordResetPayload { email: "reset@email.com".to_string() };
@@ -47,8 +55,8 @@ mod tests {
     use diesel::dsl::{exists, select};
 
     fn clean_db() {
-        let conn = &mut db::establish_connection();
-        use crate::models::usuarios::dsl::*;
+        let conn = &mut db::establish_connection_test();
+        // dsl já importado no topo
         diesel::delete(usuarios).execute(conn).ok();
     }
 
@@ -138,8 +146,8 @@ mod tests {
         let res = crate::services::auth::register::register_user(usuario.clone());
         assert!(res.is_ok());
         // Verifica se o usuário está no banco
-        let conn = &mut db::establish_connection();
-        use crate::models::usuarios::dsl::*;
+        let conn = &mut db::establish_connection_test();
+        // dsl já importado no topo
         let found: bool = select(exists(usuarios.filter(email.eq("test@email.com")))).get_result(conn).unwrap();
         assert!(found, "Usuário não encontrado no banco de dados");
     }
@@ -185,8 +193,8 @@ mod tests {
         );
         let _ = crate::services::auth::register::register_user(usuario.clone());
         // Busca usuário do banco
-        let conn = &mut db::establish_connection();
-        use crate::models::usuarios::dsl::*;
+        let conn = &mut db::establish_connection_test();
+        // dsl já importado no topo
         let user: crate::models::Usuario = usuarios
             .filter(nome_usuario.eq("serviceuser"))
             .first(conn)

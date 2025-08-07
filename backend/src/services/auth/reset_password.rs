@@ -21,7 +21,8 @@ pub async fn reset_password_handler(Path(user_id): Path<String>, Json(payload): 
 use diesel::prelude::*;
 use crate::db;
 use bcrypt::{hash, DEFAULT_COST};
-use crate::models::usuarios::dsl::*;
+use crate::schema::usuarios::dsl::*;
+use crate::schema::usuarios::dsl::{usuarios, id, senha};
 
 
 pub fn reset_password(user_id: &str, nova_senha: &str) -> Result<(), String> {

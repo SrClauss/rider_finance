@@ -1,30 +1,8 @@
+use crate::schema::usuarios;
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 use chrono::{NaiveDate, NaiveDateTime};
-
-// Definição da tabela usuarios
-diesel::table! {
-    usuarios (id) {
-        id -> Text,
-        nome_usuario -> Varchar,
-        email -> Varchar,
-        senha -> Varchar,
-        nome_completo -> Nullable<Varchar>,
-        telefone -> Nullable<Varchar>,
-        veiculo -> Nullable<Varchar>,
-        data_inicio_atividade -> Nullable<Date>,
-        eh_pago -> Bool,
-        id_pagamento -> Nullable<Varchar>,
-        metodo_pagamento -> Nullable<Varchar>,
-        status_pagamento -> Varchar,
-        tipo_assinatura -> Varchar,
-        trial_termina_em -> Nullable<Timestamp>,
-        criado_em -> Timestamp,
-        atualizado_em -> Timestamp,
-        ultima_tentativa_redefinicao -> Nullable<Timestamp>,
-    }
-}
 
 #[derive(Debug, Clone, Queryable, Identifiable, Serialize, Deserialize)]
 #[diesel(table_name = usuarios)]
@@ -32,7 +10,7 @@ pub struct Usuario {
     pub id: String,
     pub nome_usuario: String,
     pub email: String,
-    pub senha: String,
+    pub senha: Option<String>,
     pub nome_completo: Option<String>,
     pub telefone: Option<String>,
     pub veiculo: Option<String>,
@@ -54,7 +32,7 @@ pub struct NewUsuario {
     pub id: String,
     pub nome_usuario: String,
     pub email: String,
-    pub senha: String,
+    pub senha: Option<String>,
     pub nome_completo: Option<String>,
     pub telefone: Option<String>,
     pub veiculo: Option<String>,
@@ -117,7 +95,7 @@ impl NewUsuario {
             id: id.unwrap_or_else(|| Ulid::new().to_string()),
             nome_usuario,
             email,
-            senha: senha_hash,
+            senha: Some(senha_hash),
             nome_completo,
             telefone,
             veiculo,

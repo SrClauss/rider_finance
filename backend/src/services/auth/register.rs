@@ -1,3 +1,14 @@
+/// Registra usuário no banco de dados de testes
+pub fn register_user_test(novo_usuario: NewUsuario) -> Result<(), String> {
+    use crate::db;
+    let conn = &mut db::establish_connection_test();
+    match diesel::insert_into(crate::schema::usuarios::table)
+        .values(&novo_usuario)
+        .execute(conn) {
+        Ok(_) => Ok(()),
+        Err(e) => Err(format!("Erro ao registrar usuário de teste: {}", e)),
+    }
+}
 use axum::Json;
 use serde::Deserialize;
 
@@ -24,7 +35,8 @@ pub async fn register_user_handler(Json(payload): Json<RegisterPayload>) -> Json
 use diesel::prelude::*;
 use crate::models::NewUsuario;
 use crate::db;
-use crate::models::usuarios::dsl::*;
+use crate::schema::usuarios::dsl::*;
+use crate::schema::usuarios::{email, nome_usuario, id, senha, ultima_tentativa_redefinicao};
 
 /// Serviço de registro de usuário já pronto (senha já deve estar hasheada)
 pub fn register_user(novo_usuario: NewUsuario) -> Result<(), String> {
@@ -37,7 +49,7 @@ pub fn register_user(novo_usuario: NewUsuario) -> Result<(), String> {
     if novo_usuario.email.trim().is_empty() {
         return Err("Email obrigatório".to_string());
     }
-    if novo_usuario.senha.trim().is_empty() {
+    if novo_usuario.senha.as_ref().map(|s| s.trim().is_empty()).unwrap_or(true) {
         return Err("Senha obrigatória".to_string());
     }
 
