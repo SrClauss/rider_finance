@@ -36,7 +36,6 @@ use diesel::prelude::*;
 use crate::models::NewUsuario;
 use crate::db;
 use crate::schema::usuarios::dsl::*;
-use crate::schema::usuarios::{email, nome_usuario, id, senha, ultima_tentativa_redefinicao};
 
 /// Serviço de registro de usuário já pronto (senha já deve estar hasheada)
 pub fn register_user(novo_usuario: NewUsuario) -> Result<(), String> {

@@ -115,7 +115,6 @@ mod tests {
     use super::*;
     use axum::Json;
     use ulid::Ulid;
-    use chrono::Utc;
 
     #[tokio::test]
     async fn test_create_get_list_delete_categoria() {

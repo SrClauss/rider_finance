@@ -24,7 +24,6 @@ use diesel::prelude::*;
 use crate::models::NewUsuario;
 use crate::db;
 use crate::schema::usuarios::dsl::*;
-use crate::schema::usuarios::{email, nome_usuario, id, senha};
 
 /// Serviço de registro de usuário pendente (struct já pronta)
 pub fn register_pending_user(novo_usuario: NewUsuario) -> Result<(), String> {

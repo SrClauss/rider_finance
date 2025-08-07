@@ -4,7 +4,7 @@ use serde::Deserialize;
 use crate::models::Usuario;
 use crate::db;
 use crate::schema::usuarios::dsl::*;
-use crate::schema::usuarios::{email, nome_usuario, id, senha};
+use crate::schema::usuarios::{email, nome_usuario};
 use diesel::QueryDsl;
 use diesel::ExpressionMethods;
 use diesel::BoolExpressionMethods;

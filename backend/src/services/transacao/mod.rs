@@ -9,7 +9,7 @@ pub struct UpdateTransacaoPayload {
 use crate::schema::transacoes;
 
 #[derive(AsChangeset, Default)]
-#[table_name = "transacoes"]
+#[diesel(table_name = transacoes)]
 pub struct TransacaoChangeset {
     pub valor: Option<i32>,
     pub tipo: Option<String>,
@@ -52,9 +52,7 @@ pub async fn delete_transacao_handler(Path(id_param): Path<String>) -> Json<bool
 mod tests {
     use super::*;
     use axum::Json;
-    use chrono::Utc;
     use crate::db;
-    use crate::models::NewTransacao;
     use ulid::Ulid;
 
     #[tokio::test]

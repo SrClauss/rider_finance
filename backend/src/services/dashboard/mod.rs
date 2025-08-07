@@ -1,15 +1,19 @@
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use chrono::Utc;
     use ulid::Ulid;
-    use axum::Json;
 
     #[tokio::test]
     async fn test_dashboard_stats_handler() {
         let user_id = Ulid::new().to_string();
-        // Simula chamada do handler (assume DB vazio para novo usuário)
-        let resp = dashboard_stats_handler(user_id.clone()).await;
+        let filtro = super::DashboardFiltro {
+            id_usuario: user_id.clone(),
+            periodo: None,
+            data_inicio: None,
+            data_fim: None,
+            tipo: None,
+            categoria: None,
+        };
+        let resp = super::dashboard_stats_handler(axum::extract::Query(filtro)).await;
         let stats = resp.0;
         // Todos os valores devem ser zero ou None
         assert_eq!(stats.ganhos_hoje, 0.0);
@@ -30,9 +34,10 @@ mod tests {
         assert_eq!(stats.tendencia_corridas, 0.0);
     }
 }
-use axum::{Json};
+use axum::{Json, extract::Query};
+use serde::Deserialize;
 use serde::Serialize;
-use chrono::{Utc, Duration, NaiveDateTime, Datelike};
+use chrono::{Utc, Duration, NaiveDateTime};
 use diesel::prelude::*;
 use crate::schema::transacoes::dsl as transacao_dsl;
 use crate::schema::sessoes_trabalho::dsl as sessao_dsl;
@@ -59,161 +64,88 @@ pub struct DashboardStats {
     pub tendencia_corridas: f64,
 }
 
-pub async fn dashboard_stats_handler(id_usuario: String) -> Json<DashboardStats> {
+#[derive(Deserialize)]
+pub struct DashboardFiltro {
+    pub id_usuario: String,
+    pub periodo: Option<String>, // "mensal", "semanal", "anual", "custom"
+    pub data_inicio: Option<NaiveDateTime>,
+    pub data_fim: Option<NaiveDateTime>,
+    pub tipo: Option<String>, // "entrada", "saida"
+    pub categoria: Option<String>,
+}
+
+pub async fn dashboard_stats_handler(Query(filtro): Query<DashboardFiltro>) -> Json<DashboardStats> {
     let conn = &mut db::establish_connection();
     let now = Utc::now().naive_utc();
-    let hoje_inicio = NaiveDateTime::new(now.date(), chrono::NaiveTime::from_hms_opt(0,0,0).unwrap());
-    let semana_inicio = hoje_inicio - Duration::days(now.date().weekday().num_days_from_monday() as i64);
-    let mes_inicio = hoje_inicio - Duration::days(30);
+    let (inicio, fim) = match filtro.periodo.as_deref() {
+        Some("mensal") => {
+            let inicio = NaiveDateTime::new(now.date() - Duration::days(30), chrono::NaiveTime::from_hms_opt(0,0,0).unwrap());
+            (inicio, now)
+        },
+        Some("semanal") => {
+            let inicio = NaiveDateTime::new(now.date() - Duration::days(7), chrono::NaiveTime::from_hms_opt(0,0,0).unwrap());
+            (inicio, now)
+        },
+        Some("anual") => {
+            let inicio = NaiveDateTime::new(now.date() - Duration::days(365), chrono::NaiveTime::from_hms_opt(0,0,0).unwrap());
+            (inicio, now)
+        },
+        Some("custom") => {
+            let inicio = filtro.data_inicio.unwrap_or(now);
+            let fim = filtro.data_fim.unwrap_or(now);
+            (inicio, fim)
+        },
+        _ => {
+            let inicio = NaiveDateTime::new(now.date(), chrono::NaiveTime::from_hms_opt(0,0,0).unwrap());
+            (inicio, now)
+        }
+    };
 
-    // Ganhos hoje
-    let ganhos_hoje: f64 = transacao_dsl::transacoes
-        .filter(transacao_dsl::id_usuario.eq(&id_usuario))
+    let mut ganhos_query = transacao_dsl::transacoes
+        .filter(transacao_dsl::id_usuario.eq(&filtro.id_usuario))
+        .filter(transacao_dsl::data.ge(inicio))
+        .filter(transacao_dsl::data.le(fim))
         .filter(transacao_dsl::tipo.eq("entrada"))
-        .filter(transacao_dsl::data.ge(hoje_inicio))
-        .select(diesel::dsl::sum(transacao_dsl::valor))
-        .first::<Option<i64>>(conn).unwrap_or(Some(0)).unwrap_or(0) as f64;
-
-    // Gastos hoje
-    let gastos_hoje: f64 = transacao_dsl::transacoes
-        .filter(transacao_dsl::id_usuario.eq(&id_usuario))
+        .into_boxed();
+    let mut gastos_query = transacao_dsl::transacoes
+        .filter(transacao_dsl::id_usuario.eq(&filtro.id_usuario))
+        .filter(transacao_dsl::data.ge(inicio))
+        .filter(transacao_dsl::data.le(fim))
         .filter(transacao_dsl::tipo.eq("saida"))
-        .filter(transacao_dsl::data.ge(hoje_inicio))
-        .select(diesel::dsl::sum(transacao_dsl::valor))
-        .first::<Option<i64>>(conn).unwrap_or(Some(0)).unwrap_or(0) as f64;
-
-    // Lucro hoje
-    let lucro_hoje = ganhos_hoje - gastos_hoje;
-
-    // Corridas hoje
-    let corridas_hoje: u32 = sessao_dsl::sessoes_trabalho
-        .filter(sessao_dsl::id_usuario.eq(&id_usuario))
-        .filter(sessao_dsl::inicio.ge(hoje_inicio))
-        .select(diesel::dsl::sum(sessao_dsl::total_corridas))
-        .first::<Option<i64>>(conn).unwrap_or(Some(0)).unwrap_or(0) as u32;
-
-    // Horas hoje
-    let minutos_hoje: i64 = sessao_dsl::sessoes_trabalho
-        .filter(sessao_dsl::id_usuario.eq(&id_usuario))
-        .filter(sessao_dsl::inicio.ge(hoje_inicio))
-        .select(diesel::dsl::sum(sessao_dsl::total_minutos))
-        .first::<Option<i64>>(conn).unwrap_or(Some(0)).unwrap_or(0);
-    let horas_hoje = minutos_hoje as f64 / 60.0;
-
-    // Eficiência geral: metas concluídas / metas totais
-    let total_metas: i64 = meta_dsl::metas
-        .filter(meta_dsl::id_usuario.eq(&id_usuario))
-        .count()
-        .get_result(conn).unwrap_or(0);
-    let metas_concluidas: i64 = meta_dsl::metas
-        .filter(meta_dsl::id_usuario.eq(&id_usuario))
-        .filter(meta_dsl::eh_concluida.eq(true))
-        .count()
-        .get_result(conn).unwrap_or(0);
-    let eficiencia = if total_metas > 0 {
-        (metas_concluidas as f64 / total_metas as f64) * 100.0
-    } else { 0.0 };
-
-    // Ganhos semana
-    let ganhos_semana: f64 = transacao_dsl::transacoes
-        .filter(transacao_dsl::id_usuario.eq(&id_usuario))
-        .filter(transacao_dsl::tipo.eq("entrada"))
-        .filter(transacao_dsl::data.ge(semana_inicio))
-        .select(diesel::dsl::sum(transacao_dsl::valor))
-        .first::<Option<i64>>(conn).unwrap_or(Some(0)).unwrap_or(0) as f64;
-
-    // Gastos semana
-    let gastos_semana: f64 = transacao_dsl::transacoes
-        .filter(transacao_dsl::id_usuario.eq(&id_usuario))
-        .filter(transacao_dsl::tipo.eq("saida"))
-        .filter(transacao_dsl::data.ge(semana_inicio))
-        .select(diesel::dsl::sum(transacao_dsl::valor))
-        .first::<Option<i64>>(conn).unwrap_or(Some(0)).unwrap_or(0) as f64;
-
-    // Lucro semana
-    let lucro_semana = ganhos_semana - gastos_semana;
-
-    // Corridas semana
-    let corridas_semana: u32 = sessao_dsl::sessoes_trabalho
-        .filter(sessao_dsl::id_usuario.eq(&id_usuario))
-        .filter(sessao_dsl::inicio.ge(semana_inicio))
-        .select(diesel::dsl::sum(sessao_dsl::total_corridas))
-        .first::<Option<i64>>(conn).unwrap_or(Some(0)).unwrap_or(0) as u32;
-
-    // Horas semana
-    let minutos_semana: i64 = sessao_dsl::sessoes_trabalho
-        .filter(sessao_dsl::id_usuario.eq(&id_usuario))
-        .filter(sessao_dsl::inicio.ge(semana_inicio))
-        .select(diesel::dsl::sum(sessao_dsl::total_minutos))
-        .first::<Option<i64>>(conn).unwrap_or(Some(0)).unwrap_or(0);
-    let horas_semana = minutos_semana as f64 / 60.0;
-
-    // Metas (exemplo: pega meta mais recente)
-    let meta_diaria = meta_dsl::metas
-        .filter(meta_dsl::id_usuario.eq(&id_usuario))
-        .filter(meta_dsl::eh_ativa.eq(true))
-        .order_by(meta_dsl::data_inicio.desc())
-        .select(meta_dsl::valor_alvo)
-        .first::<i32>(conn).ok().map(|v| v as f64);
-    let meta_semanal = meta_dsl::metas
-        .filter(meta_dsl::id_usuario.eq(&id_usuario))
-        .filter(meta_dsl::eh_ativa.eq(true))
-        .order_by(meta_dsl::data_inicio.desc())
-        .select(meta_dsl::valor_alvo)
-        .first::<i32>(conn).ok().map(|v| v as f64);
-
-    // Tendências: média dos últimos 30 dias, excluindo outliers (simples)
-    let ganhos_30: Vec<i32> = transacao_dsl::transacoes
-        .filter(transacao_dsl::id_usuario.eq(&id_usuario))
-        .filter(transacao_dsl::tipo.eq("entrada"))
-        .filter(transacao_dsl::data.ge(mes_inicio))
-        .select(transacao_dsl::valor)
-        .load(conn).unwrap_or_default();
-    let tendencia_ganhos = tendencia_media(&ganhos_30);
-
-    let gastos_30: Vec<i32> = transacao_dsl::transacoes
-        .filter(transacao_dsl::id_usuario.eq(&id_usuario))
-        .filter(transacao_dsl::tipo.eq("saida"))
-        .filter(transacao_dsl::data.ge(mes_inicio))
-        .select(transacao_dsl::valor)
-        .load(conn).unwrap_or_default();
-    let tendencia_gastos = tendencia_media(&gastos_30);
-
-    let corridas_30: Vec<i32> = sessao_dsl::sessoes_trabalho
-        .filter(sessao_dsl::id_usuario.eq(&id_usuario))
-        .filter(sessao_dsl::inicio.ge(mes_inicio))
-        .select(sessao_dsl::total_corridas)
-        .load(conn).unwrap_or_default();
-    let tendencia_corridas = tendencia_media(&corridas_30);
-
+        .into_boxed();
+    if let Some(ref categoria) = filtro.categoria {
+        ganhos_query = ganhos_query.filter(transacao_dsl::id_categoria.eq(categoria));
+        gastos_query = gastos_query.filter(transacao_dsl::id_categoria.eq(categoria));
+    }
+    let ganhos: f64 = ganhos_query.select(diesel::dsl::sum(transacao_dsl::valor)).first::<Option<i64>>(conn).unwrap_or(Some(0)).unwrap_or(0) as f64;
+    let gastos: f64 = gastos_query.select(diesel::dsl::sum(transacao_dsl::valor)).first::<Option<i64>>(conn).unwrap_or(Some(0)).unwrap_or(0) as f64;
+    let lucro = ganhos - gastos;
+    let corridas: u32 = sessao_dsl::sessoes_trabalho.filter(sessao_dsl::id_usuario.eq(&filtro.id_usuario)).filter(sessao_dsl::inicio.ge(inicio)).filter(sessao_dsl::inicio.le(fim)).select(diesel::dsl::sum(sessao_dsl::total_corridas)).first::<Option<i64>>(conn).unwrap_or(Some(0)).unwrap_or(0) as u32;
+    let minutos: i64 = sessao_dsl::sessoes_trabalho.filter(sessao_dsl::id_usuario.eq(&filtro.id_usuario)).filter(sessao_dsl::inicio.ge(inicio)).filter(sessao_dsl::inicio.le(fim)).select(diesel::dsl::sum(sessao_dsl::total_minutos)).first::<Option<i64>>(conn).unwrap_or(Some(0)).unwrap_or(0);
+    let horas = minutos as f64 / 60.0;
+    let total_metas: i64 = meta_dsl::metas.filter(meta_dsl::id_usuario.eq(&filtro.id_usuario)).count().get_result(conn).unwrap_or(0);
+    let metas_concluidas: i64 = meta_dsl::metas.filter(meta_dsl::id_usuario.eq(&filtro.id_usuario)).filter(meta_dsl::eh_concluida.eq(true)).count().get_result(conn).unwrap_or(0);
+    let eficiencia = if total_metas > 0 { (metas_concluidas as f64 / total_metas as f64) * 100.0 } else { 0.0 };
+    let meta_diaria = meta_dsl::metas.filter(meta_dsl::id_usuario.eq(&filtro.id_usuario)).filter(meta_dsl::eh_ativa.eq(true)).order_by(meta_dsl::data_inicio.desc()).select(meta_dsl::valor_alvo).first::<i32>(conn).ok().map(|v| v as f64);
+    let meta_semanal = meta_dsl::metas.filter(meta_dsl::id_usuario.eq(&filtro.id_usuario)).filter(meta_dsl::eh_ativa.eq(true)).order_by(meta_dsl::data_inicio.desc()).select(meta_dsl::valor_alvo).first::<i32>(conn).ok().map(|v| v as f64);
     let stats = DashboardStats {
-        ganhos_hoje,
-        gastos_hoje,
-        lucro_hoje,
-        corridas_hoje,
-        horas_hoje,
+        ganhos_hoje: ganhos,
+        gastos_hoje: gastos,
+        lucro_hoje: lucro,
+        corridas_hoje: corridas,
+        horas_hoje: horas,
         eficiencia,
-        ganhos_semana,
-        gastos_semana,
-        lucro_semana,
-        corridas_semana,
-        horas_semana,
+        ganhos_semana: ganhos,
+        gastos_semana: gastos,
+        lucro_semana: lucro,
+        corridas_semana: corridas,
+        horas_semana: horas,
         meta_diaria,
         meta_semanal,
-        tendencia_ganhos,
-        tendencia_gastos,
-        tendencia_corridas,
+        tendencia_ganhos: 0.0,
+        tendencia_gastos: 0.0,
+        tendencia_corridas: 0.0,
     };
     Json(stats)
 }
 
-fn tendencia_media(valores: &[i32]) -> f64 {
-    if valores.is_empty() { return 0.0; }
-    let mut v = valores.to_vec();
-    v.sort();
-    let len = v.len();
-    let corte = len / 10; // remove 10% dos extremos
-    let v_corte = &v[corte..(len-corte).max(corte)];
-    let soma: i32 = v_corte.iter().sum();
-    soma as f64 / v_corte.len().max(1) as f64
-}
