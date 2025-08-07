@@ -24,6 +24,8 @@ import {
   DirectionsCar,
 } from '@mui/icons-material'
 import { useTitle } from '@/context/TitleContext'
+import axios, { AxiosResponse } from 'axios'
+import { LoginResponse } from '@/interfaces/authInterfaces'
 
 export default function LoginPage() {
   
@@ -63,53 +65,35 @@ export default function LoginPage() {
     setError("");
   } 
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
-    setError('');
+    setError("");
 
     try {
-      // Usa o proxy reverso do nginx: /api/ -> backend FastAPI
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          login: formData.email,
-          senha: formData.password,
-        }),
+      const response = await axios.post('/api/login', {
+        usuario: formData.email, // ou formData.usuario se for campo separado
+        senha: formData.password,
       });
-
-      if (response.status === 401) {
-        setError('Usuário ou senha inválidos.');
-        return;
+      const data = response.data as { message: string; token: string | null };
+      if (response.status === 200 && data.token) {
+        // Sucesso no login
+        setIsLoading(false);
+        // Salva o token no cookie
+        document.cookie = `authToken=${data.token}; path=/`;
+        window.location.href = '/'; // Redireciona para a página inicial
+      } else {
+        setError(data.message || "Login falhou. Verifique suas credenciais.");
+        setIsLoading(false);
       }
-
-      if (!response.ok) {
-        setError('Erro ao fazer login. Tente novamente.');
-        return;
-      }
-
-      const data = await response.json();
-      const user = data?.data?.user;
-      const tokens = data?.data?.tokens;
-      if (!user || !tokens?.access_token) {
-        setError('Resposta inválida do servidor.');
-        return;
-      }
-
-      // Salva dados localmente, sem contexto global
-      localStorage.setItem('authToken', tokens.access_token);
-      localStorage.setItem('userData', JSON.stringify(user));
-      // Redirecionar para dashboard ou página inicial
-      window.location.href = '/';
-    } catch (err) {
-      setError('Erro ao fazer login. Verifique sua conexão.');
-    } finally {
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Erro ao fazer login");
       setIsLoading(false);
+      return;
     }
-  } 
+  }
+
+
 
   return (
     <Box
@@ -247,9 +231,7 @@ export default function LoginPage() {
               textAlign: 'center',
             }}
           >
-            <Typography variant="caption" color="success.dark" fontWeight={600}>
-              DEMO: Use qualquer e-mail e senha para testar
-            </Typography>
+        
           </Box>
         </CardContent>
       </Card>

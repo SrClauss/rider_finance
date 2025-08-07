@@ -37,7 +37,11 @@ export default function MainLayout({ children }: MainLayoutProps) {
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
   };
-
+  const handleLogout = () => {
+    // Lógica de logout, como limpar cookies ou redirecionar
+    document.cookie = "authToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    window.location.href = "/login"; // Redireciona para a página de login
+  };
   // Exemplo de itens do menu lateral
   const drawer = (
     <div>
@@ -66,7 +70,11 @@ export default function MainLayout({ children }: MainLayoutProps) {
           </ListItemButton>
         </ListItem>
         <ListItem key="Sair" disablePadding>
-          <ListItemButton>
+          <ListItemButton
+
+          onClick={handleLogout}
+          
+          >
             <ListItemIcon>
               <LogoutIcon />
             </ListItemIcon>
