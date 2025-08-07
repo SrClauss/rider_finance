@@ -20,7 +20,7 @@ pub struct Configuracao {
     pub atualizado_em: NaiveDateTime,
 }
 
-#[derive(Debug, Insertable)]
+#[derive(Debug, Insertable, Clone)]
 #[diesel(table_name = configuracoes)]
 pub struct NewConfiguracao {
     pub id: String,

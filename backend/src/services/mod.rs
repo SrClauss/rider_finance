@@ -4,3 +4,5 @@ pub mod transacao;
 pub mod captcha;
 pub mod meta;
 pub mod categoria;
+pub mod assinatura;
+pub mod configuracao;
