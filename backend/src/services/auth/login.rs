@@ -1,6 +1,4 @@
-use diesel::prelude::*;
 use crate::models::Usuario;
-use crate::db;
 use bcrypt::verify;
 
 /// Serviço de login recebendo struct Usuario já carregada do banco

@@ -1,7 +1,6 @@
 extern crate backend;
 use axum::http::{StatusCode, Request};
 use axum::body::{Body, to_bytes};
-use axum::Router;
 use tower::ServiceExt; // for `oneshot`
 use diesel::prelude::*;
 use backend::db;

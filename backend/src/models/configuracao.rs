@@ -1,6 +1,6 @@
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
-use ulid::Ulid;
+
 use chrono::{NaiveDateTime};
 use crate::models::Usuario;
 
