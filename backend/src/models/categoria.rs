@@ -1,7 +1,8 @@
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
 use ulid::Ulid;
-use chrono::NaiveDateTime;
+use chrono::{NaiveDateTime};
+use crate::models::Usuario;
 
 // Definição da tabela categorias
 diesel::table! {
@@ -21,7 +22,7 @@ diesel::table! {
 
 #[derive(Debug, Clone, Queryable, Identifiable, Associations, Serialize, Deserialize)]
 #[diesel(table_name = categorias)]
-#[diesel(belongs_to(usuario, foreign_key = id_usuario))]
+#[diesel(belongs_to(Usuario, foreign_key = id_usuario))]
 pub struct Categoria {
     pub id: String,
     pub id_usuario: Option<String>,

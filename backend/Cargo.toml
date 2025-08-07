@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 lettre = "0.11"
-lettre-email = "0.9"
+lettre_email = "0.9"
 tokio = { version = "1", features = ["full"] }
 axum = { version = "0.7", features = ["macros"] }
 serde = { version = "1.0", features = ["derive"] }
@@ -16,3 +16,7 @@ ulid = "1.0"
 anyhow = "1.0"
 thiserror = "2.0.11"
 dotenvy = "0.15"
+chrono = { version = "0.4", features = ["serde"] }
+bcrypt = "0.15"
+hyper = "1"
+tower = { version = "0.4", features = ["util"] }

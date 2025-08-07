@@ -1,4 +1,3 @@
-
 # Testes de Autenticação e Registro
 
 ## Testes Unitários (`src/services/auth/mod.rs`)

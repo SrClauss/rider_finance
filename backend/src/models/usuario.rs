@@ -46,7 +46,7 @@ pub struct Usuario {
     pub atualizado_em: NaiveDateTime,
 }
 
-#[derive(Debug, Insertable)]
+#[derive(Debug, Clone, Insertable, Serialize, Deserialize)]
 #[diesel(table_name = usuarios)]
 pub struct NewUsuario {
     pub id: String,
@@ -67,14 +67,78 @@ pub struct NewUsuario {
     pub atualizado_em: NaiveDateTime,
 }
 
+#[derive(Debug, Clone, Insertable)]
+#[diesel(table_name = usuarios)]
+pub struct NewUsuarioSemSenha {
+    pub id: String,
+    pub nome_usuario: String,
+    pub email: String,
+    pub senha: Option<String>,
+    pub nome_completo: Option<String>,
+    pub telefone: Option<String>,
+    pub veiculo: Option<String>,
+    pub data_inicio_atividade: Option<NaiveDate>,
+    pub eh_pago: bool,
+    pub id_pagamento: Option<String>,
+    pub metodo_pagamento: Option<String>,
+    pub status_pagamento: String,
+    pub tipo_assinatura: String,
+    pub trial_termina_em: Option<NaiveDateTime>,
+    pub criado_em: NaiveDateTime,
+    pub atualizado_em: NaiveDateTime,
+}
+
 impl NewUsuario {
-    pub fn new(nome_usuario: String, email: String, senha: String) -> Self {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        id: Option<String>,
+        nome_usuario: String,
+        email: String,
+        senha: String,
+        nome_completo: Option<String>,
+        telefone: Option<String>,
+        veiculo: Option<String>,
+        data_inicio_atividade: Option<NaiveDate>,
+        eh_pago: bool,
+        id_pagamento: Option<String>,
+        metodo_pagamento: Option<String>,
+        status_pagamento: Option<String>,
+        tipo_assinatura: Option<String>,
+        trial_termina_em: Option<NaiveDateTime>,
+        criado_em: Option<NaiveDateTime>,
+        atualizado_em: Option<NaiveDateTime>,
+    ) -> Self {
         let now = chrono::Utc::now().naive_utc();
+        let senha_hash = bcrypt::hash(senha, bcrypt::DEFAULT_COST).expect("Erro ao hashear senha");
         NewUsuario {
+            id: id.unwrap_or_else(|| Ulid::new().to_string()),
+            nome_usuario,
+            email,
+            senha: senha_hash,
+            nome_completo,
+            telefone,
+            veiculo,
+            data_inicio_atividade,
+            eh_pago,
+            id_pagamento,
+            metodo_pagamento,
+            status_pagamento: status_pagamento.unwrap_or_else(|| "pendente".to_string()),
+            tipo_assinatura: tipo_assinatura.unwrap_or_else(|| "mensal".to_string()),
+            trial_termina_em,
+            criado_em: criado_em.unwrap_or(now),
+            atualizado_em: atualizado_em.unwrap_or(now),
+        }
+    }
+}
+
+impl NewUsuarioSemSenha {
+    pub fn new(nome_usuario: String, email: String) -> Self {
+        let now = chrono::Utc::now().naive_utc();
+        NewUsuarioSemSenha {
             id: Ulid::new().to_string(),
             nome_usuario,
             email,
-            senha,
+            senha: None,
             nome_completo: None,
             telefone: None,
             veiculo: None,
