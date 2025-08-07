@@ -45,6 +45,10 @@ function activate(context) {
             return;
         }
         const rootPath = workspaceFolders[0].uri.fsPath;
+        // Se não houver terminais abertos, abre a aba de terminal
+        if (vscode.window.terminals.length === 0) {
+            vscode.commands.executeCommand('workbench.action.terminal.toggleTerminal');
+        }
         // Backend
         const backendPath = `${rootPath}/backend`;
         const backendTerminal = vscode.window.createTerminal({
@@ -65,12 +69,27 @@ function activate(context) {
             name: '🌐 Nginx (Proxy)',
             cwd: nginxPath
         });
-        nginxTerminal.sendText('nginx.exe -g "error_log logs/error.log debug;"');
+        nginxTerminal.sendText('.\nginx.exe -g "error_log logs/error.log debug;"');
     });
     context.subscriptions.push(disposable);
     let killDisposable = vscode.commands.registerCommand('dev-helper.killAllTerminals', () => {
-        vscode.window.terminals.forEach(terminal => terminal.dispose());
-        vscode.window.showInformationMessage('Todos os terminais foram fechados!');
+        // Identificadores dos terminais criados pela extensão
+        const terminalNames = [
+            '🐍 Backend (Rust FastAPI)',
+            '⚛️ Frontend (Next.js)',
+            '🌐 Nginx (Proxy)'
+        ];
+        vscode.window.terminals.forEach(terminal => {
+            if (terminalNames.includes(terminal.name)) {
+                // Envia comando de kill para o terminal específico
+                terminal.sendText('exit'); // Tenta encerrar o processo gentilmente
+                // Para nginx, força kill
+                if (terminal.name === '🌐 Nginx (Proxy)') {
+                    terminal.sendText('taskkill /IM nginx.exe /F');
+                }
+            }
+        });
+        vscode.window.showInformationMessage('Comandos para encerrar processos dos terminais da extensão enviados!');
     });
     context.subscriptions.push(killDisposable);
 }
