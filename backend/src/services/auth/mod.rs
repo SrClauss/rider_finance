@@ -1,3 +1,114 @@
+use axum::{Json, extract::Path};
+use diesel::prelude::*;
+use diesel::QueryDsl;
+use diesel::ExpressionMethods;
+use serde::Deserialize;
+use crate::models::NewUsuario;
+use crate::models::usuarios::dsl::*;
+use crate::db;
+use crate::models::Usuario;
+
+#[derive(Deserialize)]
+pub struct LoginPayload {
+    pub usuario: String,
+    pub senha: String,
+}
+
+pub async fn login_handler(Json(payload): Json<LoginPayload>) -> Json<serde_json::Value> {
+    let conn = &mut db::establish_connection();
+    match usuarios.filter(nome_usuario.eq(&payload.usuario)).first::<Usuario>(conn) {
+        Ok(user) => {
+            match crate::services::auth::login::login(&user, &payload.senha) {
+                Ok(token) => {
+                    let resp = serde_json::json!({
+                        "message": format!("Login bem-sucedido: {}", user.nome_usuario),
+                        "token": token
+                    });
+                    Json(resp)
+                },
+                Err(e) => {
+                    let resp = serde_json::json!({
+                        "message": format!("Erro de login: {}", e),
+                        "token": null
+                    });
+                    Json(resp)
+                },
+            }
+        }
+        Err(_) => {
+            let resp = serde_json::json!({
+                "message": "Erro de login: usuário não encontrado",
+                "token": null
+            });
+            Json(resp)
+        },
+    }
+}
+
+#[derive(Deserialize)]
+pub struct RegisterPayload {
+    pub nome_usuario: String,
+    pub email: String,
+    pub senha: String,
+}
+
+pub async fn register_user_handler(Json(payload): Json<RegisterPayload>) -> Json<String> {
+    let usuario = NewUsuario::new(
+        None,
+        payload.nome_usuario,
+        payload.email,
+        payload.senha,
+        None, // nome_completo
+        None, // telefone
+        None, // veiculo
+        None, // data_inicio_atividade
+        false, // eh_pago
+        None, // id_pagamento
+        None, // metodo_pagamento
+        None, // status_pagamento
+        None, // tipo_assinatura
+        None, // trial_termina_em
+        None, // criado_em
+        None, // atualizado_em
+    );
+    match crate::services::auth::register::register_user(usuario) {
+        Ok(_) => Json("Usuário registrado com sucesso".to_string()),
+        Err(e) => Json(format!("Erro: {}", e)),
+    }
+}
+
+#[derive(Deserialize)]
+pub struct RegisterPendingPayload {
+    pub nome_usuario: String,
+    pub email: String,
+}
+
+pub async fn register_pending_user_handler(Json(payload): Json<RegisterPendingPayload>) -> Json<String> {
+    let usuario = NewUsuario::new(
+        None,
+        payload.nome_usuario,
+        payload.email,
+        "".to_string(),
+        None, None, None, None, false, None, None, None, None, None, None, None
+    );
+    match crate::services::auth::register_pending::register_pending_user(usuario) {
+        Ok(_) => Json("Usuário pendente registrado com sucesso".to_string()),
+        Err(e) => Json(format!("Erro: {}", e)),
+    }
+}
+
+#[derive(Deserialize)]
+pub struct ResetPasswordPayload {
+    pub nova_senha: String,
+}
+
+pub async fn reset_password_handler(Path(user_id): Path<String>, Json(payload): Json<ResetPasswordPayload>) -> Json<String> {
+    match crate::services::auth::reset_password::reset_password(&user_id, &payload.nova_senha) {
+        Ok(_) => Json("Senha redefinida com sucesso".to_string()),
+        Err(e) => Json(format!("Erro: {}", e)),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::db;

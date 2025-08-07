@@ -14,7 +14,12 @@ fn clean_db() {
 #[tokio::test]
 async fn test_login_endpoint() {
     clean_db();
-    let app = backend::api::auth::router();
+    use axum::{Router, routing::post};
+    let app = Router::new()
+        .route("/register", post(backend::services::auth::register_user_handler))
+        .route("/register-pending", post(backend::services::auth::register_pending_user_handler))
+        .route("/reset-password/{id}", post(backend::services::auth::reset_password_handler))
+        .route("/login", post(backend::services::auth::login_handler));
     // Registra usuário
     let payload = serde_json::json!({
         "nome_usuario": "loginuser",
@@ -46,6 +51,9 @@ async fn test_login_endpoint() {
     let body = to_bytes(resp.into_body(), 1024 * 1024).await.unwrap();
     let body_str = std::str::from_utf8(&body).unwrap();
     assert!(body_str.contains("Login bem-sucedido"));
+    let json: serde_json::Value = serde_json::from_str(body_str).unwrap();
+    assert!(json["token"].is_string());
+    assert!(!json["token"].as_str().unwrap().is_empty());
 
     // Testa login errado
     let login_payload = serde_json::json!({
@@ -63,12 +71,19 @@ async fn test_login_endpoint() {
     let body = to_bytes(resp.into_body(), 1024 * 1024).await.unwrap();
     let body_str = std::str::from_utf8(&body).unwrap();
     assert!(body_str.contains("Erro de login"));
+    let json: serde_json::Value = serde_json::from_str(body_str).unwrap();
+    assert!(json["token"].is_null());
 }
 
 #[tokio::test]
 async fn test_register_user() {
     clean_db();
-    let app = backend::api::auth::router();
+    use axum::{Router, routing::post};
+    let app = Router::new()
+        .route("/register", post(backend::services::auth::register_user_handler))
+        .route("/register-pending", post(backend::services::auth::register_pending_user_handler))
+        .route("/reset-password/{id}", post(backend::services::auth::reset_password_handler))
+        .route("/login", post(backend::services::auth::login_handler));
     let payload = serde_json::json!({
         "nome_usuario": "testuser",
         "email": "test@example.com",
@@ -87,7 +102,12 @@ async fn test_register_user() {
 #[tokio::test]
 async fn test_register_pending_user() {
     clean_db();
-    let app = backend::api::auth::router();
+    use axum::{Router, routing::post};
+    let app = Router::new()
+        .route("/register", post(backend::services::auth::register_user_handler))
+        .route("/register-pending", post(backend::services::auth::register_pending_user_handler))
+        .route("/reset-password/{id}", post(backend::services::auth::reset_password_handler))
+        .route("/login", post(backend::services::auth::login_handler));
     let payload = serde_json::json!({
         "nome_usuario": "pendinguser",
         "email": "pending@example.com"
@@ -105,7 +125,12 @@ async fn test_register_pending_user() {
 #[tokio::test]
 async fn test_reset_password() {
     clean_db();
-    let app = backend::api::auth::router();
+    use axum::{Router, routing::post};
+    let app = Router::new()
+        .route("/register", post(backend::services::auth::register_user_handler))
+        .route("/register-pending", post(backend::services::auth::register_pending_user_handler))
+        .route("/reset-password/{id}", post(backend::services::auth::reset_password_handler))
+        .route("/login", post(backend::services::auth::login_handler));
     let payload = serde_json::json!({
         "nova_senha": "novasenha123"
     });
