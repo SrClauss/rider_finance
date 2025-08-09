@@ -1,4 +1,71 @@
-use axum::{Json, extract::Path};
+pub mod asaas;
+mod checkout;
+
+// ...existing code...
+use crate::services::assinatura::asaas::criar_cliente_asaas;
+
+#[derive(Deserialize)]
+pub struct CriarClientePayload {
+    pub id_usuario: String,
+}
+
+pub async fn criar_cliente_handler(Json(payload): Json<CriarClientePayload>) -> Json<crate::services::assinatura::asaas::AsaasResponse> {
+    match criar_cliente_asaas(payload.id_usuario).await {
+        Ok(resp) => Json(resp),
+        Err(e) => Json(crate::services::assinatura::asaas::AsaasResponse {
+            status: "erro".to_string(),
+            id: None,
+            valor_assinatura: None,
+            payment_url: None,
+            mensagem: Some(e),
+        }),
+    }
+}
+use axum::Json;
+use crate::services::assinatura::checkout::{criar_checkout_asaas, CheckoutPayload, CheckoutResponse};
+
+#[derive(Deserialize)]
+pub struct CriarCheckoutPayload {
+    pub id_usuario: String,
+    pub valor: String,
+    pub nome: String,
+    pub cpf: String,
+    pub email: String,
+    pub telefone: String,
+    pub endereco: String,
+    pub numero: String,
+    pub complemento: String,
+    pub cep: String,
+    pub bairro: String,
+    pub cidade: String,
+}
+
+pub async fn criar_checkout_handler(Json(payload): Json<CriarCheckoutPayload>) -> Json<CheckoutResponse> {
+    let checkout_payload = CheckoutPayload {
+        id_usuario: payload.id_usuario,
+        valor: payload.valor,
+        nome: payload.nome,
+        cpf: payload.cpf,
+        email: payload.email,
+        telefone: payload.telefone,
+        endereco: payload.endereco,
+        numero: payload.numero,
+        complemento: payload.complemento,
+        cep: payload.cep,
+        bairro: payload.bairro,
+        cidade: payload.cidade,
+    };
+    match criar_checkout_asaas(checkout_payload).await {
+        Ok(resp) => Json(resp),
+        Err(e) => Json(CheckoutResponse {
+            status: "erro".to_string(),
+            id: None,
+            payment_url: None,
+            mensagem: Some(e),
+        }),
+    }
+}
+use axum::{ extract::Path};
 use diesel::prelude::*;
 use serde::{Serialize, Deserialize};
 use chrono::NaiveDateTime;
@@ -116,6 +183,32 @@ pub async fn delete_assinatura_handler(Path(id_param): Path<String>) -> Json<boo
     Json(count > 0)
 }
 
+#[derive(Deserialize, Debug)]
+pub struct AsaasWebhookPayload {
+    pub event: String,
+    pub payment: Option<serde_json::Value>,
+    pub subscription: Option<serde_json::Value>,
+    pub customer: Option<serde_json::Value>,
+    // Adicione outros campos conforme necessário
+}
+
+pub async fn asaas_webhook_handler(Json(payload): Json<AsaasWebhookPayload>) -> Json<String> {
+    // Exemplo: processar evento de pagamento
+    match payload.event.as_str() {
+        "PAYMENT_RECEIVED" => {
+            // Aqui você pode atualizar status da assinatura, gerar notificação, etc.
+            // Exemplo: buscar id_usuario pelo payment ou subscription e atualizar
+            // TODO: implementar lógica completa conforme doc Asaas
+            Json("Pagamento recebido e processado".to_string())
+        },
+        "SUBSCRIPTION_CREATED" => {
+            // Lógica para assinatura criada
+            Json("Assinatura criada".to_string())
+        },
+        _ => Json(format!("Evento não tratado: {}", payload.event)),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -137,7 +230,8 @@ mod tests {
             format!("testuser_{}", user_id),
             format!("{}@test.com", user_id),
             "senha123".to_string(),
-            None, None, None, None, false, None, None, Some("ativo".to_string()), Some("free".to_string()), None, None, None
+            None, None, None, None, false, None, None, Some("ativo".to_string()), Some("free".to_string()), None, None, None,
+            "Rua Teste".to_string(), "123".to_string(), "Apto 1".to_string(), "12345-678".to_string(), "SP".to_string(), "São Paulo".to_string()
         );
         crate::services::auth::register::register_user_test(usuario).expect("Erro ao criar usuário de teste");
 

@@ -17,7 +17,7 @@ anyhow = "1.0"
 thiserror = "2.0.11"
 dotenvy = "0.15"
 chrono = { version = "0.4", features = ["serde"] }
-bcrypt = "0.15.1"
+bcrypt = "0.17.0"
 hyper = "1.6.0"
 tower = { version = "0.5.2", features = ["util"] }
 jsonwebtoken = "9.3.1"
@@ -26,3 +26,4 @@ uuid = { version = "1.17.0", features = ["v4"] }
 lazy_static = "1.4.0"
 mutex = "1.0.2"
 base64 = "0.22.1"
+reqwest = { version = "0.12.22", features = ["json"] }

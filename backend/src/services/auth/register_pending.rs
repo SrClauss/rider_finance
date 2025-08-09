@@ -1,23 +1,58 @@
 use axum::Json;
+use serde::Serialize;
 use serde::Deserialize;
 
 #[derive(Deserialize)]
 pub struct RegisterPendingPayload {
     pub nome_usuario: String,
     pub email: String,
+    pub nome_completo: Option<String>,
 }
 
-pub async fn register_pending_user_handler(Json(payload): Json<RegisterPendingPayload>) -> Json<String> {
+#[derive(Serialize)]
+pub struct RegisterResponse {
+    pub status: &'static str,
+    pub mensagem: String,
+    pub id: Option<String>,
+}
+
+pub async fn register_pending_user_handler(Json(payload): Json<RegisterPendingPayload>) -> Json<RegisterResponse> {
     let usuario = NewUsuario::new(
         None,
-        payload.nome_usuario,
-        payload.email,
+        payload.nome_usuario.clone(),
+        payload.email.clone(),
         "".to_string(),
-        None, None, None, None, false, None, None, None, None, None, None, None
+        payload.nome_completo.clone(),
+        None, // telefone
+        None, // veiculo
+        None, // data_inicio_atividade
+        false, // eh_pago
+        None, // id_pagamento
+        None, // metodo_pagamento
+        None, // status_pagamento
+        None, // tipo_assinatura
+        None, // trial_termina_em
+        None, // criado_em
+        None, // atualizado_em
+        "Rua Teste".to_string(), // address
+        "123".to_string(), // address_number
+        "Apto 1".to_string(), // complement
+        "29936-808".to_string(), // postal_code
+        "ES".to_string(), // province
+        "São Mateus".to_string(), // city
     );
+    let id_usuario = usuario.id.clone();
     match crate::services::auth::register_pending::register_pending_user(usuario) {
-        Ok(_) => Json("Usuário pendente registrado com sucesso".to_string()),
-        Err(e) => Json(format!("Erro: {}", e)),
+        Ok(_) => Json(RegisterResponse {
+            status: "ok",
+            mensagem: "Usuário pendente registrado com sucesso".to_string(),
+            id: Some(id_usuario),
+        }),
+        Err(e) => Json(RegisterResponse {
+            status: "erro",
+            mensagem: format!("Erro: {}", e),
+            id: None,
+        }),
     }
 }
 use diesel::prelude::*;

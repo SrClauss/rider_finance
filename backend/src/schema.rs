@@ -2,8 +2,8 @@
 
 diesel::table! {
     assinaturas (id) {
-        id -> Text,
-        id_usuario -> Text,
+        id -> Varchar,
+        id_usuario -> Varchar,
         tipo_plano -> Varchar,
         status -> Varchar,
         asaas_customer_id -> Varchar,
@@ -18,8 +18,8 @@ diesel::table! {
 
 diesel::table! {
     categorias (id) {
-        id -> Text,
-        id_usuario -> Nullable<Text>,
+        id -> Varchar,
+        id_usuario -> Nullable<Varchar>,
         nome -> Varchar,
         tipo -> Varchar,
         icone -> Nullable<Varchar>,
@@ -33,10 +33,10 @@ diesel::table! {
 
 diesel::table! {
     configuracoes (id) {
-        id -> Text,
-        id_usuario -> Text,
+        id -> Varchar,
+        id_usuario -> Nullable<Varchar>,
         chave -> Varchar,
-        valor -> Nullable<Text>,
+        valor -> Nullable<Varchar>,
         categoria -> Nullable<Varchar>,
         descricao -> Nullable<Varchar>,
         tipo_dado -> Nullable<Varchar>,
@@ -48,10 +48,10 @@ diesel::table! {
 
 diesel::table! {
     metas (id) {
-        id -> Text,
-        id_usuario -> Text,
+        id -> Varchar,
+        id_usuario -> Varchar,
         titulo -> Varchar,
-        descricao -> Nullable<Text>,
+        descricao -> Nullable<Varchar>,
         tipo -> Varchar,
         categoria -> Varchar,
         valor_alvo -> Int4,
@@ -71,8 +71,8 @@ diesel::table! {
 
 diesel::table! {
     sessoes_trabalho (id) {
-        id -> Text,
-        id_usuario -> Text,
+        id -> Varchar,
+        id_usuario -> Varchar,
         inicio -> Timestamp,
         fim -> Nullable<Timestamp>,
         total_minutos -> Nullable<Int4>,
@@ -82,7 +82,7 @@ diesel::table! {
         total_ganhos -> Int4,
         total_gastos -> Int4,
         plataforma -> Nullable<Varchar>,
-        observacoes -> Nullable<Text>,
+        observacoes -> Nullable<Varchar>,
         clima -> Nullable<Varchar>,
         eh_ativa -> Bool,
         criado_em -> Timestamp,
@@ -92,17 +92,17 @@ diesel::table! {
 
 diesel::table! {
     transacoes (id) {
-        id -> Text,
-        id_usuario -> Text,
-        id_categoria -> Text,
+        id -> Varchar,
+        id_usuario -> Varchar,
+        id_categoria -> Varchar,
         valor -> Int4,
-        descricao -> Nullable<Text>,
+        descricao -> Nullable<Varchar>,
         tipo -> Varchar,
         data -> Timestamp,
         origem -> Nullable<Varchar>,
         id_externo -> Nullable<Varchar>,
         plataforma -> Nullable<Varchar>,
-        observacoes -> Nullable<Text>,
+        observacoes -> Nullable<Varchar>,
         tags -> Nullable<Varchar>,
         criado_em -> Timestamp,
         atualizado_em -> Timestamp,
@@ -111,7 +111,7 @@ diesel::table! {
 
 diesel::table! {
     usuarios (id) {
-        id -> Text,
+        id -> Varchar,
         nome_usuario -> Varchar,
         email -> Varchar,
         senha -> Nullable<Varchar>,
@@ -128,6 +128,12 @@ diesel::table! {
         criado_em -> Timestamp,
         atualizado_em -> Timestamp,
         ultima_tentativa_redefinicao -> Nullable<Timestamp>,
+        address -> Varchar,
+        address_number -> Varchar,
+        complement -> Varchar,
+        postal_code -> Varchar,
+        province -> Varchar,
+        city -> Varchar,
     }
 }
 

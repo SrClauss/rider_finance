@@ -10,6 +10,7 @@ pub fn register_user_test(novo_usuario: NewUsuario) -> Result<(), String> {
     }
 }
 use axum::Json;
+use serde::Serialize;
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -19,26 +20,48 @@ pub struct RegisterPayload {
     pub senha: String,
 }
 
-pub async fn register_user_handler(Json(payload): Json<RegisterPayload>) -> Json<String> {
+#[derive(Serialize)]
+pub struct RegisterResponse {
+    pub status: String,
+    pub id: Option<String>,
+    pub mensagem: Option<String>,
+}
+
+pub async fn register_user_handler(Json(payload): Json<RegisterPayload>) -> Json<RegisterResponse> {
     let usuario = NewUsuario::new(
         None,
         payload.nome_usuario,
         payload.email,
         payload.senha,
-        None, None, None, None, false, None, None, None, None, None, None, None
+        None, None, None, None, false, None, None, None, None, None, None, None,
+        "Rua Teste".to_string(), // address
+        "123".to_string(), // address_number
+        "Apto 1".to_string(), // complement
+        "29936-808".to_string(), // postal_code
+        "ES".to_string(), // province
+        "São Mateus".to_string(), // city
     );
     match crate::services::auth::register::register_user(usuario) {
-        Ok(_) => Json("Usuário registrado com sucesso".to_string()),
-        Err(e) => Json(format!("Erro: {}", e)),
+        Ok(user_id) => Json(RegisterResponse {
+            status: "ok".to_string(),
+            id: Some(user_id),
+            mensagem: None,
+        }),
+        Err(e) => Json(RegisterResponse {
+            status: "erro".to_string(),
+            id: None,
+            mensagem: Some(e),
+        }),
     }
 }
 use diesel::prelude::*;
 use crate::models::NewUsuario;
 use crate::db;
 use crate::schema::usuarios::dsl::*;
+use crate::schema::usuarios::{email, nome_usuario};
 
 /// Serviço de registro de usuário já pronto (senha já deve estar hasheada)
-pub fn register_user(novo_usuario: NewUsuario) -> Result<(), String> {
+pub fn register_user(novo_usuario: NewUsuario) -> Result<String, String> {
     let conn = &mut db::establish_connection();
 
     // Validação de campos obrigatórios
@@ -66,5 +89,5 @@ pub fn register_user(novo_usuario: NewUsuario) -> Result<(), String> {
         .values(&novo_usuario)
         .execute(conn)
         .map_err(|e| format!("Erro ao inserir usuário: {}", e))?;
-    Ok(())
+    Ok(novo_usuario.id.clone())
 }

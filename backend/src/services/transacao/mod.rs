@@ -72,7 +72,8 @@ mod tests {
             format!("testuser_{}", user_id),
             format!("{}@test.com", user_id),
             "senha123".to_string(),
-            None, None, None, None, false, None, None, Some("ativo".to_string()), Some("free".to_string()), None, None, None
+            None, None, None, None, false, None, None, Some("ativo".to_string()), Some("free".to_string()), None, None, None,
+            "Rua Teste".to_string(), "123".to_string(), "Apto 1".to_string(), "12345-678".to_string(), "SP".to_string(), "São Paulo".to_string()
         );
         crate::services::auth::register::register_user_test(usuario).expect("Erro ao criar usuário de teste");
 

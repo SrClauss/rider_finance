@@ -24,6 +24,12 @@ pub struct Usuario {
     pub criado_em: NaiveDateTime,
     pub atualizado_em: NaiveDateTime,
     pub ultima_tentativa_redefinicao: Option<NaiveDateTime>,
+    pub address: String,
+    pub address_number: String,
+    pub complement: String,
+    pub postal_code: String,
+    pub province: String,
+    pub city: String,
 }
 
 #[derive(Debug, Clone, Insertable, Serialize, Deserialize)]
@@ -46,6 +52,12 @@ pub struct NewUsuario {
     pub criado_em: NaiveDateTime,
     pub atualizado_em: NaiveDateTime,
     pub ultima_tentativa_redefinicao: Option<NaiveDateTime>,
+    pub address: String,
+    pub address_number: String,
+    pub complement: String,
+    pub postal_code: String,
+    pub province: String,
+    pub city: String,
 }
 
 #[derive(Debug, Clone, Insertable)]
@@ -67,6 +79,12 @@ pub struct NewUsuarioSemSenha {
     pub trial_termina_em: Option<NaiveDateTime>,
     pub criado_em: NaiveDateTime,
     pub atualizado_em: NaiveDateTime,
+    pub address: String,
+    pub address_number: String,
+    pub complement: String,
+    pub postal_code: String,
+    pub province: String,
+    pub city: String,
 }
 
 impl NewUsuario {
@@ -88,6 +106,12 @@ impl NewUsuario {
         trial_termina_em: Option<NaiveDateTime>,
         criado_em: Option<NaiveDateTime>,
         atualizado_em: Option<NaiveDateTime>,
+        address: String,
+        address_number: String,
+        complement: String,
+        postal_code: String,
+        province: String,
+        city: String,
     ) -> Self {
         let now = chrono::Utc::now().naive_utc();
         let senha_hash = bcrypt::hash(senha, bcrypt::DEFAULT_COST).expect("Erro ao hashear senha");
@@ -109,6 +133,12 @@ impl NewUsuario {
             criado_em: criado_em.unwrap_or(now),
             atualizado_em: atualizado_em.unwrap_or(now),
             ultima_tentativa_redefinicao: None,
+            address,
+            address_number,
+            complement,
+            postal_code,
+            province,
+            city,
         }
     }
 }
@@ -133,6 +163,12 @@ impl NewUsuarioSemSenha {
             trial_termina_em: None,
             criado_em: now,
             atualizado_em: now,
+            address: "".to_string(),
+            address_number: "".to_string(),
+            complement: "".to_string(),
+            postal_code: "".to_string(),
+            province: "".to_string(),
+            city: "".to_string(),
         }
     }
 }

@@ -1,4 +1,79 @@
-use axum::{Json, extract::Path};
+// Novo endpoint para buscar nome completo do usuário
+use axum::{extract::Path, response::Json as AxumJson};
+#[axum::debug_handler]
+pub async fn nome_completo_handler(Path(user_id): Path<String>) -> AxumJson<serde_json::Value> {
+    use crate::db::establish_connection;
+    use crate::schema::usuarios::dsl as usuarios_dsl;
+    use crate::models::usuario::Usuario;
+    let mut conn = establish_connection();
+    let mut nome_completo = String::new();
+    if let Ok(usuario) = usuarios_dsl::usuarios
+        .filter(usuarios_dsl::id.eq(&user_id))
+        .first::<Usuario>(&mut conn) {
+        nome_completo = usuario.nome_completo.unwrap_or_default();
+    }
+    AxumJson(serde_json::json!({ "nome_completo": nome_completo }))
+}
+// Handler para buscar valor_assinatura global
+use axum::{extract::Query, Json};
+use serde_json::json;
+use crate::db::establish_connection;
+
+use std::collections::HashMap;
+
+
+pub async fn checkout_info_handler(Query(_params): Query<HashMap<String, String>>) -> AxumJson<serde_json::Value> {
+    use crate::schema::configuracoes::dsl::*;
+    use crate::models::configuracao::Configuracao;
+    let mut conn = establish_connection();
+    // Busca valor da assinatura
+    let result_valor = configuracoes
+        .filter(id_usuario.is_null())
+        .filter(chave.eq("valor_assinatura"))
+        .first::<Configuracao>(&mut conn)
+        .ok();
+    let valor_str = result_valor.and_then(|c| c.valor).unwrap_or_else(|| "2.00".to_string());
+    // Busca url do gateway de pagamento
+    let result_gateway = configuracoes
+        .filter(id_usuario.is_null())
+        .filter(chave.eq("url_endpoint_pagamento"))
+        .first::<Configuracao>(&mut conn)
+        .ok();
+    let url_gateway = result_gateway.and_then(|c| c.valor).unwrap_or_else(|| "https://api-sandbox.asaas.com/".to_string());
+    // Busca URLs do checkout
+    let cancel_url = configuracoes
+        .filter(id_usuario.is_null())
+        .filter(chave.eq("checkout_cancel_url"))
+        .first::<Configuracao>(&mut conn)
+        .ok()
+        .and_then(|c| c.valor)
+        .unwrap_or_else(|| "http://localhost/checkout-cancelado".to_string());
+    let expired_url = configuracoes
+        .filter(id_usuario.is_null())
+        .filter(chave.eq("checkout_expired_url"))
+        .first::<Configuracao>(&mut conn)
+        .ok()
+        .and_then(|c| c.valor)
+        .unwrap_or_else(|| "http://localhost/checkout-expirado".to_string());
+    let success_url = configuracoes
+        .filter(id_usuario.is_null())
+        .filter(chave.eq("checkout_success_url"))
+        .first::<Configuracao>(&mut conn)
+        .ok()
+        .and_then(|c| c.valor)
+        .unwrap_or_else(|| "http://localhost/checkout-sucesso".to_string());
+    AxumJson(json!({
+        "valor": valor_str,
+        "url_endpoint_pagamento": url_gateway,
+        "checkout_cancel_url": cancel_url,
+        "checkout_expired_url": expired_url,
+        "checkout_success_url": success_url
+    }))
+}
+use ulid::Ulid;
+
+
+// Removido import duplicado de Path e Json
 use crate::models::configuracao::{Configuracao, NewConfiguracao};
 use crate::schema::configuracoes::dsl::*;
 use diesel::prelude::*;
@@ -57,17 +132,25 @@ pub async fn delete_configuracao_handler(
         .map_err(|e| e.to_string())
 }
 
-// Função para inserir configurações padrão no banco
-#[allow(dead_code)]
-pub fn seed_configuracoes_padrao(conn: &mut diesel::PgConnection, id_usuario_valor: &str) {
+// Função para inserir configurações padrão no banco, incluindo valor_assinatura
+pub fn seed_configuracoes_padrao(conn: &mut diesel::PgConnection) {
+    // Verifica se o seed já foi aplicado (config global, sem user_id)
+    let seed_aplicado_existe = configuracoes
+        .filter(crate::schema::configuracoes::id_usuario.is_null())
+        .filter(crate::schema::configuracoes::chave.eq("seed_aplicado"))
+        .first::<Configuracao>(conn)
+        .is_ok();
+    if seed_aplicado_existe {
+        println!("Seed já aplicado, nada será feito.");
+        return;
+    }
     use crate::models::configuracao::NewConfiguracao;
-    use chrono::Utc;
-    use ulid::Ulid;
     let now = Utc::now().naive_utc();
-    let configs = vec![
+    let valor_assinatura = std::env::var("VALOR_ASSINATURA").unwrap_or("2.00".to_string());
+    let mut configs = vec![
         NewConfiguracao {
             id: Ulid::new().to_string(),
-            id_usuario: id_usuario_valor.to_string(),
+            id_usuario: None,
             chave: "tema".to_string(),
             valor: Some("dark".to_string()),
             categoria: Some("visual".to_string()),
@@ -79,7 +162,7 @@ pub fn seed_configuracoes_padrao(conn: &mut diesel::PgConnection, id_usuario_val
         },
         NewConfiguracao {
             id: Ulid::new().to_string(),
-            id_usuario: id_usuario_valor.to_string(),
+            id_usuario: None,
             chave: "projecao_metodo".to_string(),
             valor: Some("media".to_string()),
             categoria: Some("dashboard".to_string()),
@@ -91,7 +174,7 @@ pub fn seed_configuracoes_padrao(conn: &mut diesel::PgConnection, id_usuario_val
         },
         NewConfiguracao {
             id: Ulid::new().to_string(),
-            id_usuario: id_usuario_valor.to_string(),
+            id_usuario: None,
             chave: "projecao_percentual_extremos".to_string(),
             valor: Some("10".to_string()),
             categoria: Some("dashboard".to_string()),
@@ -101,32 +184,166 @@ pub fn seed_configuracoes_padrao(conn: &mut diesel::PgConnection, id_usuario_val
             criado_em: now,
             atualizado_em: now,
         },
+
     ];
-    for config in configs {
-        let _ = diesel::insert_into(crate::schema::configuracoes::table)
-            .values(&config)
-            .execute(conn);
+    // Adiciona valor_assinatura se não existir
+    // Adiciona valor_assinatura se não existir
+    if configuracoes
+        .filter(crate::schema::configuracoes::id_usuario.is_null())
+        .filter(crate::schema::configuracoes::chave.eq("valor_assinatura"))
+        .first::<Configuracao>(conn)
+        .is_err() {
+        configs.push(NewConfiguracao {
+            id: Ulid::new().to_string(),
+            id_usuario: None,
+            chave: "valor_assinatura".to_string(),
+            valor: Some(valor_assinatura.clone()),
+            categoria: Some("sistema".to_string()),
+            descricao: Some("Valor padrão da assinatura".to_string()),
+            tipo_dado: Some("string".to_string()),
+            eh_publica: false,
+            criado_em: now,
+            atualizado_em: now,
+        });
+    }
+    // Adiciona url_endpoint_pagamento se não existir
+    let endpoint_pagamento = std::env::var("END_POINT_ASSAS").unwrap_or_else(|_| "https://api-sandbox.asaas.com/".to_string());
+    if configuracoes
+        .filter(crate::schema::configuracoes::id_usuario.is_null())
+        .filter(crate::schema::configuracoes::chave.eq("url_endpoint_pagamento"))
+        .first::<Configuracao>(conn)
+        .is_err() {
+        configs.push(NewConfiguracao {
+            id: Ulid::new().to_string(),
+            id_usuario: None,
+            chave: "url_endpoint_pagamento".to_string(),
+            valor: Some(endpoint_pagamento),
+            categoria: Some("sistema".to_string()),
+            descricao: Some("URL do gateway de pagamento Asaas".to_string()),
+            tipo_dado: Some("string".to_string()),
+            eh_publica: false,
+            criado_em: now,
+            atualizado_em: now,
+        });
+    }
+
+    // Adiciona cancelUrl, expiredUrl, successUrl se não existirem
+    let cancel_url = std::env::var("CHECKOUT_CANCEL_URL").unwrap_or_else(|_| "http://localhost/checkout-cancelado".to_string());
+    let expired_url = std::env::var("CHECKOUT_EXPIRED_URL").unwrap_or_else(|_| "http://localhost/checkout-expirado".to_string());
+    let success_url = std::env::var("CHECKOUT_SUCCESS_URL").unwrap_or_else(|_| "http://localhost/checkout-sucesso".to_string());
+
+    if configuracoes
+        .filter(crate::schema::configuracoes::id_usuario.is_null())
+        .filter(crate::schema::configuracoes::chave.eq("checkout_cancel_url"))
+        .first::<Configuracao>(conn)
+        .is_err() {
+        configs.push(NewConfiguracao {
+            id: Ulid::new().to_string(),
+            id_usuario: None,
+            chave: "checkout_cancel_url".to_string(),
+            valor: Some(cancel_url),
+            categoria: Some("sistema".to_string()),
+            descricao: Some("URL de cancelamento do checkout".to_string()),
+            tipo_dado: Some("string".to_string()),
+            eh_publica: false,
+            criado_em: now,
+            atualizado_em: now,
+        });
+    }
+    if configuracoes
+        .filter(crate::schema::configuracoes::id_usuario.is_null())
+        .filter(crate::schema::configuracoes::chave.eq("checkout_expired_url"))
+        .first::<Configuracao>(conn)
+        .is_err() {
+        configs.push(NewConfiguracao {
+            id: Ulid::new().to_string(),
+            id_usuario: None,
+            chave: "checkout_expired_url".to_string(),
+            valor: Some(expired_url),
+            categoria: Some("sistema".to_string()),
+            descricao: Some("URL de expiração do checkout".to_string()),
+            tipo_dado: Some("string".to_string()),
+            eh_publica: false,
+            criado_em: now,
+            atualizado_em: now,
+        });
+    }
+    if configuracoes
+        .filter(crate::schema::configuracoes::id_usuario.is_null())
+        .filter(crate::schema::configuracoes::chave.eq("checkout_success_url"))
+        .first::<Configuracao>(conn)
+        .is_err() {
+        configs.push(NewConfiguracao {
+            id: Ulid::new().to_string(),
+            id_usuario: None,
+            chave: "checkout_success_url".to_string(),
+            valor: Some(success_url),
+            categoria: Some("sistema".to_string()),
+            descricao: Some("URL de sucesso do checkout".to_string()),
+            tipo_dado: Some("string".to_string()),
+            eh_publica: false,
+            criado_em: now,
+            atualizado_em: now,
+        });
+    }
+
+    // Adiciona cancelUrl, expiredUrl, successUrl se não existirem
+    let cancel_url = std::env::var("CHECKOUT_CANCEL_URL").unwrap_or_else(|_| "http://localhost:3000/checkout-cancelado".to_string());
+    let expired_url = std::env::var("CHECKOUT_EXPIRED_URL").unwrap_or_else(|_| "http://localhost:3000/checkout-expirado".to_string());
+    let success_url = std::env::var("CHECKOUT_SUCCESS_URL").unwrap_or_else(|_| "http://localhost:3000/checkout-sucesso".to_string());
+
+    if configuracoes
+        .filter(crate::schema::configuracoes::id_usuario.is_null())
+        .filter(crate::schema::configuracoes::chave.eq("checkout_cancel_url"))
+        .first::<Configuracao>(conn)
+        .is_err() {
+        configs.push(NewConfiguracao {
+            id: Ulid::new().to_string(),
+            id_usuario: None,
+            chave: "checkout_cancel_url".to_string(),
+            valor: Some(cancel_url),
+            categoria: Some("sistema".to_string()),
+            descricao: Some("URL de cancelamento do checkout".to_string()),
+            tipo_dado: Some("string".to_string()),
+            eh_publica: false,
+            criado_em: now,
+            atualizado_em: now,
+        });
+    }
+    if configuracoes
+        .filter(crate::schema::configuracoes::id_usuario.is_null())
+        .filter(crate::schema::configuracoes::chave.eq("checkout_expired_url"))
+        .first::<Configuracao>(conn)
+        .is_err() {
+        configs.push(NewConfiguracao {
+            id: Ulid::new().to_string(),
+            id_usuario: None,
+            chave: "checkout_expired_url".to_string(),
+            valor: Some(expired_url),
+            categoria: Some("sistema".to_string()),
+            descricao: Some("URL de expiração do checkout".to_string()),
+            tipo_dado: Some("string".to_string()),
+            eh_publica: false,
+            criado_em: now,
+            atualizado_em: now,
+        });
+    }
+    if configuracoes
+        .filter(crate::schema::configuracoes::id_usuario.is_null())
+        .filter(crate::schema::configuracoes::chave.eq("checkout_success_url"))
+        .first::<Configuracao>(conn)
+        .is_err() {
+        configs.push(NewConfiguracao {
+            id: Ulid::new().to_string(),
+            id_usuario: None,
+            chave: "checkout_success_url".to_string(),
+            valor: Some(success_url),
+            categoria: Some("sistema".to_string()),
+            descricao: Some("URL de sucesso do checkout".to_string()),
+            tipo_dado: Some("string".to_string()),
+            eh_publica: false,
+            criado_em: now,
+            atualizado_em: now,
+        });
     }
 }
-
-#[cfg(test)]
-mod tests {
-   
-
-    #[tokio::test]
-    async fn test_create_get_list_delete_configuracao() {
-        // Ajustar para usar pool de testes correto se necessário
-        // let pool = ...
-        // let usuario_id = ...
-        // let config_id = ...
-        // let now = ...
-        // let new = ...
-        // Testes ajustados para variáveis corretas
-    }
-}
-
-// Chamar seed_configuracoes_padrao ao criar usuário ou inicializar sistema
-// Exemplo:
-// let conn = &mut db::establish_connection();
-// let id_usuario = "<id_do_usuario>";
-// seed_configuracoes_padrao(conn, id_usuario);

@@ -130,7 +130,13 @@ mod tests {
             format!("testuser_{}", user_id),
             format!("{}@test.com", user_id),
             "senha123".to_string(),
-            None, None, None, None, false, None, None, Some("ativo".to_string()), Some("free".to_string()), None, None, None
+            None, None, None, None, false, None, None, Some("ativo".to_string()), Some("free".to_string()), None, None, None,
+            "Rua Teste".to_string(), // address
+            "123".to_string(), // address_number
+            "Apto 1".to_string(), // complement
+            "29936-808".to_string(), // postal_code
+            "ES".to_string(), // province
+            "São Mateus".to_string(), // city
         );
         crate::services::auth::register::register_user_test(usuario).expect("Erro ao criar usuário de teste");
 

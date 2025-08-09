@@ -19,7 +19,8 @@ mod tests {
             "resetuser".to_string(),
             "reset@email.com".to_string(),
             "senha123".to_string(),
-            None, None, None, None, false, None, None, None, None, None, None, None
+            None, None, None, None, false, None, None, None, None, None, None, None,
+            "Rua Teste".to_string(), "123".to_string(), "Apto 1".to_string(), "12345-678".to_string(), "SP".to_string(), "São Paulo".to_string()
         );
         let conn = &mut db::establish_connection_test();
         diesel::insert_into(usuarios)
@@ -69,7 +70,8 @@ mod tests {
             "useropt".to_string(),
             "useropt@email.com".to_string(),
             "senha123".to_string(),
-            None, None, None, None, false, None, None, None, None, None, None, None
+            None, None, None, None, false, None, None, None, None, None, None, None,
+            "Rua Teste".to_string(), "123".to_string(), "Apto 1".to_string(), "12345-678".to_string(), "SP".to_string(), "São Paulo".to_string()
         );
         let res = crate::services::auth::register::register_user(usuario);
         assert!(res.is_ok(), "Usuário sem campos opcionais deveria ser registrado");
@@ -84,7 +86,8 @@ mod tests {
             "".to_string(), // nome_usuario vazio
             "".to_string(), // email vazio
             "".to_string(), // senha vazia
-            None, None, None, None, false, None, None, None, None, None, None, None
+            None, None, None, None, false, None, None, None, None, None, None, None,
+            "Rua Teste".to_string(), "123".to_string(), "Apto 1".to_string(), "12345-678".to_string(), "SP".to_string(), "São Paulo".to_string()
         );
         let res = crate::services::auth::register::register_user(usuario);
         assert!(res.is_err(), "Cadastro com campos obrigatórios vazios deveria falhar");
@@ -98,14 +101,16 @@ mod tests {
             "dupuser".to_string(),
             "dup@email.com".to_string(),
             "senha123".to_string(),
-            None, None, None, None, false, None, None, None, None, None, None, None
+            None, None, None, None, false, None, None, None, None, None, None, None,
+            "Rua Teste".to_string(), "123".to_string(), "Apto 1".to_string(), "12345-678".to_string(), "SP".to_string(), "São Paulo".to_string()
         );
         let usuario2 = NewUsuario::new(
             None,
             "dupuser".to_string(), // nome_usuario duplicado
             "dup@email.com".to_string(), // email duplicado
             "senha123".to_string(),
-            None, None, None, None, false, None, None, None, None, None, None, None
+            None, None, None, None, false, None, None, None, None, None, None, None,
+            "Rua Teste".to_string(), "123".to_string(), "Apto 1".to_string(), "12345-678".to_string(), "SP".to_string(), "São Paulo".to_string()
         );
         let res1 = crate::services::auth::register::register_user(usuario1);
         assert!(res1.is_ok(), "Primeiro cadastro deveria funcionar");
@@ -123,7 +128,8 @@ mod tests {
             long_str.clone(),
             format!("{}@email.com", long_str),
             long_str.clone(),
-            None, None, None, None, false, None, None, None, None, None, None, None
+            None, None, None, None, false, None, None, None, None, None, None, None,
+            long_str.clone(), long_str.clone(), long_str.clone(), long_str.clone(), long_str.clone(), long_str.clone()
         );
         // Serialização
         let ser = serde_json::to_string(&usuario);
@@ -141,7 +147,8 @@ mod tests {
             "testuser".to_string(),
             "test@email.com".to_string(),
             "senha123".to_string(),
-            None, None, None, None, false, None, None, None, None, None, None, None
+            None, None, None, None, false, None, None, None, None, None, None, None,
+            "Rua Teste".to_string(), "123".to_string(), "Apto 1".to_string(), "12345-678".to_string(), "SP".to_string(), "São Paulo".to_string()
         );
         let res = crate::services::auth::register::register_user(usuario.clone());
         assert!(res.is_ok());
@@ -160,7 +167,8 @@ mod tests {
             "pendinguser".to_string(),
             "pending@email.com".to_string(),
             "".to_string(),
-            None, None, None, None, false, None, None, None, None, None, None, None
+            None, None, None, None, false, None, None, None, None, None, None, None,
+            "Rua Teste".to_string(), "123".to_string(), "Apto 1".to_string(), "12345-678".to_string(), "SP".to_string(), "São Paulo".to_string()
         );
         let res = crate::services::auth::register_pending::register_pending_user(usuario);
         assert!(res.is_ok());
@@ -174,7 +182,8 @@ mod tests {
             "resetuser".to_string(),
             "reset@email.com".to_string(),
             "senha123".to_string(),
-            None, None, None, None, false, None, None, None, None, None, None, None
+            None, None, None, None, false, None, None, None, None, None, None, None,
+            "Rua Teste".to_string(), "123".to_string(), "Apto 1".to_string(), "12345-678".to_string(), "SP".to_string(), "São Paulo".to_string()
         );
         let _ = crate::services::auth::register::register_user(usuario.clone());
         let res = crate::services::auth::reset_password::reset_password(&usuario.id, "nova_senha");
@@ -189,7 +198,8 @@ mod tests {
             "serviceuser".to_string(),
             "service@email.com".to_string(),
             "senha123".to_string(),
-            None, None, None, None, false, None, None, None, None, None, None, None
+            None, None, None, None, false, None, None, None, None, None, None, None,
+            "Rua Teste".to_string(), "123".to_string(), "Apto 1".to_string(), "12345-678".to_string(), "SP".to_string(), "São Paulo".to_string()
         );
         let _ = crate::services::auth::register::register_user(usuario.clone());
         // Busca usuário do banco
