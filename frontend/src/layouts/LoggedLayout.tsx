@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import { useTitle } from "../context/TitleContext";
 import AppBar from "@mui/material/AppBar";
 import Box from "@mui/material/Box";
 import CssBaseline from "@mui/material/CssBaseline";
@@ -22,32 +21,25 @@ import LogoutIcon from "@mui/icons-material/Logout";
 
 const drawerWidth = 240;
 
-interface MainLayoutProps {
+interface LoggedLayoutProps {
   children: React.ReactNode;
 }
 
-export default function MainLayout({ children }: MainLayoutProps) {
+export default function LoggedLayout({ children }: LoggedLayoutProps) {
   const [mobileOpen, setMobileOpen] = React.useState(false);
-  const { title } = useTitle();
-
-  // Títulos que não devem exibir sidebar/appbar
-  const hideSidebarTitles = ["Login", "Registrar", "Redefinir"];
-  const shouldHideSidebar = hideSidebarTitles.includes(title);
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
   };
   const handleLogout = () => {
-    // Lógica de logout, como limpar cookies ou redirecionar
     document.cookie = "authToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    window.location.href = "/login"; // Redireciona para a página de login
+    window.location.href = "/login";
   };
-  // Exemplo de itens do menu lateral
+
   const drawer = (
     <div>
       <Toolbar>
         <Typography variant="h6" noWrap component="div">
-          
           Rider Finance
         </Typography>
       </Toolbar>
@@ -70,11 +62,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
           </ListItemButton>
         </ListItem>
         <ListItem key="Sair" disablePadding>
-          <ListItemButton
-
-          onClick={handleLogout}
-          
-          >
+          <ListItemButton onClick={handleLogout}>
             <ListItemIcon>
               <LogoutIcon />
             </ListItemIcon>
@@ -84,11 +72,6 @@ export default function MainLayout({ children }: MainLayoutProps) {
       </List>
     </div>
   );
-
-  if (shouldHideSidebar) {
-    // Layout simples, sem sidebar nem AppBar
-    return <Box sx={{ minHeight: "100vh" }}>{children}</Box>;
-  }
 
   return (
     <Box sx={{ display: "flex" }}>
@@ -111,8 +94,8 @@ export default function MainLayout({ children }: MainLayoutProps) {
           >
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" noWrap component="div" data-testid="appbar-title">
-            {title}
+          <Typography variant="h6" noWrap component="div">
+            Rider Finance
           </Typography>
         </Toolbar>
       </AppBar>
