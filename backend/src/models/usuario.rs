@@ -30,6 +30,7 @@ pub struct Usuario {
     pub postal_code: String,
     pub province: String,
     pub city: String,
+    pub cpfcnpj: Option<String>,
 }
 
 #[derive(Debug, Clone, Insertable, Serialize, Deserialize)]
@@ -58,6 +59,7 @@ pub struct NewUsuario {
     pub postal_code: String,
     pub province: String,
     pub city: String,
+    pub cpfcnpj: Option<String>,
 }
 
 #[derive(Debug, Clone, Insertable)]
@@ -110,8 +112,9 @@ impl NewUsuario {
         address_number: String,
         complement: String,
         postal_code: String,
-        province: String,
-        city: String,
+    province: String,
+    city: String,
+    cpfcnpj: Option<String>,
     ) -> Self {
         let now = chrono::Utc::now().naive_utc();
         let senha_hash = bcrypt::hash(senha, bcrypt::DEFAULT_COST).expect("Erro ao hashear senha");
@@ -139,6 +142,7 @@ impl NewUsuario {
             postal_code,
             province,
             city,
+            cpfcnpj,
         }
     }
 }

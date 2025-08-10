@@ -307,11 +307,14 @@ mod tests {
     use axum::Json;
     use chrono::Utc;
     use ulid::Ulid;
+    use diesel_migrations::{embed_migrations, MigrationHarness};
+    pub const MIGRATIONS: diesel_migrations::EmbeddedMigrations = embed_migrations!("migrations");
 
     #[tokio::test]
     async fn test_create_get_list_update_delete_meta() {
         // Usa banco de dados de testes e faz limpeza total
         let conn = &mut db::establish_connection_test();
+        conn.run_pending_migrations(MIGRATIONS).expect("Falha ao rodar migrações no banco de testes");
         diesel::sql_query("PRAGMA foreign_keys = OFF;").execute(conn).ok();
         diesel::sql_query("DELETE FROM metas;").execute(conn).ok();
         diesel::sql_query("DELETE FROM transacoes;").execute(conn).ok();
@@ -326,7 +329,7 @@ mod tests {
             format!("{}@test.com", user_id),
             "senha123".to_string(),
             None, None, None, None, false, None, None, Some("ativo".to_string()), Some("free".to_string()), None, None, None,
-            "Rua Teste".to_string(), "123".to_string(), "Apto 1".to_string(), "12345-678".to_string(), "SP".to_string(), "São Paulo".to_string()
+            "Rua Teste".to_string(), "123".to_string(), "Apto 1".to_string(), "12345-678".to_string(), "SP".to_string(), "São Paulo".to_string(), None
         );
         crate::services::auth::register::register_user_test(usuario).expect("Erro ao criar usuário de teste");
 

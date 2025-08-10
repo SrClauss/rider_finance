@@ -2,7 +2,7 @@
   "name": "dev-helper",
   "displayName": "Dev Helper",
   "description": "Extensão para abrir terminais e iniciar serviços de desenvolvimento (backend, frontend, nginx) de forma automatizada.",
-  "version": "0.5.0",
+  "version": "0.2.0",
   "engines": {
     "vscode": ">=1.70.0"
   },

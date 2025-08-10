@@ -13,11 +13,22 @@ use axum::Json;
 use serde::Serialize;
 use serde::Deserialize;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct RegisterPayload {
     pub nome_usuario: String,
     pub email: String,
     pub senha: String,
+    pub nome_completo: Option<String>,
+    pub telefone: Option<String>,
+    pub veiculo: Option<String>,
+    pub address: String,
+    pub address_number: String,
+    pub complement: String,
+    pub postal_code: String,
+    pub province: String,
+    pub city: String,
+    pub captcha_token: String,
+    pub captcha_answer: String,
 }
 
 #[derive(Serialize)]
@@ -28,18 +39,32 @@ pub struct RegisterResponse {
 }
 
 pub async fn register_user_handler(Json(payload): Json<RegisterPayload>) -> Json<RegisterResponse> {
+  
+
     let usuario = NewUsuario::new(
         None,
         payload.nome_usuario,
         payload.email,
         payload.senha,
-        None, None, None, None, false, None, None, None, None, None, None, None,
-        "Rua Teste".to_string(), // address
-        "123".to_string(), // address_number
-        "Apto 1".to_string(), // complement
-        "29936-808".to_string(), // postal_code
-        "ES".to_string(), // province
-        "São Mateus".to_string(), // city
+        payload.nome_completo,
+        payload.telefone,
+        payload.veiculo,
+        None, // data_inicio_atividade
+        false,
+        None, // id_pagamento
+        None, // metodo_pagamento
+        None, // status_pagamento
+        None, // tipo_assinatura
+        None, // trial_termina_em
+        None, // criado_em
+        None, // atualizado_em
+        payload.address,
+        payload.address_number,
+        payload.complement,
+        payload.postal_code,
+        payload.province,
+        payload.city,
+        None, // cpf_cnpj
     );
     match crate::services::auth::register::register_user(usuario) {
         Ok(user_id) => Json(RegisterResponse {

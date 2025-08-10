@@ -18,7 +18,7 @@ export default function AssinaturaPage() {
   const [successUrl, setSuccessUrl] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [nomeCompleto, setNomeCompleto] = useState('');
+  const [usuario, setUsuario] = useState<any>(null);
   const searchParams = useSearchParams();
   const idUsuario = searchParams.get('id_usuario') || '';
 
@@ -40,19 +40,16 @@ export default function AssinaturaPage() {
         setError('Erro ao buscar configurações do sistema');
         setLoading(false);
       });
-    // Buscar nome completo do usuário
-    axios.get(`/api/usuario/nome-completo/${idUsuario}`)
+    // Buscar objeto completo do usuário
+    axios.get(`/api/usuario/${idUsuario}`)
       .then(res => {
-        console.log('Resposta /api/usuario/nome-completo:', res);
-        setNomeCompleto(res.data.nome_completo ?? '');
+        console.log('Resposta /api/usuario:', res);
+        setUsuario(res.data ?? null);
       })
       .catch(err => {
-        console.log('Erro /api/usuario/nome-completo:', err);
+        console.log('Erro /api/usuario:', err);
       });
   }, [idUsuario]);
-  useEffect(() => {
-    console.log(nomeCompleto);
-  }, [nomeCompleto]);
   if (!isClient) return null;
   if (loading) {
     return (
@@ -71,8 +68,9 @@ export default function AssinaturaPage() {
     );
   }
   const handleCheckout = async () => {
+
     if (!idUsuario || !valor || !!error) return;
-    if (!nomeCompleto || nomeCompleto.trim().length < 2) {
+    if (!usuario || !usuario.nome_completo || usuario.nome_completo.trim().length < 2) {
       setError('Preencha o nome completo para continuar');
       return;
     }
@@ -80,21 +78,21 @@ export default function AssinaturaPage() {
       const res = await axios.post('/api/assinatura/checkout', {
         id_usuario: idUsuario,
         valor,
-        nome: nomeCompleto,
-        cpf: '10700418741',
-        email: 'clausemberg@yahoo.com.br',
-        telefone: '',
-        endereco: '',
-        numero: '',
-        complemento: '',
-        cep: '',
-        bairro: '',
-        cidade: ''
+        nome: usuario.nome_completo,
+        cpf: usuario.cpf || '',
+        email: usuario.email || '',
+        telefone: usuario.telefone || '',
+        endereco: usuario.address || '',
+        numero: usuario.address_number || '',
+        complemento: usuario.complement || '',
+        cep: usuario.postal_code || '',
+        bairro: usuario.province || '',
+        cidade: usuario.city || ''
       });
-      console.log('Resposta /api/assinatura/checkout:', res);
-      const id = res.data.id;
-      if (id) {
-        window.location.href = `https://asaas.com/checkoutSession/show?id=${id}`;
+      const link = res.data.link;
+      if (link) {
+        window.location.href = link;
+        console.log('Resposta /api/assinatura/checkout:', res);
       } else {
         setError('Erro ao criar checkout');
       }

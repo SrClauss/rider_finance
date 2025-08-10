@@ -134,6 +134,7 @@ diesel::table! {
         postal_code -> Varchar,
         province -> Varchar,
         city -> Varchar,
+    cpfcnpj -> Nullable<Varchar>,
     }
 }
 

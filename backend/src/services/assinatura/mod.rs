@@ -59,6 +59,7 @@ pub async fn criar_checkout_handler(Json(payload): Json<CriarCheckoutPayload>) -
         Ok(resp) => Json(resp),
         Err(e) => Json(CheckoutResponse {
             status: "erro".to_string(),
+            link: None,
             id: None,
             payment_url: None,
             mensagem: Some(e),
@@ -216,9 +217,13 @@ mod tests {
     use ulid::Ulid;
     use chrono::Utc;
 
+    use diesel_migrations::{embed_migrations, MigrationHarness};
+    pub const MIGRATIONS: diesel_migrations::EmbeddedMigrations = embed_migrations!("migrations");
+
     #[tokio::test]
     async fn test_create_get_list_delete_assinatura() {
         let conn = &mut db::establish_connection_test();
+        conn.run_pending_migrations(MIGRATIONS).expect("Falha ao rodar migrações no banco de testes");
         diesel::sql_query("PRAGMA foreign_keys = OFF;").execute(conn).ok();
         diesel::sql_query("DELETE FROM assinaturas;").execute(conn).ok();
         diesel::sql_query("DELETE FROM usuarios;").execute(conn).ok();
@@ -231,7 +236,7 @@ mod tests {
             format!("{}@test.com", user_id),
             "senha123".to_string(),
             None, None, None, None, false, None, None, Some("ativo".to_string()), Some("free".to_string()), None, None, None,
-            "Rua Teste".to_string(), "123".to_string(), "Apto 1".to_string(), "12345-678".to_string(), "SP".to_string(), "São Paulo".to_string()
+            "Rua Teste".to_string(), "123".to_string(), "Apto 1".to_string(), "12345-678".to_string(), "SP".to_string(), "São Paulo".to_string(), None
         );
         crate::services::auth::register::register_user_test(usuario).expect("Erro ao criar usuário de teste");
 

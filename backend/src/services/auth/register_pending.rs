@@ -40,6 +40,7 @@ pub async fn register_pending_user_handler(Json(payload): Json<RegisterPendingPa
         "29936-808".to_string(), // postal_code
         "ES".to_string(), // province
         "São Mateus".to_string(), // city
+        None, // cpf_cnpj
     );
     let id_usuario = usuario.id.clone();
     match crate::services::auth::register_pending::register_pending_user(usuario) {

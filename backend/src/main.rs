@@ -4,6 +4,8 @@ use backend::services::auth::request_password_reset::request_password_reset_hand
 use backend::services::captcha::generate_captcha_handler;
 use backend::db;
 use backend::services::configuracao;
+use backend::services::webhook;
+use backend::services::webhook::webhook::routes;
 
 #[tokio::main]
 async fn main() {
@@ -12,7 +14,7 @@ async fn main() {
     use backend::services::meta::{list_metas_a_cumprir_handler, list_metas_cumpridas_handler};
     use backend::services::categoria::{create_categoria_handler, list_categorias_handler, get_categoria_handler, delete_categoria_handler};
     use backend::services::assinatura::{create_assinatura_handler, get_assinatura_handler, list_assinaturas_handler, delete_assinatura_handler, asaas_webhook_handler, criar_checkout_handler};
-    use backend::services::configuracao::{checkout_info_handler, nome_completo_handler};
+    use backend::services::configuracao::{checkout_info_handler, usuario_completo_handler};
     let app = Router::new()
         .route("/api/register", post(register_user_handler))
         .route("/api/register-pending", post(register_pending_user_handler))
@@ -35,13 +37,15 @@ async fn main() {
         .route("/api/assinatura", post(create_assinatura_handler))
         .route("/api/assinatura/{id}", get(get_assinatura_handler))
     .route("/api/checkout-info", get(checkout_info_handler))
-    .route("/api/usuario/nome-completo/{id}", get(nome_completo_handler))
+    .route("/api/usuario/{id}", get(usuario_completo_handler))
         .route("/api/assinatura/{id}", delete(delete_assinatura_handler))
         .route("/api/assinaturas/{id_usuario}", get(list_assinaturas_handler))
         .route("/api/assinatura/criar", post(backend::services::assinatura::criar_cliente_handler))
     .route("/api/assinatura/checkout", post(criar_checkout_handler))
         // .route("/api/usuario/{id}", get(get_usuario_info_handler)) // Removido pois não existe ou está no lugar errado
-        .route("/api/webhook/asaas", post(asaas_webhook_handler));
+        .route("/api/webhook/asaas", post(asaas_webhook_handler))
+        .merge(routes());
+ 
 
     // Seed automático de configurações iniciais no main
     let conn = &mut db::establish_connection();

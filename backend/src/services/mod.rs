@@ -6,3 +6,4 @@ pub mod meta;
 pub mod categoria;
 pub mod assinatura;
 pub mod configuracao;
+pub mod webhook;

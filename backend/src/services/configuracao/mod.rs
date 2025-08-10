@@ -1,18 +1,16 @@
-// Novo endpoint para buscar nome completo do usuário
+// Novo endpoint para buscar o objeto completo do usuário
 use axum::{extract::Path, response::Json as AxumJson};
 #[axum::debug_handler]
-pub async fn nome_completo_handler(Path(user_id): Path<String>) -> AxumJson<serde_json::Value> {
+pub async fn usuario_completo_handler(Path(user_id): Path<String>) -> AxumJson<Option<crate::models::usuario::Usuario>> {
     use crate::db::establish_connection;
     use crate::schema::usuarios::dsl as usuarios_dsl;
     use crate::models::usuario::Usuario;
     let mut conn = establish_connection();
-    let mut nome_completo = String::new();
-    if let Ok(usuario) = usuarios_dsl::usuarios
+    let usuario = usuarios_dsl::usuarios
         .filter(usuarios_dsl::id.eq(&user_id))
-        .first::<Usuario>(&mut conn) {
-        nome_completo = usuario.nome_completo.unwrap_or_default();
-    }
-    AxumJson(serde_json::json!({ "nome_completo": nome_completo }))
+        .first::<Usuario>(&mut conn)
+        .ok();
+    AxumJson(usuario)
 }
 // Handler para buscar valor_assinatura global
 use axum::{extract::Query, Json};

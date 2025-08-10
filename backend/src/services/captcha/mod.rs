@@ -1,16 +1,16 @@
 use axum::{response::IntoResponse, Json};
-use captcha::{Captcha};
+use captcha::{filters, Captcha};
 use serde::Serialize;
 use uuid::Uuid;
 use lazy_static::lazy_static;
 use std::sync::Mutex;
 use std::collections::HashMap;
-use base64::{engine::general_purpose, Engine as _}; // Importando base64 para codificar o SVG
+use base64::{engine::general_purpose, Engine as _}; // Importando base64 para codificar o png
 // Estrutura de resposta do captcha
 #[derive(Serialize)]
 pub struct CaptchaResponse {
     pub token: String,
-    pub svg: String,}
+    pub png: String,}
 
 // Armazena o texto do captcha gerado para cada token (em memória)
 lazy_static! {
@@ -21,12 +21,15 @@ lazy_static! {
 pub async fn generate_captcha_handler() -> impl IntoResponse {
     let mut captcha: Captcha = Captcha::new();
     captcha.add_chars(5).view(220, 100);
+    captcha.apply_filter(filters::Wave::new(10.0, 5.0));
+    captcha.apply_filter(filters::Noise::new(0.1));
+
     let png_bytes = captcha.as_png().unwrap_or_default();
-    let svg = general_purpose::STANDARD.encode(&png_bytes);
+    let png = general_purpose::STANDARD.encode(&png_bytes);
     let text = captcha.chars_as_string();
     let token = Uuid::new_v4().to_string();
     CAPTCHA_STORE.lock().unwrap().insert(token.clone(), text);
-    Json(CaptchaResponse { token, svg })
+    Json(CaptchaResponse { token, png })
 }
 
 // Função para validar captcha

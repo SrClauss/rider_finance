@@ -115,10 +115,13 @@ mod tests {
     use super::*;
     use axum::Json;
     use ulid::Ulid;
+    use diesel_migrations::{embed_migrations, MigrationHarness};
+    pub const MIGRATIONS: diesel_migrations::EmbeddedMigrations = embed_migrations!("migrations");
 
     #[tokio::test]
     async fn test_create_get_list_delete_categoria() {
         let conn = &mut db::establish_connection_test();
+        conn.run_pending_migrations(MIGRATIONS).expect("Falha ao rodar migrações no banco de testes");
         diesel::sql_query("PRAGMA foreign_keys = OFF;").execute(conn).ok();
         diesel::sql_query("DELETE FROM categorias;").execute(conn).ok();
         diesel::sql_query("DELETE FROM usuarios;").execute(conn).ok();
@@ -137,6 +140,7 @@ mod tests {
             "29936-808".to_string(), // postal_code
             "ES".to_string(), // province
             "São Mateus".to_string(), // city
+            None, // cpf_cnpj
         );
         crate::services::auth::register::register_user_test(usuario).expect("Erro ao criar usuário de teste");
 
