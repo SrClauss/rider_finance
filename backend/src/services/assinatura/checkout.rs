@@ -119,8 +119,7 @@ pub async fn criar_checkout_asaas(payload: CheckoutPayload) -> Result<CheckoutRe
     let resp_body: serde_json::Value = res.json().await.map_err(|e| format!("Erro ao ler resposta Asaas: {}", e))?;
     let payment_url = resp_body.get("paymentUrl").and_then(|v| v.as_str()).map(|s| s.to_string());
     if status.is_success() {
-
-        println!("Resposta Asaas: {:?}", resp_body);
+        //println!("Resposta Asaas: {}", serde_json::to_string_pretty(&resp_body).unwrap());
         Ok(CheckoutResponse {
             status: "ok".to_string(),
             link: resp_body.get("link").and_then(|v| v.as_str()).map(|s| s.to_string()),
@@ -128,18 +127,18 @@ pub async fn criar_checkout_asaas(payload: CheckoutPayload) -> Result<CheckoutRe
             payment_url,
             mensagem: None,
         })
-
     } else {
-       
+        // Captura erros detalhados
+        //println!("Erro Asaas: {}", serde_json::to_string_pretty(&resp_body).unwrap());
+        //if let Some(errors) = resp_body.get("errors") {
+        //    println!("Detalhes dos erros: {}", serde_json::to_string_pretty(errors).unwrap());
+        //}
         Ok(CheckoutResponse {
             status: "erro".to_string(),
             link: None,
             id: None,
             payment_url,
             mensagem: resp_body.get("message").and_then(|v| v.as_str()).map(|s| s.to_string()),
-            // Adiciona campo errors se existir
-            // Você pode adicionar um campo errors no CheckoutResponse se quiser retornar isso para o frontend
-            // errors: resp_body.get("errors"),
         })
     }
 }

@@ -4,8 +4,8 @@ use backend::services::auth::request_password_reset::request_password_reset_hand
 use backend::services::captcha::generate_captcha_handler;
 use backend::db;
 use backend::services::configuracao;
-use backend::services::webhook;
 use backend::services::webhook::webhook::routes;
+use std::net::SocketAddr;
 
 #[tokio::main]
 async fn main() {
@@ -52,8 +52,8 @@ async fn main() {
     configuracao::seed_configuracoes_padrao(conn);
 
     println!("🚀 Servidor rodando em http://127.0.0.1:8000");
-    use axum::serve;
+
     use tokio::net::TcpListener;
-    let listener = TcpListener::bind("127.0.0.1:8000").await.unwrap();
-    serve(listener, app).await.unwrap();
+    let listener = TcpListener::bind("0.0.0.0:8000").await.unwrap();
+    axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>()).await.unwrap();
 }

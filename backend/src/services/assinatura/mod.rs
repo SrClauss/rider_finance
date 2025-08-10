@@ -77,28 +77,48 @@ use crate::models::{Assinatura, NewAssinatura};
 #[derive(Deserialize)]
 pub struct CreateAssinaturaPayload {
     pub id_usuario: String,
-    pub tipo_plano: String,
     pub status: String,
-    pub asaas_customer_id: String,
     pub asaas_subscription_id: Option<String>,
     pub periodo_inicio: NaiveDateTime,
     pub periodo_fim: NaiveDateTime,
     pub cancelada_em: Option<NaiveDateTime>,
+    pub billing_type: Option<String>,
+    pub charge_type: Option<String>,
+    pub webhook_event_id: Option<String>,
+    pub checkout_id: Option<String>,
+    pub checkout_status: Option<String>,
+    pub checkout_date_created: Option<NaiveDateTime>,
+    pub checkout_event_type: Option<String>,
+        pub valor: Option<i32>,
+    pub descricao: Option<String>,
+    pub nome_cliente: Option<String>,
+    pub email_cliente: Option<String>,
+    pub cpf_cnpj_cliente: Option<String>,
 }
 
 #[derive(Serialize)]
 pub struct AssinaturaResponse {
     pub id: String,
     pub id_usuario: String,
-    pub tipo_plano: String,
     pub status: String,
-    pub asaas_customer_id: String,
     pub asaas_subscription_id: Option<String>,
     pub periodo_inicio: NaiveDateTime,
     pub periodo_fim: NaiveDateTime,
     pub cancelada_em: Option<NaiveDateTime>,
     pub criado_em: NaiveDateTime,
     pub atualizado_em: NaiveDateTime,
+    pub billing_type: Option<String>,
+    pub charge_type: Option<String>,
+    pub webhook_event_id: Option<String>,
+    pub checkout_id: Option<String>,
+    pub checkout_status: Option<String>,
+    pub checkout_date_created: Option<NaiveDateTime>,
+    pub checkout_event_type: Option<String>,
+        pub valor: Option<i32>,
+    pub descricao: Option<String>,
+    pub nome_cliente: Option<String>,
+    pub email_cliente: Option<String>,
+    pub cpf_cnpj_cliente: Option<String>,
 }
 
 pub async fn create_assinatura_handler(Json(payload): Json<CreateAssinaturaPayload>) -> Json<AssinaturaResponse> {
@@ -107,15 +127,25 @@ pub async fn create_assinatura_handler(Json(payload): Json<CreateAssinaturaPaylo
     let nova_assinatura = NewAssinatura {
         id: ulid::Ulid::new().to_string(),
         id_usuario: payload.id_usuario,
-        tipo_plano: payload.tipo_plano,
         status: payload.status,
-        asaas_customer_id: payload.asaas_customer_id,
         asaas_subscription_id: payload.asaas_subscription_id,
         periodo_inicio: payload.periodo_inicio,
         periodo_fim: payload.periodo_fim,
         cancelada_em: payload.cancelada_em,
         criado_em: now,
         atualizado_em: now,
+        billing_type: payload.billing_type,
+        charge_type: payload.charge_type,
+        webhook_event_id: payload.webhook_event_id,
+        checkout_id: payload.checkout_id,
+        checkout_status: payload.checkout_status,
+        checkout_date_created: payload.checkout_date_created,
+        checkout_event_type: payload.checkout_event_type,
+        valor: payload.valor.map(|v| v as i32),
+        descricao: payload.descricao,
+        nome_cliente: payload.nome_cliente,
+        email_cliente: payload.email_cliente,
+        cpf_cnpj_cliente: payload.cpf_cnpj_cliente,
     };
     diesel::insert_into(assinaturas)
         .values(&nova_assinatura)
@@ -124,15 +154,25 @@ pub async fn create_assinatura_handler(Json(payload): Json<CreateAssinaturaPaylo
     Json(AssinaturaResponse {
         id: nova_assinatura.id,
         id_usuario: nova_assinatura.id_usuario,
-        tipo_plano: nova_assinatura.tipo_plano,
         status: nova_assinatura.status,
-        asaas_customer_id: nova_assinatura.asaas_customer_id,
         asaas_subscription_id: nova_assinatura.asaas_subscription_id,
         periodo_inicio: nova_assinatura.periodo_inicio,
         periodo_fim: nova_assinatura.periodo_fim,
         cancelada_em: nova_assinatura.cancelada_em,
         criado_em: nova_assinatura.criado_em,
         atualizado_em: nova_assinatura.atualizado_em,
+        billing_type: nova_assinatura.billing_type,
+        charge_type: nova_assinatura.charge_type,
+        webhook_event_id: nova_assinatura.webhook_event_id,
+        checkout_id: nova_assinatura.checkout_id,
+        checkout_status: nova_assinatura.checkout_status,
+        checkout_date_created: nova_assinatura.checkout_date_created,
+        checkout_event_type: nova_assinatura.checkout_event_type,
+        valor: nova_assinatura.valor,
+        descricao: nova_assinatura.descricao,
+        nome_cliente: nova_assinatura.nome_cliente,
+        email_cliente: nova_assinatura.email_cliente,
+        cpf_cnpj_cliente: nova_assinatura.cpf_cnpj_cliente,
     })
 }
 
@@ -142,15 +182,25 @@ pub async fn get_assinatura_handler(Path(id_param): Path<String>) -> Json<Option
         Ok(a) => Json(Some(AssinaturaResponse {
             id: a.id,
             id_usuario: a.id_usuario,
-            tipo_plano: a.tipo_plano,
             status: a.status,
-            asaas_customer_id: a.asaas_customer_id,
             asaas_subscription_id: a.asaas_subscription_id,
             periodo_inicio: a.periodo_inicio,
             periodo_fim: a.periodo_fim,
             cancelada_em: a.cancelada_em,
             criado_em: a.criado_em,
             atualizado_em: a.atualizado_em,
+            billing_type: a.billing_type,
+            charge_type: a.charge_type,
+            webhook_event_id: a.webhook_event_id,
+            checkout_id: a.checkout_id,
+            checkout_status: a.checkout_status,
+            checkout_date_created: a.checkout_date_created,
+            checkout_event_type: a.checkout_event_type,
+            valor: a.valor,
+            descricao: a.descricao,
+            nome_cliente: a.nome_cliente,
+            email_cliente: a.email_cliente,
+            cpf_cnpj_cliente: a.cpf_cnpj_cliente,
         })),
         Err(_) => Json(None),
     }
@@ -166,15 +216,25 @@ pub async fn list_assinaturas_handler(Path(id_usuario_param): Path<String>) -> J
     Json(results.into_iter().map(|a| AssinaturaResponse {
         id: a.id,
         id_usuario: a.id_usuario,
-        tipo_plano: a.tipo_plano,
         status: a.status,
-        asaas_customer_id: a.asaas_customer_id,
         asaas_subscription_id: a.asaas_subscription_id,
         periodo_inicio: a.periodo_inicio,
         periodo_fim: a.periodo_fim,
         cancelada_em: a.cancelada_em,
         criado_em: a.criado_em,
         atualizado_em: a.atualizado_em,
+        billing_type: a.billing_type,
+        charge_type: a.charge_type,
+        webhook_event_id: a.webhook_event_id,
+        checkout_id: a.checkout_id,
+        checkout_status: a.checkout_status,
+        checkout_date_created: a.checkout_date_created,
+        checkout_event_type: a.checkout_event_type,
+        valor: a.valor,
+        descricao: a.descricao,
+        nome_cliente: a.nome_cliente,
+        email_cliente: a.email_cliente,
+        cpf_cnpj_cliente: a.cpf_cnpj_cliente,
     }).collect())
 }
 
@@ -242,23 +302,31 @@ mod tests {
 
         let payload = CreateAssinaturaPayload {
             id_usuario: user_id.clone(),
-            tipo_plano: "premium".to_string(),
             status: "ativa".to_string(),
-            asaas_customer_id: "asaas_123".to_string(),
             asaas_subscription_id: None,
             periodo_inicio: Utc::now().naive_utc(),
             periodo_fim: Utc::now().naive_utc() + chrono::Duration::days(30),
             cancelada_em: None,
+            billing_type: Some("CREDIT_CARD".to_string()),
+            charge_type: Some("DETACHED".to_string()),
+            webhook_event_id: Some("evt_test".to_string()),
+            checkout_id: Some("checkout_test".to_string()),
+            checkout_status: Some("EXPIRED".to_string()),
+            checkout_date_created: Some(Utc::now().naive_utc()),
+            checkout_event_type: Some("CHECKOUT_EXPIRED".to_string()),
+            valor: Some(20),
+            descricao: Some("Acesso completo à plataforma".to_string()),
+            nome_cliente: Some("Clausemberg Rodrigues de Oliveira".to_string()),
+            email_cliente: Some("clausembergrodrigues@gmail.com".to_string()),
+            cpf_cnpj_cliente: Some("10700418741".to_string()),
         };
         let response = create_assinatura_handler(Json(payload)).await;
         assert_eq!(response.id_usuario, user_id);
-        assert_eq!(response.tipo_plano, "premium");
         // Busca por id
         let get_resp = get_assinatura_handler(Path(response.id.clone())).await;
         assert!(get_resp.0.is_some());
         let a = get_resp.0.unwrap();
         assert_eq!(a.id, response.id);
-        assert_eq!(a.tipo_plano, "premium");
         // Lista
         let list_resp = list_assinaturas_handler(Path(user_id.clone())).await;
         assert!(list_resp.0.iter().any(|aa| aa.id == a.id));
