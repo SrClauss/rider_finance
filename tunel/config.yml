@@ -1,6 +1,0 @@
-tunnel: 3d28f6e2-f79f-4245-a359-ca007af61ba0
-credentials-file: C:\Users\claus\.cloudflared\3d28f6e2-f79f-4245-a359-ca007af61ba0.json
-ingress:
-  - hostname: www.giftxz.top
-    service: http://localhost:80
-  - service: http_status:404

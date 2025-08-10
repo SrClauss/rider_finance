@@ -45,3 +45,6 @@ Thumbs.db
 /backend/target/
 **/target/
 **/node_modules/
+
+# Cloudflare Tunnel
+/tunel/
