@@ -1,24 +1,26 @@
 "use client";
 
-import { Box, Card, CardContent, Typography, Button } from '@mui/material';
+import { Box, Card, CardContent, Typography, Button, Divider } from '@mui/material';
 import { useRouter } from 'next/navigation';
 import NextLink from 'next/link';
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import axios from 'axios';
 import { ConfiguracoesSistema } from '../../interfaces/ConfiguracoesSistema';
+import {ThemeProvider} from '@/theme/ThemeProvider';
+import { UsuarioRegisterPayload } from '@/interfaces/UsuarioRegisterPayload';
+import AssinaturaModal from '@/modals/AssinaturaModal';
 
 export default function AssinaturaPage() {
-  const router = useRouter();
+
   const [isClient, setIsClient] = useState(false);
   const [valor, setValor] = useState('');
-  const [urlGateway, setUrlGateway] = useState('');
-  const [cancelUrl, setCancelUrl] = useState('');
-  const [expiredUrl, setExpiredUrl] = useState('');
-  const [successUrl, setSuccessUrl] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [usuario, setUsuario] = useState<any>(null);
+  const [usuario, setUsuario] = useState<UsuarioRegisterPayload | null>(null);
+  const [assinatura, setAssinatura] = useState<any | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [diasRestantes, setDiasRestantes] = useState<number | null>(null);
   const searchParams = useSearchParams();
   const idUsuario = searchParams.get('id_usuario') || '';
 
@@ -27,29 +29,102 @@ export default function AssinaturaPage() {
     if (!idUsuario) return;
     axios.get<ConfiguracoesSistema>(`/api/checkout-info?id_usuario=${idUsuario}`)
       .then(res => {
-        console.log('Resposta /api/checkout-info:', res);
         setValor(res.data.valor ?? '');
-        setUrlGateway(res.data.url_endpoint_pagamento ?? '');
-        setCancelUrl(res.data.checkout_cancel_url ?? '');
-        setExpiredUrl(res.data.checkout_expired_url ?? '');
-        setSuccessUrl(res.data.checkout_success_url ?? '');
         setLoading(false);
       })
-      .catch((err) => {
-        console.log('Erro /api/checkout-info:', err);
+      .catch(() => {
         setError('Erro ao buscar configurações do sistema');
         setLoading(false);
       });
-    // Buscar objeto completo do usuário
     axios.get(`/api/usuario/${idUsuario}`)
       .then(res => {
-        console.log('Resposta /api/usuario:', res);
-        setUsuario(res.data ?? null);
+        const usuarioData = {
+          id: res.data.id,
+          nome_usuario: res.data.nome_usuario,
+          email: res.data.email,
+          senha: res.data.senha,
+          nome_completo: res.data.nome_completo,
+          telefone: res.data.telefone,
+          veiculo: res.data.veiculo,
+          data_inicio_atividade: res.data.data_inicio_atividade,
+          eh_pago: res.data.eh_pago,
+          id_pagamento: res.data.id_pagamento,
+          metodo_pagamento: res.data.metodo_pagamento,
+          status_pagamento: res.data.status_pagamento,
+          tipo_assinatura: res.data.tipo_assinatura,
+          trial_termina_em: res.data.trial_termina_em,
+          criado_em: res.data.criado_em,
+          atualizado_em: res.data.atualizado_em,
+          ultima_tentativa_redefinicao: res.data.ultima_tentativa_redefinicao,
+          address: res.data.address,
+          address_number: res.data.address_number,
+          complement: res.data.complement,
+          postal_code: res.data.postal_code,
+          province: res.data.province,
+          city: res.data.city,
+          cpfcnpj: res.data.cpfcnpj,
+          captcha_token: res.data.captcha_token,
+          captcha_answer: res.data.captcha_answer
+        }
+        setUsuario(usuarioData);
       })
-      .catch(err => {
-        console.log('Erro /api/usuario:', err);
-      });
+      .catch(() => {});
   }, [idUsuario]);
+
+  const handleCheckout = async () => {
+    // Consulta assinatura ao clicar
+    try {
+      const assinaturaRes = await axios.get(`/api/assinatura/byuserid/${idUsuario}`);
+      console.log('Resultado assinatura/byuserid:', assinaturaRes);
+      const assinaturaData = Array.isArray(assinaturaRes.data) ? assinaturaRes.data[0] : assinaturaRes.data;
+      if (assinaturaData && assinaturaData.periodo_fim) {
+        setAssinatura(assinaturaData);
+        const hoje = new Date();
+        const fim = new Date(assinaturaData.periodo_fim);
+        const diff = Math.ceil((fim.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
+        if (diff > 0) {
+          setDiasRestantes(diff);
+          setModalOpen(true);
+          return;
+        }
+      }
+    } catch (err) {
+      console.log('Erro assinatura/byuserid:', err);
+      alert('Erro ao consultar assinatura. Tente novamente ou contate o suporte.');
+      return;
+    }
+    if (!idUsuario || !valor || !!error) return;
+    if (!usuario || !usuario.nome_completo || usuario.nome_completo.trim().length < 2) {
+      setError('Preencha o nome completo para continuar');
+      return;
+    }
+    
+    try {
+      const res = await axios.post('/api/assinatura/checkout', {
+        id_usuario: idUsuario,
+        valor,
+        nome: usuario.nome_completo,
+        cpf: usuario.cpfcnpj || '',
+        email: usuario.email || '',
+        telefone: usuario.telefone || '',
+        endereco: usuario.address || '',
+        numero: usuario.address_number || '',
+        complemento: usuario.complement || '',
+        cep: usuario.postal_code || '',
+        bairro: usuario.province || '',
+        cidade: usuario.city || ''
+      });
+      const link = res.data.link;
+      if (link) {
+        window.location.href = link;
+      } else {
+        setError('Erro ao criar checkout');
+      }
+    } catch (err) {
+      setError('Erro ao criar checkout');
+    }
+  };
+
   if (!isClient) return null;
   if (loading) {
     return (
@@ -67,66 +142,122 @@ export default function AssinaturaPage() {
       </Box>
     );
   }
-  const handleCheckout = async () => {
-
-    if (!idUsuario || !valor || !!error) return;
-    if (!usuario || !usuario.nome_completo || usuario.nome_completo.trim().length < 2) {
-      setError('Preencha o nome completo para continuar');
-      return;
-    }
-    try {
-      const res = await axios.post('/api/assinatura/checkout', {
-        id_usuario: idUsuario,
-        valor,
-        nome: usuario.nome_completo,
-        cpf: usuario.cpf || '',
-        email: usuario.email || '',
-        telefone: usuario.telefone || '',
-        endereco: usuario.address || '',
-        numero: usuario.address_number || '',
-        complemento: usuario.complement || '',
-        cep: usuario.postal_code || '',
-        bairro: usuario.province || '',
-        cidade: usuario.city || ''
-      });
-      const link = res.data.link;
-      if (link) {
-        window.location.href = link;
-        console.log('Resposta /api/assinatura/checkout:', res);
-      } else {
-        setError('Erro ao criar checkout');
-      }
-    } catch (err) {
-      console.log('Erro /api/assinatura/checkout:', err);
-      setError('Erro ao criar checkout');
-    }
-  };
 
   return (
-    <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #181818 0%, #232323 100%)', p: 2 }}>
-      <Card sx={{ maxWidth: 400, width: '100%', backgroundColor: 'background.paper', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
-        <CardContent sx={{ p: 4 }}>
-          <Typography variant="h5" fontWeight={700} gutterBottom textAlign="center">
-            Assinatura
-          </Typography>
-          <Typography variant="body1" color="text.secondary" textAlign="center" sx={{ mb: 2 }}>
-            Valor da assinatura:
-          </Typography>
-          <Typography variant="h4" color="primary" textAlign="center" sx={{ mb: 4 }}>
-            {error ? error : `R$ ${valor}`}
-          </Typography>
-          <Button
-            onClick={handleCheckout}
-            fullWidth
-            variant="contained"
-            size="large"
-            sx={{ fontWeight: 600, height: 48 }}
-            disabled={!idUsuario || !valor || !!error}
-          >
-            Ir para pagamento
-          </Button>
-        </CardContent>
-      </Card>
-    </Box>
+    <ThemeProvider>
+      <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #181818 0%, #232323 100%)', p: 2 }}>
+        <Card sx={{ maxWidth: 400, width: '100%', bgcolor: 'cardGray', border: 1, borderColor: 'borderGray', boxShadow: '0 4px 24px rgba(0,0,0,0.5)', borderRadius: 4, p: 0 }}>
+          <CardContent sx={{ p: 4 }}>
+            <Typography variant="h5" fontWeight={700} gutterBottom textAlign="center" color="primary">
+              Assinatura Premium
+            </Typography>
+            <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ mb: 2 }}>
+              Ao adquirir a assinatura, você desbloqueia recursos exclusivos, relatórios avançados, suporte prioritário e novidades antes de todo mundo!
+            </Typography>
+            <Divider sx={{ my: 2, bgcolor: 'borderGray' }} />
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+              
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography variant="body2" color="text.secondary">Nome de usuário:</Typography>
+                <Typography variant="body1" fontWeight={600} color="primary">
+                  {usuario?.nome_usuario || '---'}
+                </Typography>
+              </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography variant="body2" color="text.secondary">Email:</Typography>
+                <Typography variant="body1" fontWeight={600} color="primary">
+                  {usuario?.email || '---'}
+                </Typography>
+              </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography variant="body2" color="text.secondary">CPF/CNPJ:</Typography>
+                <Typography variant="body1" fontWeight={600} color="primary">
+                  {usuario?.cpfcnpj ? formatCpfCnpj(usuario.cpfcnpj) : '---'}
+                </Typography>
+              </Box>
+
+
+
+            </Box>
+            <Divider sx={{ my: 2, bgcolor: 'borderGray' }} />
+            <Box sx={{ textAlign: 'center', mb: 2 }}>
+              <Typography variant="body1" color="text.secondary" sx={{ mb: 1 }}>
+                Valor da assinatura:
+              </Typography>
+              <Typography variant="h4" color="primary" textAlign="center" sx={{ mb: 2 }}>
+                {error ? error : `R$ ${valor}`}
+              </Typography>
+            </Box>
+            <Divider sx={{ my: 2, bgcolor: 'borderGray' }} />
+            <Button
+              onClick={handleCheckout}
+              fullWidth
+              variant="contained"
+              size="large"
+              sx={{ fontWeight: 700, height: 48, bgcolor: 'primary.main', color: 'primary.contrastText', boxShadow: 2 }}
+              disabled={!idUsuario || !valor || !!error}
+            >
+              {loading ? 'Processando...' : 'Ir para pagamento'}
+            </Button>
+            <AssinaturaModal 
+              open={modalOpen} 
+              diasRestantes={diasRestantes} 
+              periodoFim={assinatura?.periodo_fim}
+              onClose={() => setModalOpen(false)}
+              onRenovar={async () => {
+                setModalOpen(false);
+                // Executa fluxo de renovação normalmente
+                if (!idUsuario || !valor || !!error) return;
+                if (!usuario || !usuario.nome_completo || usuario.nome_completo.trim().length < 2) {
+                  setError('Preencha o nome completo para continuar');
+                  return;
+                }
+                try {
+                  const res = await axios.post('/api/assinatura/checkout', {
+                    id_usuario: idUsuario,
+                    valor,
+                    nome: usuario.nome_completo,
+                    cpf: usuario.cpfcnpj || '',
+                    email: usuario.email || '',
+                    telefone: usuario.telefone || '',
+                    endereco: usuario.address || '',
+                    numero: usuario.address_number || '',
+                    complemento: usuario.complement || '',
+                    cep: usuario.postal_code || '',
+                    bairro: usuario.province || '',
+                    cidade: usuario.city || ''
+                  });
+                  const link = res.data.link;
+                  if (link) {
+                    window.location.href = link;
+                  } else {
+                    setError('Erro ao criar checkout');
+                  }
+                } catch (err) {
+                  setError('Erro ao criar checkout');
+                }
+              }}
+            />
+          </CardContent>
+        </Card>
+      </Box>
+    </ThemeProvider>
   );
 }
+
+
+
+
+function formatCpfCnpj(value?: string) {
+  if (!value) return '';
+  const onlyDigits = value.replace(/\D/g, '');
+  if (onlyDigits.length === 11) {
+    // CPF: 000.000.000-00
+    return onlyDigits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+  } else if (onlyDigits.length === 14) {
+    // CNPJ: 00.000.000/0000-00
+    return onlyDigits.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+  }
+  return value;
+}
+

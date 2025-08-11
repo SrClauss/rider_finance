@@ -4,7 +4,7 @@ import { Box, Card, CardContent, Typography, TextField, Button, Avatar, Link, Di
 import { Stepper, Step, StepLabel } from '@mui/material';
 import { DirectionsCar } from '@mui/icons-material';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
-import ThemeProvider from '../../context/ThemeProvider';
+import {ThemeProvider} from '@/theme/ThemeProvider';
 import NextLink from "next/link";
 import React, { useReducer, useEffect } from 'react';
 import axios from 'axios';
@@ -21,7 +21,7 @@ export default function RegisterPage() {
     confirmSenha: string;
     nome_completo: string;
     telefone: string;
-    veiculo: string;
+  cpfcnpj: string;
     address: string;
     address_number: string;
     complement: string;
@@ -45,7 +45,7 @@ export default function RegisterPage() {
   | { type: 'SET_CONFIRM_SENHA'; payload: string }
   | { type: 'SET_NOME_COMPLETO'; payload: string }
   | { type: 'SET_TELEFONE'; payload: string }
-  | { type: 'SET_VEICULO'; payload: string }
+  | { type: 'SET_CPFCNPJ'; payload: string }
   | { type: 'SET_ADDRESS'; payload: string }
   | { type: 'SET_ADDRESS_NUMBER'; payload: string }
   | { type: 'SET_COMPLEMENT'; payload: string }
@@ -68,7 +68,7 @@ export default function RegisterPage() {
     confirmSenha: '',
     nome_completo: '',
     telefone: '',
-    veiculo: '',
+    cpfcnpj: '',
     address: '',
     address_number: '',
     complement: '',
@@ -99,8 +99,8 @@ export default function RegisterPage() {
         return { ...state, nome_completo: action.payload };
       case 'SET_TELEFONE':
         return { ...state, telefone: action.payload };
-      case 'SET_VEICULO':
-        return { ...state, veiculo: action.payload };
+      case 'SET_CPFCNPJ':
+        return { ...state, cpfcnpj: action.payload };
       case 'SET_ADDRESS':
         return { ...state, address: action.payload };
       case 'SET_ADDRESS':
@@ -178,7 +178,7 @@ export default function RegisterPage() {
         senha: state.senha,
         nome_completo: state.nome_completo || undefined,
         telefone: state.telefone || undefined,
-        veiculo: state.veiculo || undefined,
+  cpfcnpj: state.cpfcnpj || undefined,
         address: state.address,
         address_number: state.address_number,
         complement: state.complement,
@@ -204,7 +204,7 @@ export default function RegisterPage() {
         const valor = assinaturaRes.data.valor_assinatura || '';
         const url = assinaturaRes.data.payment_url || '';
         // Redireciona para página intermediária, incluindo id_usuario
-        window.location.href = `/assinatura?id_usuario=${encodeURIComponent(data.id)}&valor=${encodeURIComponent(valor)}&url=${encodeURIComponent(url)}`;
+        window.location.href = `/assinatura?id_usuario=${encodeURIComponent(data.id)}`;
         return;
       }
       if (data && data.mensagem) {
@@ -258,7 +258,7 @@ export default function RegisterPage() {
                   <TextField id="email" fullWidth label="E-mail" type="email" value={state.email} onChange={e => dispatch({ type: 'SET_EMAIL', payload: e.target.value })} sx={{ mb: 2 }} disabled={state.loading} />
                   <TextField id="nome_completo" fullWidth label="Nome completo" type="text" value={state.nome_completo} onChange={e => dispatch({ type: 'SET_NOME_COMPLETO', payload: e.target.value })} sx={{ mb: 2 }} disabled={state.loading} />
                   <TextField id="telefone" fullWidth label="Telefone" type="text" value={state.telefone} onChange={e => dispatch({ type: 'SET_TELEFONE', payload: e.target.value })} sx={{ mb: 2 }} disabled={state.loading} />
-                  <TextField id="veiculo" fullWidth label="Veículo" type="text" value={state.veiculo} onChange={e => dispatch({ type: 'SET_VEICULO', payload: e.target.value })} sx={{ mb: 2 }} disabled={state.loading} />
+                  <TextField id="cpfcnpj" fullWidth label="CPF ou CNPJ" type="text" value={state.cpfcnpj} onChange={e => dispatch({ type: 'SET_CPFCNPJ', payload: e.target.value })} sx={{ mb: 2 }} disabled={state.loading} />
                   {/* Campo data_inicio_atividade removido */}
                   <Button fullWidth variant="contained" sx={{ mt: 2, height: 48, fontWeight: 600 }} onClick={() => setActiveStep(1)} disabled={state.loading}>Próxima etapa</Button>
                 </>

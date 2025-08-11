@@ -1,6 +1,6 @@
 "use client";
-
-import React from "react";
+import axios from "axios";
+import React, { useEffect } from "react";
 import AppBar from "@mui/material/AppBar";
 import Box from "@mui/material/Box";
 import CssBaseline from "@mui/material/CssBaseline";
@@ -18,6 +18,8 @@ import MenuIcon from "@mui/icons-material/Menu";
 import HomeIcon from "@mui/icons-material/Home";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import LogoutIcon from "@mui/icons-material/Logout";
+import { useRouter } from "next/navigation";
+import { ThemeProvider } from "@/theme/ThemeProvider"; // Adjust the import path as necessary
 
 const drawerWidth = 240;
 
@@ -27,13 +29,31 @@ interface LoggedLayoutProps {
 
 export default function LoggedLayout({ children }: LoggedLayoutProps) {
   const [mobileOpen, setMobileOpen] = React.useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+
+    axios.get("/api/validate_token", { withCredentials: true })
+      .then(res => {
+        if (!res.data || !res.data.valid) {
+          router.replace("/login");
+
+
+        }
+      })
+      .catch((err) => {
+        router.replace("/login");
+      });
+  }, []);
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
   };
   const handleLogout = () => {
-    document.cookie = "authToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    window.location.href = "/login";
+    axios.post("/api/logout", {}, { withCredentials: true })
+      .then(() => {
+        window.location.href = "/login";
+      });
   };
 
   const drawer = (
@@ -74,77 +94,82 @@ export default function LoggedLayout({ children }: LoggedLayoutProps) {
   );
 
   return (
-    <Box sx={{ display: "flex" }}>
-      <CssBaseline />
-      <AppBar
-        position="fixed"
-        sx={{
-          width: { sm: `calc(100% - ${drawerWidth}px)` },
-          ml: { sm: `${drawerWidth}px` },
-          bgcolor: "#181c24"
-        }}
-      >
-        <Toolbar>
-          <IconButton
-            color="inherit"
-            aria-label="open drawer"
-            edge="start"
-            onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { sm: "none" } }}
+    <ThemeProvider>
+      <Box sx={{ display: "flex" }}>
+        <CssBaseline />
+        <AppBar
+          position="fixed"
+          sx={{
+            width: { sm: `calc(100% - ${drawerWidth}px)` },
+            ml: { sm: `${drawerWidth}px` },
+            bgcolor: "#181c24"
+          }}
+        >
+          <Toolbar>
+            <IconButton
+              color="inherit"
+              aria-label="open drawer"
+              edge="start"
+              onClick={handleDrawerToggle}
+              sx={{ mr: 2, display: { sm: "none" } }}
+            >
+              <MenuIcon />
+            </IconButton>
+            <Typography variant="h6" noWrap component="div">
+              Rider Finance
+            </Typography>
+          </Toolbar>
+        </AppBar>
+        <Box
+          component="nav"
+          sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
+          aria-label="mailbox folders"
+        >
+          {/* Drawer para mobile */}
+          <Drawer
+            variant="temporary"
+            open={mobileOpen}
+            onClose={handleDrawerToggle}
+            ModalProps={{ keepMounted: true }}
+            sx={{
+              display: { xs: "block", sm: "none" },
+              "& .MuiDrawer-paper": { boxSizing: "border-box", width: drawerWidth }
+            }}
           >
-            <MenuIcon />
-          </IconButton>
-          <Typography variant="h6" noWrap component="div">
-            Rider Finance
-          </Typography>
-        </Toolbar>
-      </AppBar>
-      <Box
-        component="nav"
-        sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
-        aria-label="mailbox folders"
-      >
-        {/* Drawer para mobile */}
-        <Drawer
-          variant="temporary"
-          open={mobileOpen}
-          onClose={handleDrawerToggle}
-          ModalProps={{ keepMounted: true }}
+            {drawer}
+          </Drawer>
+          {/* Drawer para desktop */}
+          <Drawer
+            variant="permanent"
+            sx={{
+              display: { xs: "none", sm: "block" },
+              "& .MuiDrawer-paper": { boxSizing: "border-box", width: drawerWidth }
+            }}
+            open
+          >
+            {drawer}
+          </Drawer>
+        </Box>
+        <Box
+          component="main"
           sx={{
-            display: { xs: "block", sm: "none" },
-            "& .MuiDrawer-paper": { boxSizing: "border-box", width: drawerWidth }
+            flexGrow: 1,
+            p: 3,
+            width: { sm: `calc(100% - ${drawerWidth}px)` },
+            bgcolor: "#181c24",
+            color: "#f5f5f5",
+            minHeight: "100vh"
           }}
         >
-          {drawer}
-        </Drawer>
-        {/* Drawer para desktop */}
-        <Drawer
-          variant="permanent"
-          sx={{
-            display: { xs: "none", sm: "block" },
-            "& .MuiDrawer-paper": { boxSizing: "border-box", width: drawerWidth }
-          }}
-          open
-        >
-          {drawer}
-        </Drawer>
-      </Box>
-      <Box
-        component="main"
-        sx={{
-          flexGrow: 1,
-          p: 3,
-          width: { sm: `calc(100% - ${drawerWidth}px)` },
-          bgcolor: "#f5f6fa",
-          minHeight: "100vh"
-        }}
-      >
-        <Toolbar />
-        {children}
-        <Box component="footer" sx={{ mt: 4, textAlign: "center", color: "#888" }}>
-          <small>© {new Date().getFullYear()} Rider Finance</small>
+          <Toolbar />
+          <Box>
+            {children}
+          </Box>
+          <Box component="footer" sx={{ mt: 4, textAlign: "center", color: "#888" }}>
+            <small>© {new Date().getFullYear()} Rider Finance</small>
+          </Box>
         </Box>
       </Box>
-    </Box>
+    </ThemeProvider>
   );
 }

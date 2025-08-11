@@ -1,27 +1,26 @@
-
 "use client";
 import { useEffect } from "react";
+import axios from "axios";
+import { useRouter } from "next/navigation";
+import LoggedLayout from "@/layouts/LoggedLayout";
 
 export default function Home() {
+  const router = useRouter();
+
   useEffect(() => {
-    // Busca token no cookie
-    const getCookie = (name: string) => {
-      const value = `; ${document.cookie}`;
-      const parts = value.split(`; ${name}=`);
-      if (parts.length === 2) return parts.pop()?.split(';').shift();
-      return null;
-    };
-    const token = getCookie("auth_token");
-    if (!token) {
-      window.location.href = "/login";
-      return;
-    }
-    // Opcional: validar token no backend
-    // fetch('/api/validate_token', { headers: { Authorization: `Bearer ${token}` } })
-    //   .then(res => res.json())
-    //   .then(data => { if (!data.valid) window.location.href = "/login"; });
+    axios
+      .get("/api/validate_token", { withCredentials: true })
+      .then((res) => {
+        if (res.data && res.data.valid) {
+          router.replace("/dashboard");
+        }
+      })
+      .catch(() => {});
   }, []);
+
   return (
-    <div>Bem-vindo ao Rider Finance</div>
+    <LoggedLayout>
+      <div>Bem-vindo ao Rider Finance</div>
+    </LoggedLayout>
   );
 }

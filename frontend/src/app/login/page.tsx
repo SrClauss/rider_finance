@@ -13,7 +13,7 @@ import {
 import Divider from "@mui/material/Divider";
 import NextLink from "next/link";
 import { DirectionsCar, Visibility, VisibilityOff } from "@mui/icons-material";
-import ThemeProvider from "../../context/ThemeProvider";
+import {ThemeProvider} from "@/theme/ThemeProvider";
 import React, { useReducer } from "react";
 import axios from "axios";
 
@@ -73,18 +73,11 @@ export default function LoginPage() {
         },
         {
           headers: { "Content-Type": "application/json" },
+          withCredentials: true,
         }
       );
-      const res = response.data;
-      if (res.token) {
-        localStorage.setItem("token", res.token);
-        window.location.href = "/";
-      } else {
-        dispatch({
-          type: "SET_ERROR",
-          payload: res.message || "Erro ao logar",
-        });
-      }
+      // O cookie http-only será setado automaticamente pelo navegador
+      window.location.href = "/";
     } catch (err: any) {
       dispatch({
         type: "SET_ERROR",

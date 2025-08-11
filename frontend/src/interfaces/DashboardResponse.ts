@@ -1,24 +1,24 @@
 export interface DashboardResponse {
-  saldo: number;
-  saldo_mes: number;
-  saldo_semana: number;
-  saldo_hoje: number;
-  receitas: number;
-  despesas: number;
-  receitas_mes: number;
-  despesas_mes: number;
-  receitas_semana: number;
-  despesas_semana: number;
-  receitas_hoje: number;
-  despesas_hoje: number;
-  total_corridas: number;
-  total_ganhos: number;
-  total_gastos: number;
-  total_gastos_mes: number;
-  total_ganhos_mes: number;
-  total_gastos_semana: number;
-  total_ganhos_semana: number;
-  total_gastos_hoje: number;
-  total_ganhos_hoje: number;
-  // Adicione outros campos conforme necessário
+  ganhos_hoje: number;
+  gastos_hoje: number;
+  lucro_hoje: number;
+  corridas_hoje: number;
+  horas_hoje: number;
+  eficiencia: number;
+  ganhos_semana: number;
+  gastos_semana: number;
+  lucro_semana: number;
+  corridas_semana: number;
+  horas_semana: number;
+  meta_diaria?: number;
+  meta_semanal?: number;
+  tendencia_ganhos: number;
+  tendencia_gastos: number;
+  tendencia_corridas: number;
+  ganhos_7dias: number[];
+  gastos_7dias: number[];
+  lucro_7dias: number[];
+  ganhos_mes: number[];
+  gastos_mes: number[];
+  lucro_mes: number[];
 }
