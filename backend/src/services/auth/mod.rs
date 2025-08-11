@@ -4,6 +4,8 @@ pub use crate::services::auth::register_pending::register_pending_user_handler;
 pub use crate::services::auth::reset_password::reset_password_handler;
 pub mod request_password_reset;
 pub use crate::services::auth::request_password_reset::request_password_reset_handler;
+pub mod validate_token;
+pub mod logout;
 
 #[cfg(test)]
 mod tests {

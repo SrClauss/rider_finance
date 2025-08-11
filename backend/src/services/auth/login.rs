@@ -1,5 +1,6 @@
 
-use axum::Json;
+use axum::{response::IntoResponse, Json};
+use axum::http::{HeaderMap, header, StatusCode};
 use serde::Deserialize;
 use crate::models::Usuario;
 use crate::db;
@@ -16,7 +17,7 @@ pub struct LoginPayload {
     pub senha: String,
 }
 
-pub async fn login_handler(Json(payload): Json<LoginPayload>) -> Json<serde_json::Value> {
+pub async fn login_handler(Json(payload): Json<LoginPayload>) -> impl IntoResponse {
     let conn = &mut db::establish_connection();
     // Busca por nome_usuario OU email
     match usuarios
@@ -25,27 +26,30 @@ pub async fn login_handler(Json(payload): Json<LoginPayload>) -> Json<serde_json
         Ok(user) => {
             match crate::services::auth::login::login(&user, &payload.senha) {
                 Ok(token) => {
+                    // Set-Cookie: auth_token=...; HttpOnly; Path=/; Max-Age=86400; SameSite=Lax
+                    let mut headers = HeaderMap::new();
+                    let cookie_value = format!("auth_token={}; HttpOnly; Path=/; Max-Age=86400; SameSite=Lax", token);
+                    headers.insert(header::SET_COOKIE, cookie_value.parse().unwrap());
                     let resp = serde_json::json!({
-                        "message": format!("Login bem-sucedido: {}", user.nome_usuario),
-                        "token": token
+                        "message": format!("Login bem-sucedido: {}", user.nome_usuario)
                     });
-                    Json(resp)
+                    (StatusCode::OK, headers, Json(resp))
                 },
                 Err(e) => {
                     let resp = serde_json::json!({
-                        "message": format!("Erro de login: {}", e),
-                        "token": null
+                        "message": format!("Erro de login: {}", e)
                     });
-                    Json(resp)
+            let headers = HeaderMap::new();
+            (StatusCode::UNAUTHORIZED, headers, Json(resp))
                 },
             }
         }
         Err(_) => {
             let resp = serde_json::json!({
-                "message": "Erro de login: usuário não encontrado",
-                "token": null
+                "message": "Erro de login: usuário não encontrado"
             });
-            Json(resp)
+        let headers = HeaderMap::new();
+        (StatusCode::UNAUTHORIZED, headers, Json(resp))
         },
     }
 }

@@ -1,5 +1,5 @@
 use axum::{Router, routing::{post, get, put, delete}};
-use backend::services::auth::{register_user_handler, register_pending_user_handler, reset_password_handler, login_handler};
+use backend::services::{assinatura::get_assinatura_by_usuario_handler, auth::{login_handler, logout::logout_handler, register_pending_user_handler, register_user_handler, reset_password_handler}};
 use backend::services::auth::request_password_reset::request_password_reset_handler;
 use backend::services::captcha::generate_captcha_handler;
 use backend::db;
@@ -15,12 +15,15 @@ async fn main() {
     use backend::services::categoria::{create_categoria_handler, list_categorias_handler, get_categoria_handler, delete_categoria_handler};
     use backend::services::assinatura::{create_assinatura_handler, get_assinatura_handler, list_assinaturas_handler, delete_assinatura_handler, asaas_webhook_handler, criar_checkout_handler};
     use backend::services::configuracao::{checkout_info_handler, usuario_completo_handler};
+    use backend::services::auth::validate_token::validate_token_handler;
     let app = Router::new()
         .route("/api/register", post(register_user_handler))
         .route("/api/register-pending", post(register_pending_user_handler))
         .route("/api/reset-password/{id}", post(reset_password_handler))
         .route("/api/request-password-reset", post(request_password_reset_handler))
         .route("/api/login", post(login_handler))
+        .route("/api/logout", post(logout_handler))
+        .route("/api/validate_token", get(validate_token_handler))
         .route("/api/dashboard/stats", get(dashboard_stats_handler))
         .route("/api/transacao", post(create_transacao_handler))
         .route("/api/transacao/{id}", get(get_transacao_handler))
@@ -44,6 +47,8 @@ async fn main() {
     .route("/api/assinatura/checkout", post(criar_checkout_handler))
         // .route("/api/usuario/{id}", get(get_usuario_info_handler)) // Removido pois não existe ou está no lugar errado
         .route("/api/webhook/asaas", post(asaas_webhook_handler))
+        .route("/api/assinatura/byuserid/{id_usuario}", get(get_assinatura_by_usuario_handler))
+
         .merge(routes());
  
 

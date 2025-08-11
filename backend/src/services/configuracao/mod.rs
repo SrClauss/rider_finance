@@ -20,7 +20,7 @@ use crate::db::establish_connection;
 use std::collections::HashMap;
 
 
-pub async fn checkout_info_handler(Query(_params): Query<HashMap<String, String>>) -> AxumJson<serde_json::Value> {
+pub async fn checkout_info_handler() -> AxumJson<serde_json::Value> {
     use crate::schema::configuracoes::dsl::*;
     use crate::models::configuracao::Configuracao;
     let mut conn = establish_connection();

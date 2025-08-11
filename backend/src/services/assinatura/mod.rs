@@ -269,6 +269,38 @@ pub async fn asaas_webhook_handler(Json(payload): Json<AsaasWebhookPayload>) -> 
         _ => Json(format!("Evento não tratado: {}", payload.event)),
     }
 }
+pub async fn get_assinatura_by_usuario_handler(Path(id_usuario_param): Path<String>) -> Json<Vec<AssinaturaResponse>> {
+    println!("Buscando assinaturas para usuário: {}", id_usuario_param);
+    let conn = &mut db::establish_connection();
+    let results = assinaturas
+        .filter(id_usuario.eq(id_usuario_param))
+        .order(periodo_inicio.desc())
+        .load::<Assinatura>(conn)
+        .unwrap_or_default();
+    Json(results.into_iter().map(|a| AssinaturaResponse {
+        id: a.id,
+        id_usuario: a.id_usuario,
+        status: a.status,
+        asaas_subscription_id: a.asaas_subscription_id,
+        periodo_inicio: a.periodo_inicio,
+        periodo_fim: a.periodo_fim,
+        cancelada_em: a.cancelada_em,
+        criado_em: a.criado_em,
+        atualizado_em: a.atualizado_em,
+        billing_type: a.billing_type,
+        charge_type: a.charge_type,
+        webhook_event_id: a.webhook_event_id,
+        checkout_id: a.checkout_id,
+        checkout_status: a.checkout_status,
+        checkout_date_created: a.checkout_date_created,
+        checkout_event_type: a.checkout_event_type,
+        valor: a.valor,
+        descricao: a.descricao,
+        nome_cliente: a.nome_cliente,
+        email_cliente: a.email_cliente,
+        cpf_cnpj_cliente: a.cpf_cnpj_cliente,
+    }).collect())
+}
 
 #[cfg(test)]
 mod tests {
