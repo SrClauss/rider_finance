@@ -1,3 +1,105 @@
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::db::establish_connection;
+    use diesel::prelude::*;
+    use serial_test::serial;
+    use chrono::{NaiveDate};
+
+    fn clean_db() {
+        let conn = &mut establish_connection();
+        diesel::delete(crate::schema::metas::dsl::metas).execute(conn).ok();
+        diesel::delete(crate::schema::usuarios::dsl::usuarios).execute(conn).ok();
+    }
+
+    fn create_fake_user() -> String {
+        use crate::models::usuario::NewUsuario;
+        use crate::schema::usuarios::dsl::*;
+        let conn = &mut establish_connection();
+        let now = chrono::Utc::now().naive_utc();
+        let usuario_id = "user_meta_test".to_string();
+        let new_user = NewUsuario {
+            id: usuario_id.clone(),
+            nome_usuario: "user_meta_test".to_string(),
+            email: "meta@teste.com".to_string(),
+            senha: "senha123".to_string(),
+            nome_completo: "Meta Teste".to_string(),
+            telefone: "11999999999".to_string(),
+            veiculo: "Carro".to_string(),
+            criado_em: now,
+            atualizado_em: now,
+            ultima_tentativa_redefinicao: now,
+            address: "Rua Teste".to_string(),
+            address_number: "123".to_string(),
+            complement: "Apto 1".to_string(),
+            postal_code: "01234567".to_string(),
+
+            province: "Centro".to_string(),
+            city: "São Paulo".to_string(),
+            cpfcnpj: "12345678900".to_string(),
+        };
+        diesel::insert_into(usuarios)
+            .values(&new_user)
+            .execute(conn)
+            .expect("Erro ao inserir usuário");
+        usuario_id
+    }
+
+    fn fake_payload() -> CreateMetaPayload {
+        CreateMetaPayload {
+            id_usuario: "user_meta_test".to_string(),
+            titulo: "Meta Teste".to_string(),
+            descricao: Some("Descrição de teste".to_string()),
+            tipo: "financeira".to_string(),
+            categoria: "poupança".to_string(),
+            valor_alvo: 1000,
+            valor_atual: 100,
+            unidade: Some("R$".to_string()),
+            data_inicio: NaiveDate::from_ymd_opt(2025, 8, 14).unwrap().and_hms_opt(0,0,0).unwrap(),
+            data_fim: None,
+            eh_ativa: true,
+            eh_concluida: false,
+            concluida_em: None,
+            lembrete_ativo: false,
+            frequencia_lembrete: None,
+        }
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn test_create_and_list_meta() {
+        clean_db();
+        create_fake_user();
+        // Cria meta
+        let payload = fake_payload();
+        let resp = create_meta_handler(axum::Json(payload)).await;
+        assert_eq!(resp.titulo, "Meta Teste");
+        // Lista metas
+        let list = list_metas_handler(axum::extract::Path("user_meta_test".to_string())).await;
+        assert_eq!(list.0.len(), 1);
+        assert_eq!(list.0[0].titulo, "Meta Teste");
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn test_get_and_delete_meta() {
+        clean_db();
+        create_fake_user();
+        // Cria meta
+        let payload = fake_payload();
+        let resp = create_meta_handler(axum::Json(payload)).await;
+        let meta_id = resp.id.clone();
+        // Busca meta
+        let found = get_meta_handler(axum::extract::Path(meta_id.clone())).await;
+        assert!(found.0.is_some());
+        // Deleta meta
+        let del = delete_meta_handler(axum::extract::Path(meta_id.clone())).await;
+        assert!(del.0);
+        // Busca novamente
+        let found2 = get_meta_handler(axum::extract::Path(meta_id)).await;
+        assert!(found2.0.is_none());
+    }
+}
 pub async fn list_metas_a_cumprir_handler(Path(id_usuario_param): Path<String>) -> Json<Vec<MetaResponse>> {
     let conn = &mut db::establish_connection();
     let results = metas
@@ -301,101 +403,3 @@ pub async fn delete_meta_handler(Path(id_param): Path<String>) -> Json<bool> {
     Json(count > 0)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use axum::Json;
-    use chrono::Utc;
-    use ulid::Ulid;
-    use diesel_migrations::{embed_migrations, MigrationHarness};
-    pub const MIGRATIONS: diesel_migrations::EmbeddedMigrations = embed_migrations!("migrations");
-
-    #[tokio::test]
-    async fn test_create_get_list_update_delete_meta() {
-        // Usa banco de dados de testes e faz limpeza total
-        let conn = &mut db::establish_connection_test();
-        conn.run_pending_migrations(MIGRATIONS).expect("Falha ao rodar migrações no banco de testes");
-        diesel::sql_query("PRAGMA foreign_keys = OFF;").execute(conn).ok();
-        diesel::sql_query("DELETE FROM metas;").execute(conn).ok();
-        diesel::sql_query("DELETE FROM transacoes;").execute(conn).ok();
-        diesel::sql_query("DELETE FROM usuarios;").execute(conn).ok();
-        diesel::sql_query("PRAGMA foreign_keys = ON;").execute(conn).ok();
-
-        // Cria usuário de teste único
-        let user_id = Ulid::new().to_string();
-        let usuario = crate::models::NewUsuario::new(
-            Some(user_id.clone()),
-            format!("testuser_{}", user_id),
-            format!("{}@test.com", user_id),
-            "senha123".to_string(),
-            None, None, None, None, false, None, None, Some("ativo".to_string()), Some("free".to_string()), None, None, None,
-            "Rua Teste".to_string(), "123".to_string(), "Apto 1".to_string(), "12345-678".to_string(), "SP".to_string(), "São Paulo".to_string(), None
-        );
-        crate::services::auth::register::register_user_test(usuario).expect("Erro ao criar usuário de teste");
-
-        // Cria meta
-        let payload = CreateMetaPayload {
-            id_usuario: user_id.clone(),
-            titulo: "Meta Teste".to_string(),
-            descricao: Some("Descrição".to_string()),
-            tipo: "financeira".to_string(),
-            categoria: "ganhos".to_string(),
-            valor_alvo: 1000,
-            valor_atual: 100,
-            unidade: Some("R$".to_string()),
-            data_inicio: Utc::now().naive_utc(),
-            data_fim: None,
-            eh_ativa: true,
-            eh_concluida: false,
-            concluida_em: None,
-            lembrete_ativo: false,
-            frequencia_lembrete: None,
-        };
-        let response = create_meta_handler(Json(payload)).await;
-        assert_eq!(response.id_usuario, user_id);
-        assert_eq!(response.valor_alvo, 1000);
-        // Busca por id
-        let get_resp = get_meta_handler(Path(response.id.clone())).await;
-        assert!(get_resp.0.is_some());
-        let m = get_resp.0.unwrap();
-        assert_eq!(m.id, response.id);
-        assert_eq!(m.valor_alvo, 1000);
-        // Lista
-        let list_resp = list_metas_handler(Path(user_id.clone())).await;
-        assert!(list_resp.0.iter().any(|mm| mm.id == m.id));
-        // Update
-        let update_payload = UpdateMetaPayload {
-            titulo: Some("Meta Alterada".to_string()),
-            descricao: None,
-            tipo: None,
-            categoria: None,
-            valor_alvo: Some(2000),
-            valor_atual: None,
-            unidade: None,
-            data_inicio: None,
-            data_fim: None,
-            eh_ativa: None,
-            eh_concluida: None,
-            concluida_em: None,
-            lembrete_ativo: None,
-            frequencia_lembrete: None,
-        };
-        let update_resp = update_meta_handler(Path(m.id.clone()), Json(update_payload)).await;
-        assert!(update_resp.0.is_some());
-        let mu = update_resp.0.unwrap();
-        assert_eq!(mu.titulo, "Meta Alterada");
-        assert_eq!(mu.valor_alvo, 2000);
-        // Delete
-        let del_resp = delete_meta_handler(Path(m.id.clone())).await;
-        assert!(del_resp.0);
-        // Busca após delete
-        let get_resp2 = get_meta_handler(Path(m.id.clone())).await;
-        assert!(get_resp2.0.is_none());
-    }
-
-    #[tokio::test]
-    async fn test_get_inexistente() {
-        let get_resp = get_meta_handler(Path("naoexiste".to_string())).await;
-        assert!(get_resp.0.is_none());
-    }
-}

@@ -1,8 +1,50 @@
-#![allow(unused_variables)]
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use tokio;
+
+    #[tokio::test]
+    async fn test_criar_checkout_asaas_mock() {
+        use mockito::{mock, Matcher};
+
+        let _mock = mock("POST", "/")
+            .match_header("content-type", "application/json")
+            .match_header("access_token", Matcher::Any)
+            .with_status(200)
+            .with_body(r#"{"id":"123","paymentUrl":"https://mocked-payment-url.com"}"#)
+            .create();
+
+        std::env::set_var("END_POINT_ASSAS", &mockito::server_url());
+        std::env::set_var("ASAAS_API_KEY", "fake-key");
+        std::env::set_var("PIX_ENABLED", "false");
+
+        let payload = CheckoutPayload {
+            id_usuario: "user_test".to_string(),
+            valor: "99.99".to_string(),
+            nome: "Teste".to_string(),
+            cpf: "12345678900".to_string(),
+            email: "teste@teste.com".to_string(),
+            telefone: "11999999999".to_string(),
+            endereco: "Rua Teste".to_string(),
+            numero: "123".to_string(),
+            complemento: "Apto 1".to_string(),
+            cep: "01234567".to_string(),
+            bairro: "Centro".to_string(),
+            cidade: "São Paulo".to_string(),
+        };
+
+        let result = criar_checkout_asaas(payload).await;
+        println!("Resultado do teste criar_checkout_asaas_mock: {:?}", result);
+        assert!(result.is_ok());
+        let resp = result.unwrap();
+        assert_eq!(resp.status, "ok");
+        assert_eq!(resp.id.unwrap(), "123");
+        assert!(resp.link.is_none());
+        assert_eq!(resp.payment_url.unwrap(), "https://mocked-payment-url.com");
+    }
+}
 use std::env;
-use diesel::prelude::*;
-use diesel::QueryDsl;
-use diesel::ExpressionMethods;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use hyper::http::HeaderValue;
@@ -24,7 +66,7 @@ pub struct CheckoutPayload {
     pub cidade: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct CheckoutResponse {
     pub status: String,
     pub id: Option<String>,
@@ -35,36 +77,11 @@ pub struct CheckoutResponse {
 
 pub async fn criar_checkout_asaas(payload: CheckoutPayload) -> Result<CheckoutResponse, String> {
 
-    use crate::db::establish_connection;
-    use crate::schema::configuracoes::dsl::*;
-    use crate::models::configuracao::Configuracao;
     let url = env::var("END_POINT_ASSAS").map_err(|_| "END_POINT_ASSAS não configurado".to_string())?;
     let api_key = format!("${}", env::var("ASAAS_API_KEY").map_err(|_| "ASAAS_API_KEY não configurada".to_string())?);
    
 
-    let mut conn = establish_connection();
-    // Buscar URLs do banco
-    let cancel_url = configuracoes
-        .filter(id_usuario.is_null())
-        .filter(chave.eq("checkout_cancel_url"))
-        .first::<Configuracao>(&mut conn)
-        .ok()
-        .and_then(|c| c.valor)
-        .unwrap_or_else(|| "http://localhost/checkout-cancelado".to_string());
-    let expired_url = configuracoes
-        .filter(id_usuario.is_null())
-        .filter(chave.eq("checkout_expired_url"))
-        .first::<Configuracao>(&mut conn)
-        .ok()
-        .and_then(|c| c.valor)
-        .unwrap_or_else(|| "http://localhost/checkout-expirado".to_string());
-    let success_url = configuracoes
-        .filter(id_usuario.is_null())
-        .filter(chave.eq("checkout_success_url"))
-        .first::<Configuracao>(&mut conn)
-        .ok()
-        .and_then(|c| c.valor)
-        .unwrap_or_else(|| "http://localhost/checkout-sucesso".to_string());
+
     let client = Client::new();
     let body = serde_json::json!({
         // Controle do PIX via variável de ambiente

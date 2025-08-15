@@ -21,7 +21,7 @@ export default function RegisterPage() {
     confirmSenha: string;
     nome_completo: string;
     telefone: string;
-  cpfcnpj: string;
+    cpfcnpj: string;
     address: string;
     address_number: string;
     complement: string;

@@ -1,11 +1,17 @@
 use axum::{Router, routing::{post, get, put, delete}};
-use backend::services::{assinatura::get_assinatura_by_usuario_handler, auth::{login_handler, logout::logout_handler, register_pending_user_handler, register_user_handler, reset_password_handler}};
+use backend::services::assinatura::get_assinatura_by_usuario_handler;
+use backend::services::auth::logout::logout_handler;
+use backend::services::auth::login::login_handler;
+use backend::services::auth::register::register_user_handler;
+use backend::services::auth::reset_password_handler;
 use backend::services::auth::request_password_reset::request_password_reset_handler;
 use backend::services::captcha::generate_captcha_handler;
 use backend::db;
 use backend::services::configuracao;
 use backend::services::webhook::webhook::routes;
 use std::net::SocketAddr;
+
+
 
 #[tokio::main]
 async fn main() {
@@ -18,7 +24,7 @@ async fn main() {
     use backend::services::auth::validate_token::validate_token_handler;
     let app = Router::new()
         .route("/api/register", post(register_user_handler))
-        .route("/api/register-pending", post(register_pending_user_handler))
+    // .route("/api/register-pending", post(register_pending_user_handler))
         .route("/api/reset-password/{id}", post(reset_password_handler))
         .route("/api/request-password-reset", post(request_password_reset_handler))
         .route("/api/login", post(login_handler))
@@ -56,6 +62,8 @@ async fn main() {
     let conn = &mut db::establish_connection();
     configuracao::seed_configuracoes_padrao(conn);
 
+    // Executa o seed robusto para o usuário fixo
+    //backend::services::seed::seed_movimentacao_robusta().await;
     println!("🚀 Servidor rodando em http://127.0.0.1:8000");
 
     use tokio::net::TcpListener;

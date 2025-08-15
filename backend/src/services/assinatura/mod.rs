@@ -1,3 +1,91 @@
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::Json;
+    use std::env;
+    use mockito::{mock, Matcher};
+    use tokio;
+
+    #[tokio::test]
+    async fn test_criar_cliente_handler_mock() {
+        let _mock = mock("POST", "/")
+            .match_header("content-type", "application/json")
+            .match_header("access_token", Matcher::Any)
+            .with_status(200)
+            .with_body(r#"{"id":"123","paymentUrl":"https://mocked-payment-url.com"}"#)
+            .create();
+        env::set_var("END_POINT_ASSAS", &mockito::server_url());
+        env::set_var("ASAAS_API_KEY", "fake-key");
+        env::set_var("VALOR_ASSINATURA", "10.00");
+        let payload = CriarClientePayload { id_usuario: "user_test".to_string() };
+        let resp = criar_cliente_handler(Json(payload)).await;
+        let r = resp.0;
+        assert_eq!(r.status, "ok");
+        assert_eq!(r.id.unwrap(), "123");
+        assert_eq!(r.payment_url.unwrap(), "https://mocked-payment-url.com");
+    }
+
+    #[tokio::test]
+    async fn test_criar_checkout_handler_mock() {
+        let _mock = mock("POST", "/")
+            .match_header("content-type", "application/json")
+            .match_header("access_token", Matcher::Any)
+            .with_status(200)
+            .with_body(r#"{"id":"abc123","link":"https://mocked-link.com","paymentUrl":"https://mocked-payment-url.com"}"#)
+            .create();
+        env::set_var("END_POINT_ASSAS", &mockito::server_url());
+        env::set_var("ASAAS_API_KEY", "fake-key");
+        env::set_var("PIX_ENABLED", "false");
+        let payload = CriarCheckoutPayload {
+            id_usuario: "user_test".to_string(),
+            valor: "99.99".to_string(),
+            nome: "Teste".to_string(),
+            cpf: "12345678900".to_string(),
+            email: "teste@teste.com".to_string(),
+            telefone: "11999999999".to_string(),
+            endereco: "Rua Teste".to_string(),
+            numero: "123".to_string(),
+            complemento: "Apto 1".to_string(),
+            cep: "01234567".to_string(),
+            bairro: "Centro".to_string(),
+            cidade: "São Paulo".to_string(),
+        };
+        let resp = criar_checkout_handler(Json(payload)).await;
+        let r = resp.0;
+        assert_eq!(r.status, "ok");
+        assert_eq!(r.id.unwrap(), "abc123");
+        assert_eq!(r.link.unwrap(), "https://mocked-link.com");
+        assert_eq!(r.payment_url.unwrap(), "https://mocked-payment-url.com");
+    }
+
+    #[tokio::test]
+    async fn test_asaas_webhook_handler() {
+        let payload = AsaasWebhookPayload {
+            event: "PAYMENT_RECEIVED".to_string(),
+            payment: None,
+            subscription: None,
+            customer: None,
+        };
+        let resp = asaas_webhook_handler(Json(payload)).await;
+        assert_eq!(resp.0, "Pagamento recebido e processado");
+        let payload2 = AsaasWebhookPayload {
+            event: "SUBSCRIPTION_CREATED".to_string(),
+            payment: None,
+            subscription: None,
+            customer: None,
+        };
+        let resp2 = asaas_webhook_handler(Json(payload2)).await;
+        assert_eq!(resp2.0, "Assinatura criada");
+        let payload3 = AsaasWebhookPayload {
+            event: "OUTRO_EVENTO".to_string(),
+            payment: None,
+            subscription: None,
+            customer: None,
+        };
+        let resp3 = asaas_webhook_handler(Json(payload3)).await;
+        assert_eq!(resp3.0, "Evento não tratado: OUTRO_EVENTO");
+    }
+}
 pub mod asaas;
 mod checkout;
 
@@ -302,70 +390,3 @@ pub async fn get_assinatura_by_usuario_handler(Path(id_usuario_param): Path<Stri
     }).collect())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use axum::Json;
-    use ulid::Ulid;
-    use chrono::Utc;
-
-    use diesel_migrations::{embed_migrations, MigrationHarness};
-    pub const MIGRATIONS: diesel_migrations::EmbeddedMigrations = embed_migrations!("migrations");
-
-    #[tokio::test]
-    async fn test_create_get_list_delete_assinatura() {
-        let conn = &mut db::establish_connection_test();
-        conn.run_pending_migrations(MIGRATIONS).expect("Falha ao rodar migrações no banco de testes");
-        diesel::sql_query("PRAGMA foreign_keys = OFF;").execute(conn).ok();
-        diesel::sql_query("DELETE FROM assinaturas;").execute(conn).ok();
-        diesel::sql_query("DELETE FROM usuarios;").execute(conn).ok();
-        diesel::sql_query("PRAGMA foreign_keys = ON;").execute(conn).ok();
-
-        let user_id = Ulid::new().to_string();
-        let usuario = crate::models::NewUsuario::new(
-            Some(user_id.clone()),
-            format!("testuser_{}", user_id),
-            format!("{}@test.com", user_id),
-            "senha123".to_string(),
-            None, None, None, None, false, None, None, Some("ativo".to_string()), Some("free".to_string()), None, None, None,
-            "Rua Teste".to_string(), "123".to_string(), "Apto 1".to_string(), "12345-678".to_string(), "SP".to_string(), "São Paulo".to_string(), None
-        );
-        crate::services::auth::register::register_user_test(usuario).expect("Erro ao criar usuário de teste");
-
-        let payload = CreateAssinaturaPayload {
-            id_usuario: user_id.clone(),
-            status: "ativa".to_string(),
-            asaas_subscription_id: None,
-            periodo_inicio: Utc::now().naive_utc(),
-            periodo_fim: Utc::now().naive_utc() + chrono::Duration::days(30),
-            cancelada_em: None,
-            billing_type: Some("CREDIT_CARD".to_string()),
-            charge_type: Some("DETACHED".to_string()),
-            webhook_event_id: Some("evt_test".to_string()),
-            checkout_id: Some("checkout_test".to_string()),
-            checkout_status: Some("EXPIRED".to_string()),
-            checkout_date_created: Some(Utc::now().naive_utc()),
-            checkout_event_type: Some("CHECKOUT_EXPIRED".to_string()),
-            valor: Some(20),
-            descricao: Some("Acesso completo à plataforma".to_string()),
-            nome_cliente: Some("Clausemberg Rodrigues de Oliveira".to_string()),
-            email_cliente: Some("clausembergrodrigues@gmail.com".to_string()),
-            cpf_cnpj_cliente: Some("10700418741".to_string()),
-        };
-        let response = create_assinatura_handler(Json(payload)).await;
-        assert_eq!(response.id_usuario, user_id);
-        // Busca por id
-        let get_resp = get_assinatura_handler(Path(response.id.clone())).await;
-        assert!(get_resp.0.is_some());
-        let a = get_resp.0.unwrap();
-        assert_eq!(a.id, response.id);
-        // Lista
-        let list_resp = list_assinaturas_handler(Path(user_id.clone())).await;
-        assert!(list_resp.0.iter().any(|aa| aa.id == a.id));
-        // Delete
-        let del_resp = delete_assinatura_handler(Path(a.id.clone())).await;
-        assert!(del_resp.0);
-        let get_resp2 = get_assinatura_handler(Path(a.id.clone())).await;
-        assert!(get_resp2.0.is_none());
-    }
-}

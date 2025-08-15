@@ -1,3 +1,89 @@
+#[cfg(test)]
+mod tests {
+    use mockito::{mock, Matcher};
+    use tokio;
+    use serial_test::serial;
+
+    // use serial_test::serial;
+    #[tokio::test]
+    #[serial]
+    async fn test_criar_cliente_asaas_mock() {
+        // Configura mock do endpoint
+        let mock = mock("POST", "/")
+            .match_header("content-type", "application/json")
+            .match_header("access_token", Matcher::Any)
+            .with_status(200)
+            .with_body(r#"{"id":"123","paymentUrl":"https://mocked-payment-url.com"}"#)
+            .expect(1)
+            .create();
+
+        use diesel::prelude::*;
+        use crate::schema::configuracoes::dsl::*;
+        // Limpa antes
+        let conn = &mut crate::db::establish_connection();
+        diesel::delete(configuracoes.filter(id_usuario.eq("sistema")).filter(chave.eq("valor_assinatura")))
+            .execute(conn)
+            .ok();
+
+        std::env::set_var("END_POINT_ASSAS", &mockito::server_url());
+        std::env::set_var("ASAAS_API_KEY", "fake-key");
+        std::env::set_var("VALOR_ASSINATURA", "10.00");
+
+        let result = criar_cliente_asaas("user_test".to_string()).await;
+        mock.assert();
+        println!("Resultado do teste criar_cliente_asaas_mock: {:?}", result);
+        assert!(result.is_ok());
+        let resp = result.unwrap();
+        assert_eq!(resp.status, "ok");
+        assert_eq!(resp.id.unwrap(), "123");
+
+        // Limpa depois
+        diesel::delete(configuracoes.filter(id_usuario.eq("sistema")).filter(chave.eq("valor_assinatura")))
+            .execute(conn)
+            .ok();
+    }
+    use super::*;
+    use std::env;
+
+    // use serial_test::serial;
+    #[test]
+    #[serial]
+    fn test_buscar_valor_assinatura_default_env() {
+        use diesel::prelude::*;
+        use crate::schema::configuracoes::dsl::*;
+             // Limpa antes
+        let conn = &mut crate::db::establish_connection();
+        diesel::delete(configuracoes.filter(id_usuario.eq("sistema")).filter(chave.eq("valor_assinatura")))
+            .execute(conn)
+            .ok();
+
+        // Setar variável de ambiente após limpeza
+        env::set_var("VALOR_ASSINATURA", "9.99");
+
+        // Garante que não há registro após possíveis execuções anteriores
+        assert_eq!(
+            configuracoes
+                .filter(id_usuario.eq("sistema")).filter(chave.eq("valor_assinatura"))
+                .first::<crate::models::configuracao::Configuracao>(conn)
+                .err()
+                .is_some(),
+            true
+        );
+
+        let valor_assinatura = buscar_valor_assinatura();
+        assert_eq!(valor_assinatura, "9.99");
+
+        // Limpa depois
+        diesel::delete(configuracoes.filter(id_usuario.eq("sistema")).filter(chave.eq("valor_assinatura")))
+            .execute(conn)
+            .ok();
+
+        env::set_var("VALOR_ASSINATURA", "9.99");
+        let valor_assinatura = buscar_valor_assinatura();
+        // O valor deve ser o da variável de ambiente se não houver registro no banco
+        assert_eq!(valor_assinatura, "9.99");
+    }
+}
 use crate::db;
 use crate::models::configuracao::Configuracao;
 use crate::schema::configuracoes::dsl::*;
@@ -19,13 +105,13 @@ use std::env;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct AsaasClientePayload {
     pub id_usuario: String,
     // Adicione outros campos obrigatórios do Asaas aqui
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct AsaasResponse {
     pub status: String,
     pub id: Option<String>,

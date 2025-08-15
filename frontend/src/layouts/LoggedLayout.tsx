@@ -154,7 +154,7 @@ export default function LoggedLayout({ children }: LoggedLayoutProps) {
           component="main"
           sx={{
             flexGrow: 1,
-            p: 3,
+            p: 0,
             width: { sm: `calc(100% - ${drawerWidth}px)` },
             bgcolor: "#181c24",
             color: "#f5f5f5",

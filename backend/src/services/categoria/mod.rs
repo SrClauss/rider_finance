@@ -1,3 +1,137 @@
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::Json;
+    use serial_test::serial;
+
+
+    fn clean_db() {
+        let conn = &mut db::establish_connection();
+        diesel::delete(categorias).execute(conn).ok();
+        diesel::delete(crate::schema::usuarios::dsl::usuarios).execute(conn).ok();
+    }
+
+    fn create_fake_user(user_id: &str) {
+        use crate::models::NewUsuario;
+        use crate::schema::usuarios::dsl::*;
+        let conn = &mut db::establish_connection();
+        let now = chrono::Utc::now().naive_utc();
+        let new_user = NewUsuario {
+            id: user_id.to_string(),
+            nome_usuario: "user_test".to_string(),
+            email: "teste@teste.com".to_string(),
+            senha: "senha123".to_string(),
+            nome_completo: "Teste".to_string(),
+            telefone: "11999999999".to_string(),
+            veiculo: "Carro".to_string(),
+            criado_em: now,
+            atualizado_em: now,
+            ultima_tentativa_redefinicao: now,
+
+            address: "Rua Teste".to_string(),
+            address_number: "123".to_string(),
+            complement: "Apto 1".to_string(),
+            postal_code: "01234567".to_string(),
+            province: "Centro".to_string(),
+            city: "São Paulo".to_string(),
+            cpfcnpj: "12345678900".to_string(),
+        };
+        diesel::insert_into(usuarios).values(&new_user).execute(conn).ok();
+        // Garante persistência
+        let _ = usuarios.filter(id.eq(user_id)).first::<crate::models::Usuario>(conn).expect("Usuário não persistido");
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn test_create_and_get_categoria() {
+        clean_db();
+        let user_id = "user1";
+        // Usa a mesma conexão para todas as operações
+        let conn = &mut db::establish_connection();
+        // Cria usuário
+        {
+            use crate::models::NewUsuario;
+            use crate::schema::usuarios::dsl::*;
+            let now = chrono::Utc::now().naive_utc();
+            let new_user = NewUsuario {
+                id: user_id.to_string(),
+                nome_usuario: "user_test".to_string(),
+                email: "teste@teste.com".to_string(),
+                senha: "senha123".to_string(),
+                nome_completo: "Teste".to_string(),
+                telefone: "11999999999".to_string(),
+                veiculo: "Carro".to_string(),
+                criado_em: now,
+                atualizado_em: now,
+                ultima_tentativa_redefinicao: now,
+                address: "Rua Teste".to_string(),
+                address_number: "123".to_string(),
+                complement: "Apto 1".to_string(),
+                postal_code: "01234567".to_string(),
+                province: "Centro".to_string(),
+                city: "São Paulo".to_string(),
+                cpfcnpj: "12345678900".to_string(),
+            };
+            diesel::insert_into(usuarios).values(&new_user).execute(conn).ok();
+            let _ = usuarios.filter(id.eq(user_id)).first::<crate::models::Usuario>(conn).expect("Usuário não persistido");
+        }
+        // Cria categoria
+        let now = chrono::Utc::now().naive_utc();
+        let nova_categoria = crate::models::NewCategoria {
+            id: ulid::Ulid::new().to_string(),
+            id_usuario: Some(user_id.to_string()),
+            nome: "Categoria Teste".to_string(),
+            tipo: "entrada".to_string(),
+            icone: Some("icon".to_string()),
+            cor: Some("#fff".to_string()),
+            eh_padrao: false,
+            eh_ativa: true,
+            criado_em: now,
+            atualizado_em: now,
+        };
+        diesel::insert_into(categorias).values(&nova_categoria).execute(conn).expect("Erro ao inserir categoria");
+        // Busca categoria
+        let cat = categorias.filter(id.eq(&nova_categoria.id)).first::<crate::models::Categoria>(conn).expect("Categoria não encontrada");
+        assert_eq!(cat.nome, "Categoria Teste");
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn test_list_and_delete_categoria() {
+        clean_db();
+        let user_id = "user2";
+        create_fake_user(user_id);
+        // Cria duas categorias
+        let payload1 = CreateCategoriaPayload {
+            id_usuario: Some(user_id.to_string()),
+            nome: "Cat1".to_string(),
+            tipo: "entrada".to_string(),
+            icone: None,
+            cor: None,
+            eh_padrao: false,
+            eh_ativa: true,
+        };
+        let Json(resp1) = create_categoria_handler(Json(payload1)).await;
+        let payload2 = CreateCategoriaPayload {
+            id_usuario: Some(user_id.to_string()),
+            nome: "Cat2".to_string(),
+            tipo: "saida".to_string(),
+            icone: None,
+            cor: None,
+            eh_padrao: false,
+            eh_ativa: true,
+        };
+        let Json(_resp2) = create_categoria_handler(Json(payload2)).await;
+        // Lista
+        let Json(list) = list_categorias_handler(axum::extract::Path(user_id.to_string())).await;
+        assert_eq!(list.len(), 2);
+        // Deleta uma
+        let Json(ok) = delete_categoria_handler(axum::extract::Path(resp1.id.clone())).await;
+        assert!(ok);
+        let Json(list2) = list_categorias_handler(axum::extract::Path(user_id.to_string())).await;
+        assert_eq!(list2.len(), 1);
+    }
+}
 use axum::{Json, extract::Path};
 use diesel::prelude::*;
 use serde::{Serialize, Deserialize};
@@ -108,68 +242,4 @@ pub async fn delete_categoria_handler(Path(id_param): Path<String>) -> Json<bool
     let conn = &mut db::establish_connection();
     let count = diesel::delete(categorias.filter(id.eq(id_param))).execute(conn).unwrap_or(0);
     Json(count > 0)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use axum::Json;
-    use ulid::Ulid;
-    use diesel_migrations::{embed_migrations, MigrationHarness};
-    pub const MIGRATIONS: diesel_migrations::EmbeddedMigrations = embed_migrations!("migrations");
-
-    #[tokio::test]
-    async fn test_create_get_list_delete_categoria() {
-        let conn = &mut db::establish_connection_test();
-        conn.run_pending_migrations(MIGRATIONS).expect("Falha ao rodar migrações no banco de testes");
-        diesel::sql_query("PRAGMA foreign_keys = OFF;").execute(conn).ok();
-        diesel::sql_query("DELETE FROM categorias;").execute(conn).ok();
-        diesel::sql_query("DELETE FROM usuarios;").execute(conn).ok();
-        diesel::sql_query("PRAGMA foreign_keys = ON;").execute(conn).ok();
-
-        let user_id = Ulid::new().to_string();
-        let usuario = crate::models::NewUsuario::new(
-            Some(user_id.clone()),
-            format!("testuser_{}", user_id),
-            format!("{}@test.com", user_id),
-            "senha123".to_string(),
-            None, None, None, None, false, None, None, Some("ativo".to_string()), Some("free".to_string()), None, None, None,
-            "Rua Teste".to_string(), // address
-            "123".to_string(), // address_number
-            "Apto 1".to_string(), // complement
-            "29936-808".to_string(), // postal_code
-            "ES".to_string(), // province
-            "São Mateus".to_string(), // city
-            None, // cpf_cnpj
-        );
-        crate::services::auth::register::register_user_test(usuario).expect("Erro ao criar usuário de teste");
-
-        let payload = CreateCategoriaPayload {
-            id_usuario: Some(user_id.clone()),
-            nome: "Alimentação".to_string(),
-            tipo: "despesa".to_string(),
-            icone: Some("food".to_string()),
-            cor: Some("#FF0000".to_string()),
-            eh_padrao: false,
-            eh_ativa: true,
-        };
-        let response = create_categoria_handler(Json(payload)).await;
-        assert_eq!(response.nome, "Alimentação");
-        assert_eq!(response.tipo, "despesa");
-        assert_eq!(response.id_usuario, Some(user_id.clone()));
-
-        let get_resp = get_categoria_handler(Path(response.id.clone())).await;
-        assert!(get_resp.0.is_some());
-        let c = get_resp.0.unwrap();
-        assert_eq!(c.nome, "Alimentação");
-        assert_eq!(c.tipo, "despesa");
-
-        let list_resp = list_categorias_handler(Path(user_id.clone())).await;
-        assert!(list_resp.0.iter().any(|cc| cc.id == c.id));
-
-        let del_resp = delete_categoria_handler(Path(c.id.clone())).await;
-        assert!(del_resp.0);
-        let get_resp2 = get_categoria_handler(Path(c.id.clone())).await;
-        assert!(get_resp2.0.is_none());
-    }
 }

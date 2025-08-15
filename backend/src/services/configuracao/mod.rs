@@ -1,3 +1,131 @@
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::configuracao::{NewConfiguracao};
+    use crate::db::establish_connection;
+    use diesel::prelude::*;
+    use axum::extract::Path;
+    use axum::Json;
+    use serial_test::serial;
+
+    fn clean_db() {
+        let conn = &mut establish_connection();
+        diesel::delete(crate::schema::configuracoes::dsl::configuracoes).execute(conn).ok();
+        diesel::delete(crate::schema::usuarios::dsl::usuarios).execute(conn).ok();
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn test_checkout_info_handler() {
+        clean_db();
+        // Seed padrão
+        let conn = &mut establish_connection();
+        seed_configuracoes_padrao(conn);
+        let resp = checkout_info_handler().await;
+        let v = resp.0;
+        assert!(v.get("valor").is_some());
+        assert!(v.get("url_endpoint_pagamento").is_some());
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn test_create_get_list_delete_configuracao() {
+        clean_db();
+        let conn = &mut establish_connection();
+        // Cria usuário fake
+        use crate::models::NewUsuario;
+        use crate::schema::usuarios::dsl::*;
+        let now = chrono::Utc::now().naive_utc();
+        let user_id = "user_cfg".to_string();
+        let new_user = NewUsuario {
+            id: user_id.clone(),
+            nome_usuario: "user_test".to_string(),
+            email: "teste@teste.com".to_string(),
+            senha: "senha123".to_string(),
+            nome_completo: "Teste".to_string(),
+            telefone: "11999999999".to_string(),
+            veiculo: "Carro".to_string(),
+            criado_em: now,
+            atualizado_em: now,
+            ultima_tentativa_redefinicao: now,
+            address: "Rua Teste".to_string(),
+            address_number: "123".to_string(),
+            complement: "Apto 1".to_string(),
+            postal_code: "01234567".to_string(),
+            province: "Centro".to_string(),
+            city: "São Paulo".to_string(),
+            cpfcnpj: "12345678900".to_string(),
+        };
+        diesel::insert_into(usuarios).values(&new_user).execute(conn).ok();
+        // Cria configuração
+        let new = NewConfiguracao {
+            id: ulid::Ulid::new().to_string(),
+            id_usuario: Some(user_id.clone()),
+            chave: "chave_teste".to_string(),
+            valor: Some("valor_teste".to_string()),
+            categoria: Some("cat".to_string()),
+            descricao: Some("desc".to_string()),
+            tipo_dado: Some("string".to_string()),
+            eh_publica: false,
+            criado_em: chrono::Utc::now().naive_utc(),
+            atualizado_em: chrono::Utc::now().naive_utc(),
+        };
+        let result = create_configuracao_handler(Json(new.clone()), conn).await;
+        assert!(result.is_ok());
+        let Json(cfg) = result.unwrap();
+        assert_eq!(cfg.chave, "chave_teste");
+        // Get
+        let result = get_configuracao_handler(Path(cfg.id.clone()), conn).await;
+        assert!(result.is_ok());
+        let Json(cfg2) = result.unwrap();
+        assert_eq!(cfg2.chave, "chave_teste");
+        // List
+        let result = list_configuracoes_handler(Path(user_id.clone()), conn).await;
+        assert!(result.is_ok());
+        let Json(list) = result.unwrap();
+        assert_eq!(list.len(), 1);
+        // Delete
+        let result = delete_configuracao_handler(Path(cfg.id.clone()), conn).await;
+        assert!(result.is_ok());
+        let Json(count) = result.unwrap();
+        assert_eq!(count, 1);
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn test_usuario_completo_handler() {
+        clean_db();
+        // Cria usuário fake
+        use crate::models::NewUsuario;
+        use crate::schema::usuarios::dsl::*;
+        let conn = &mut establish_connection();
+        let now = chrono::Utc::now().naive_utc();
+        let user_id = ulid::Ulid::new().to_string();
+        let new_user = NewUsuario {
+            id: user_id.clone(),
+            nome_usuario: "user_test".to_string(),
+            email: "teste@teste.com".to_string(),
+            senha: "senha123".to_string(),
+            nome_completo: "Teste".to_string(),
+            telefone: "11999999999".to_string(),
+            veiculo: "Carro".to_string(),
+            criado_em: now,
+            atualizado_em: now,
+            ultima_tentativa_redefinicao: now,
+            address: "Rua Teste".to_string(),
+            address_number: "123".to_string(),
+            complement: "Apto 1".to_string(),
+            postal_code: "01234567".to_string(),
+            province: "Centro".to_string(),
+            city: "São Paulo".to_string(),
+            cpfcnpj: "12345678900".to_string(),
+        };
+        diesel::insert_into(usuarios).values(&new_user).execute(conn).ok();
+        let resp = usuario_completo_handler(Path(user_id.clone())).await;
+        assert!(resp.0.is_some());
+        assert_eq!(resp.0.unwrap().id, user_id);
+    }
+}
 // Novo endpoint para buscar o objeto completo do usuário
 use axum::{extract::Path, response::Json as AxumJson};
 #[axum::debug_handler]
@@ -13,11 +141,10 @@ pub async fn usuario_completo_handler(Path(user_id): Path<String>) -> AxumJson<O
     AxumJson(usuario)
 }
 // Handler para buscar valor_assinatura global
-use axum::{extract::Query, Json};
+use axum::Json;
 use serde_json::json;
 use crate::db::establish_connection;
 
-use std::collections::HashMap;
 
 
 pub async fn checkout_info_handler() -> AxumJson<serde_json::Value> {
@@ -132,16 +259,7 @@ pub async fn delete_configuracao_handler(
 
 // Função para inserir configurações padrão no banco, incluindo valor_assinatura
 pub fn seed_configuracoes_padrao(conn: &mut diesel::PgConnection) {
-    // Verifica se o seed já foi aplicado (config global, sem user_id)
-    let seed_aplicado_existe = configuracoes
-        .filter(crate::schema::configuracoes::id_usuario.is_null())
-        .filter(crate::schema::configuracoes::chave.eq("seed_aplicado"))
-        .first::<Configuracao>(conn)
-        .is_ok();
-    if seed_aplicado_existe {
-        println!("Seed já aplicado, nada será feito.");
-        return;
-    }
+
     use crate::models::configuracao::NewConfiguracao;
     let now = Utc::now().naive_utc();
     let valor_assinatura = std::env::var("VALOR_ASSINATURA").unwrap_or("2.00".to_string());
@@ -162,9 +280,9 @@ pub fn seed_configuracoes_padrao(conn: &mut diesel::PgConnection) {
             id: Ulid::new().to_string(),
             id_usuario: None,
             chave: "projecao_metodo".to_string(),
-            valor: Some("media".to_string()),
+            valor: Some("regressao_linear".to_string()),
             categoria: Some("dashboard".to_string()),
-            descricao: Some("Método de cálculo da projeção: media ou mediana".to_string()),
+            descricao: Some("Método de cálculo da projeção: regressao_linear, media, mediana, media_movel_3, media_movel_7, media_movel_30".to_string()),
             tipo_dado: Some("string".to_string()),
             eh_publica: false,
             criado_em: now,
@@ -224,6 +342,9 @@ pub fn seed_configuracoes_padrao(conn: &mut diesel::PgConnection) {
             atualizado_em: now,
         });
     }
+    let _ = diesel::insert_into(configuracoes)
+        .values(&configs)
+        .execute(conn);
 
     // Adiciona cancelUrl, expiredUrl, successUrl se não existirem
     let cancel_url = std::env::var("CHECKOUT_CANCEL_URL").unwrap_or_else(|_| "http://localhost/checkout-cancelado".to_string());

@@ -38,8 +38,6 @@ export function activate(context: vscode.ExtensionContext) {
       name: '🌐 Nginx (Proxy)',
       cwd: nginxPath
     });
-    nginxTerminal.sendText('echo $SHELL');
-    nginxTerminal.sendText('pwd');
     nginxTerminal.sendText('.\\nginx.exe -g "error_log logs/error.log debug;"');
   });
 

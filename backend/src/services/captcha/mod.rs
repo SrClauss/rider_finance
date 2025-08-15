@@ -1,13 +1,36 @@
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::response::IntoResponse;
+
+    #[tokio::test]
+    async fn test_generate_and_validate_captcha() {
+        // Gera um captcha
+        let response = generate_captcha_handler().await.into_response();
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let captcha: CaptchaResponse = serde_json::from_slice(&body).unwrap();
+        // O token deve existir no store
+        let store = CAPTCHA_STORE.lock().unwrap();
+        let expected = store.get(&captcha.token).unwrap().clone();
+        drop(store);
+        // Validação correta
+        assert!(validate_captcha(&captcha.token, &expected));
+        // Validação errada
+        assert!(!validate_captcha(&captcha.token, "errado"));
+        // Após consumo, o token não deve mais ser válido
+        assert!(!validate_captcha(&captcha.token, &expected));
+    }
+}
 use axum::{response::IntoResponse, Json};
 use captcha::{filters, Captcha};
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 use uuid::Uuid;
 use lazy_static::lazy_static;
 use std::sync::Mutex;
 use std::collections::HashMap;
 use base64::{engine::general_purpose, Engine as _}; // Importando base64 para codificar o png
 // Estrutura de resposta do captcha
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct CaptchaResponse {
     pub token: String,
     pub png: String,}
@@ -46,36 +69,3 @@ pub fn validate_captcha(token: &str, answer: &str) -> bool {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_generate_and_validate_captcha() {
-        // Gera captcha
-        let mut captcha = Captcha::new();
-        captcha.add_chars(5).view(220, 100);
-        let text = captcha.chars_as_string();
-        let token = Uuid::new_v4().to_string();
-        CAPTCHA_STORE.lock().unwrap().insert(token.clone(), text.clone());
-
-        // Valida captcha correto
-        assert!(validate_captcha(&token, &text));
-        // Token deve ser consumido
-        assert!(!validate_captcha(&token, &text));
-    }
-
-    #[test]
-    fn test_validate_captcha_incorrect() {
-        let mut captcha = Captcha::new();
-        captcha.add_chars(5).view(220, 100);
-        let text = captcha.chars_as_string();
-        let token = Uuid::new_v4().to_string();
-        CAPTCHA_STORE.lock().unwrap().insert(token.clone(), text.clone());
-
-        // Valida captcha errado
-        assert!(!validate_captcha(&token, "errado"));
-        // Token não é consumido se resposta errada
-        assert!(validate_captcha(&token, &text));
-    }
-}

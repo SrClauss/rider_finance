@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"path": "../../../.."
+		},
+		{
+			"path": "../../../../../rider_finance"
+		}
+	],
+	"settings": {
+		"liveServer.settings.multiRootWorkspaceName": "rider_finance2"
+	}
+}

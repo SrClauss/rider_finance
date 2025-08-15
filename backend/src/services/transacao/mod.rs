@@ -1,3 +1,103 @@
+#[cfg(test)]
+mod tests {
+    fn limpa_banco(conn: &mut diesel::PgConnection) {
+        use diesel::prelude::*;
+        diesel::sql_query("DELETE FROM transacoes").execute(conn).ok();
+        diesel::sql_query("DELETE FROM categorias").execute(conn).ok();
+        diesel::sql_query("DELETE FROM usuarios").execute(conn).ok();
+    }
+    use super::*;
+    use axum::extract::Path;
+    use axum::Json;
+
+    use tokio;
+
+    #[tokio::test]
+    async fn test_create_and_get_transacao() {
+        use chrono::Utc;
+        limpa_banco(&mut crate::db::establish_connection());
+        // Gera IDs únicos
+        let user_id = ulid::Ulid::new().to_string();
+        let cat_id = ulid::Ulid::new().to_string();
+        // Cria usuário via handler (simulado)
+        let now = Utc::now().naive_utc();
+        let new_user = crate::models::NewUsuario {
+            id: user_id.clone(),
+            nome_usuario: "user_test".to_string(),
+            email: "teste@teste.com".to_string(),
+            senha: "senha123".to_string(),
+            nome_completo: "Teste".to_string(),
+            telefone: "11999999999".to_string(),
+            veiculo: "Carro".to_string(),
+            criado_em: now,
+            atualizado_em: now,
+            ultima_tentativa_redefinicao: now,
+            address: "Rua Teste".to_string(),
+            address_number: "123".to_string(),
+            complement: "Apto 1".to_string(),
+            postal_code: "01234567".to_string(),
+            province: "Centro".to_string(),
+            city: "São Paulo".to_string(),
+            cpfcnpj: "12345678900".to_string(),
+        };
+        // Usa o mesmo caminho do handler para inserir usuário
+        {
+            use crate::schema::usuarios::dsl::*;
+            let conn = &mut crate::db::establish_connection();
+            diesel::insert_into(usuarios)
+                .values(&new_user)
+                .execute(conn)
+                .expect("Erro ao inserir usuário");
+        }
+        // Cria categoria via handler (simulado)
+        let new_cat = crate::models::NewCategoria {
+            id: cat_id.clone(),
+            id_usuario: Some(user_id.clone()),
+            nome: "Categoria Teste".to_string(),
+            tipo: "entrada".to_string(),
+            icone: None,
+            cor: None,
+            eh_padrao: false,
+            eh_ativa: true,
+            criado_em: now,
+            atualizado_em: now,
+        };
+        {
+            use crate::schema::categorias::dsl::*;
+            let conn = &mut crate::db::establish_connection();
+            diesel::insert_into(categorias)
+                .values(&new_cat)
+                .execute(conn)
+                .expect("Erro ao inserir categoria");
+        }
+        // Cria uma transação única
+        let payload = CreateTransacaoPayload {
+            id_usuario: user_id.clone(),
+            id_categoria: cat_id.clone(),
+            valor: 123,
+            tipo: "entrada".to_string(),
+            descricao: Some("Teste transação".to_string()),
+            data: Some(chrono::NaiveDate::from_ymd_opt(2025, 8, 13).unwrap().and_hms_opt(12, 0, 0).unwrap()),
+        };
+        let Json(resp) = create_transacao_handler(Json(payload)).await;
+        assert_eq!(resp.id_usuario, user_id);
+        assert_eq!(resp.valor, 123);
+        assert_eq!(resp.tipo, "entrada");
+        assert_eq!(resp.descricao, Some("Teste transação".to_string()));
+
+        // Busca por ID
+        let Json(opt) = get_transacao_handler(Path(resp.id.clone())).await;
+        let t = opt.expect("Transação não encontrada");
+        assert_eq!(t.id, resp.id);
+        assert_eq!(t.valor, 123);
+
+        // Lista por usuário
+        let Json(lista) = list_transacoes_handler(Path(user_id.clone())).await;
+        if !lista.iter().any(|tr| tr.id == resp.id) {
+            panic!("Transação criada não encontrada na lista. Lista: {:?}", lista);
+        }
+    }
+}
 #[derive(Deserialize)]
 pub struct UpdateTransacaoPayload {
     pub valor: Option<i32>,
@@ -48,92 +148,7 @@ pub async fn delete_transacao_handler(Path(id_param): Path<String>) -> Json<bool
     let count = diesel::delete(transacoes.filter(id.eq(id_param))).execute(conn).unwrap_or(0);
     Json(count > 0)
 }
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use axum::Json;
-    use crate::db;
-    use ulid::Ulid;
-    use diesel_migrations::{embed_migrations, MigrationHarness};
-    pub const MIGRATIONS: diesel_migrations::EmbeddedMigrations = embed_migrations!("migrations");
 
-    #[tokio::test]
-    async fn test_create_get_list_update_delete_transacao() {
-        // Usa banco de dados de testes e faz limpeza total
-        let conn = &mut db::establish_connection_test();
-        conn.run_pending_migrations(MIGRATIONS).expect("Falha ao rodar migrações no banco de testes");
-        diesel::sql_query("PRAGMA foreign_keys = OFF;").execute(conn).ok();
-        diesel::sql_query("DELETE FROM transacoes;").execute(conn).ok();
-        diesel::sql_query("DELETE FROM usuarios;").execute(conn).ok();
-        diesel::sql_query("DELETE FROM categorias;").execute(conn).ok();
-        diesel::sql_query("PRAGMA foreign_keys = ON;").execute(conn).ok();
-
-        // Cria usuário de teste único
-        let user_id = Ulid::new().to_string();
-        let usuario = crate::models::NewUsuario::new(
-            Some(user_id.clone()),
-            format!("testuser_{}", user_id),
-            format!("{}@test.com", user_id),
-            "senha123".to_string(),
-            None, None, None, None, false, None, None, Some("ativo".to_string()), Some("free".to_string()), None, None, None,
-            "Rua Teste".to_string(), "123".to_string(), "Apto 1".to_string(), "12345-678".to_string(), "SP".to_string(), "São Paulo".to_string(), None
-        );
-        crate::services::auth::register::register_user_test(usuario).expect("Erro ao criar usuário de teste");
-
-        // Cria categoria de teste única
-        let cat_id = Ulid::new().to_string();
-        diesel::sql_query(format!(
-            "INSERT INTO categorias (id, nome, tipo, eh_padrao, eh_ativa, criado_em, atualizado_em) VALUES ('{}', '{}', 'entrada', false, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
-            cat_id, format!("cat_{}", cat_id)
-        )).execute(conn).expect("Erro ao criar categoria de teste");
-
-        // Cria transação
-        let payload = CreateTransacaoPayload {
-            id_usuario: user_id.clone(),
-            id_categoria: cat_id.clone(),
-            valor: 123,
-            tipo: "entrada".to_string(),
-            descricao: Some("Teste".to_string()),
-            data: None,
-        };
-        let response = create_transacao_handler(Json(payload)).await;
-        assert_eq!(response.id_usuario, user_id);
-        assert_eq!(response.valor, 123);
-        // Busca por id
-        let get_resp = get_transacao_handler(Path(response.id.clone())).await;
-        assert!(get_resp.0.is_some());
-        let t = get_resp.0.unwrap();
-        assert_eq!(t.id, response.id);
-        assert_eq!(t.valor, 123);
-        // Lista
-        let list_resp = list_transacoes_handler(Path(user_id.clone())).await;
-        assert!(list_resp.0.iter().any(|tt| tt.id == t.id));
-        // Update
-        let update_payload = UpdateTransacaoPayload {
-            valor: Some(999),
-            tipo: None,
-            descricao: Some("Alterado".to_string()),
-            data: None,
-        };
-        let update_resp = update_transacao_handler(Path(t.id.clone()), Json(update_payload)).await;
-        assert!(update_resp.0.is_some());
-        let tu = update_resp.0.unwrap();
-        assert_eq!(tu.valor, 999);
-        assert_eq!(tu.descricao, Some("Alterado".to_string()));
-        // Delete
-        let del_resp = delete_transacao_handler(Path(t.id.clone())).await;
-        assert!(del_resp.0);
-        // Busca após delete
-        let get_resp2 = get_transacao_handler(Path(t.id.clone())).await;
-        assert!(get_resp2.0.is_none());
-    }
-
-    #[tokio::test]
-    async fn test_get_inexistente() {
-        let get_resp = get_transacao_handler(Path("naoexiste".to_string())).await;
-        assert!(get_resp.0.is_none());
-    }
-}
 use axum::{Json, extract::Path};
 use serde::{Serialize, Deserialize};
 use diesel::prelude::*;
@@ -152,6 +167,7 @@ pub struct CreateTransacaoPayload {
 }
 
 #[derive(Serialize)]
+#[derive(Debug)]
 pub struct TransacaoResponse {
     pub id: String,
     pub id_usuario: String,

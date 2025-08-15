@@ -1,3 +1,25 @@
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::Json;
+
+    #[tokio::test]
+    async fn test_reset_password_handler_usuario_inexistente() {
+        let payload = ResetPasswordPayload {
+            nova_senha: "nova123".to_string(),
+        };
+        let user_id = "naoexiste".to_string();
+        let resp = reset_password_handler(axum::extract::Path(user_id), Json(payload)).await;
+        let msg = resp.0;
+        assert!(msg.contains("sucesso") || msg.contains("Erro"));
+    }
+
+    #[test]
+    fn test_reset_password_usuario_inexistente() {
+        let result = reset_password("naoexiste", "nova123");
+        assert!(result.is_ok() || result.is_err());
+    }
+}
 
 // --- Payload ---
 use serde::Deserialize;

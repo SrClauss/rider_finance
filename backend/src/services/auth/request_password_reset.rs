@@ -1,3 +1,18 @@
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::Json;
+
+    #[tokio::test]
+    async fn test_request_password_reset_handler_usuario_inexistente() {
+        let payload = RequestPasswordResetPayload {
+            email: "naoexiste@teste.com".to_string(),
+        };
+        let resp = request_password_reset_handler(Json(payload)).await;
+        let msg = resp.0;
+        assert!(msg.contains("não encontrado"));
+    }
+}
 use axum::{Json};
 use serde::Deserialize;
 use crate::models::Usuario;
@@ -22,10 +37,7 @@ pub async fn request_password_reset_handler(Json(payload): Json<RequestPasswordR
     match usuario_result {
         Ok(usuario) => {
             let now = Utc::now().naive_utc();
-            let pode_reenviar = match usuario.ultima_tentativa_redefinicao {
-                Some(data) => now - data > Duration::hours(4),
-                None => true,
-            };
+            let pode_reenviar = now - usuario.ultima_tentativa_redefinicao > Duration::hours(4);
             if !pode_reenviar {
                 return Json("Já foi solicitado recentemente. Aguarde 4 horas para nova tentativa.".to_string());
             }

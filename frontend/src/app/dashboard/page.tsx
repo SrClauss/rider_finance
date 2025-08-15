@@ -1,117 +1,210 @@
+import DashboardCardData from "@/components/dashboard/DashboardCardData";
+import DashboardSimpleCard from "@/components/dashboard/DashboardSimpleCard";
+
 import { DashboardResponse } from "@/interfaces/DashboardResponse";
 import LoggedLayout from "@/layouts/LoggedLayout";
-import { Box} from "@mui/material";
-
-import DashboardDataCard from "@/components/dashboard/DashboardDataCard";
-import DashboardChartCard from "@/components/dashboard/DashboardChartCard";
-import DashboardSwiper from "@/components/dashboard/DashboardSlide";
+import dashboardMock from "@/mocks/dashboardMock";
+import {
+    AttachMoney,
+    MoneyOff,
+    Savings,
+    LocalTaxi,
+    AccessTime,
+    TrendingUp,
+    Flag,
+    CalendarToday
+} from "@mui/icons-material";
+import { Box } from "@mui/material";
+import DashboardLineChartCard from "@/components/dashboard/DashboardLineChartCard";
 
 
 export default async function DashboardPage() {
     let data: DashboardResponse | null = null;
+    let mode: 'mock' | 'real' = 'real';
+
     try {
-        const res = await fetch("http://localhost:3000/api/dashboard/stats", { cache: "no-store" });
+    
+        const res = await fetch("http://localhost/api/dashboard/stats", {
+            cache: "no-store",
+            credentials: "include"
+        });
         if (res.ok) {
+          
             data = await res.json();
+            console.log(data);
         }
+        console.log(data) 
     } catch (e) {
         data = null;
     }
-        // Mock atualizado para refletir todos os campos
-        const mockStats: DashboardResponse = {
-            ganhos_hoje: 120,
-            gastos_hoje: 45,
-            lucro_hoje: 75,
-            corridas_hoje: 8,
-            horas_hoje: 5,
-            eficiencia: 92,
-            ganhos_semana: 850,
-            gastos_semana: 320,
-            lucro_semana: 530,
-            corridas_semana: 52,
-            horas_semana: 34,
-            meta_diaria: 150,
-            meta_semanal: 1000,
-            tendencia_ganhos: 10,
-            tendencia_gastos: -5,
-            tendencia_corridas: 2,
-            ganhos_7dias: [120, 110, 95, 130, 140, 155, 100],
-            gastos_7dias: [45, 50, 40, 60, 55, 70, 35],
-            lucro_7dias: [75, 60, 55, 70, 85, 85, 65],
-            ganhos_mes: Array(31).fill(100).map((v, i) => v + i * 2),
-            gastos_mes: Array(31).fill(50).map((v, i) => v + i),
-            lucro_mes: Array(31).fill(50).map((v, i) => v + i),
-        };
-        const stats: DashboardResponse = data || mockStats;
-        // Labels para gráficos
-        const diasSemana = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
-        const diasMes = stats.ganhos_mes.map((_, i) => `${i + 1}`);
 
-        // Agrupamento dos cards por categoria
-        const cardsGanhos = [
-            { label: "Ganhos Hoje", value: stats.ganhos_hoje, color: "success", trend: stats.tendencia_ganhos },
-            { label: "Ganhos Semana", value: stats.ganhos_semana, color: "success" },
-        ];
-        const cardsGastos = [
-            { label: "Gastos Hoje", value: stats.gastos_hoje, color: "error", trend: stats.tendencia_gastos },
-            { label: "Gastos Semana", value: stats.gastos_semana, color: "error" },
-        ];
-        const cardsLucros = [
-            { label: "Lucro Hoje", value: stats.lucro_hoje, color: "primary" },
-            { label: "Lucro Semana", value: stats.lucro_semana, color: "primary" },
-        ];
-        const cardsMetas = [
-            { label: "Meta Diária", value: stats.meta_diaria ?? "-", color: "secondary" },
-            { label: "Meta Semanal", value: stats.meta_semanal ?? "-", color: "secondary" },
-        ];
-        const cardsInfo = [
-            { label: "Corridas Hoje", value: stats.corridas_hoje, color: "info" },
-            { label: "Corridas Semana", value: stats.corridas_semana, color: "info" },
-            { label: "Horas Hoje", value: stats.horas_hoje, color: "info" },
-            { label: "Horas Semana", value: stats.horas_semana, color: "info" },
-            { label: "Eficiência", value: stats.eficiencia + "%", color: "warning" },
-        ];
 
-        // Slides de gráficos para mobile/desktop
-        const chartItemsSemana = [
-            { title: "Ganhos Semana", chart: <DashboardChartCard key="ganhos_semana_bar" title="Ganhos Semana" data={stats.ganhos_7dias} labels={diasSemana} color="success" chartTypes={["bar", "line"]} trend={stats.tendencia_ganhos} /> },
-            { title: "Gastos Semana", chart: <DashboardChartCard key="gastos_semana_bar" title="Gastos Semana" data={stats.gastos_7dias} labels={diasSemana} color="error" chartTypes={["bar", "line"]} trend={stats.tendencia_gastos} /> },
-            { title: "Lucro Semana", chart: <DashboardChartCard key="lucro_semana_bar" title="Lucro Semana" data={stats.lucro_7dias} labels={diasSemana} color="primary" chartTypes={["bar", "line"]} /> },
-        ];
-        const chartItemsMes = [
-            { title: "Ganhos Mês", chart: <DashboardChartCard key="ganhos_mes_bar" title="Ganhos Mês" data={stats.ganhos_mes} labels={diasMes} color="success" chartTypes={["bar", "line"]} trend={stats.tendencia_ganhos} /> },
-            { title: "Gastos Mês", chart: <DashboardChartCard key="gastos_mes_bar" title="Gastos Mês" data={stats.gastos_mes} labels={diasMes} color="error" chartTypes={["bar", "line"]} trend={stats.tendencia_gastos} /> },
-            { title: "Lucro Mês", chart: <DashboardChartCard key="lucro_mes_bar" title="Lucro Mês" data={stats.lucro_mes} labels={diasMes} color="primary" chartTypes={["bar", "line"]} /> },
-        ];
 
-        return (
-            <LoggedLayout>
-                <Box sx={{ p: 2 }}>
-                    {/* Swiper de cards por categoria no mobile, grid no desktop */}
-                    <Box sx={{ display: { xs: 'none', sm: 'flex' }, flexWrap: 'wrap', gap: 2, mb: 2 }}>
-                        {[cardsGanhos, cardsGastos, cardsLucros, cardsMetas, cardsInfo].map((group, idx) => (
-                            group.map((card, j) => (
-                                <Box key={idx + '-' + j} sx={{ flex: "1 1 120px" }}>
-                                    <DashboardDataCard {...card} />
-                                </Box>
-                            ))
-                        ))}
-                    </Box>
-                    {/* Mobile: Swiper para grupos de cards */}
-                    <Box sx={{ display: { xs: 'block', sm: 'none' }, mb: 2 }}>
-                        <DashboardSwiper items={[
-                            { title: 'Ganhos', chart: <Box sx={{ display: 'flex', gap: 2 }}>{cardsGanhos.map((card, idx) => <DashboardDataCard key={idx} {...card} />)}</Box> },
-                            { title: 'Gastos', chart: <Box sx={{ display: 'flex', gap: 2 }}>{cardsGastos.map((card, idx) => <DashboardDataCard key={idx} {...card} />)}</Box> },
-                            { title: 'Lucros', chart: <Box sx={{ display: 'flex', gap: 2 }}>{cardsLucros.map((card, idx) => <DashboardDataCard key={idx} {...card} />)}</Box> },
-                            { title: 'Metas', chart: <Box sx={{ display: 'flex', gap: 2 }}>{cardsMetas.map((card, idx) => <DashboardDataCard key={idx} {...card} />)}</Box> },
-                            { title: 'Info', chart: <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>{cardsInfo.map((card, idx) => <DashboardDataCard key={idx} {...card} />)}</Box> },
-                        ]} />
-                    </Box>
-                    {/* Swiper de gráficos semanais */}
-                    <DashboardSwiper items={chartItemsSemana} />
-                    {/* Swiper de gráficos mensais */}
-                    <DashboardSwiper items={chartItemsMes} />
+
+    return (
+        <LoggedLayout>
+            <Box sx={{ padding: 5 }}>
+                {/* Agrupa os cards em trios para layout mobile especial */}
+                {/* Mobile: grupos de 3, Desktop: grid padrão */}
+                <Box sx={{ display: { xs: "block", md: "none" } }}>
+                    {/* Cards principais agrupados em trios */}
+                    {(() => {
+                        const cards = [
+                            <DashboardCardData label="Ganhos Hoje" value={data?.ganhos_hoje ?? 0} color="verde" icon={<AttachMoney />} periodoAnterior={data?.ganhos_ontem ?? null} mod="currency" key="ganhos-hoje" />,
+                            <DashboardCardData label="Ganhos Semana" value={data?.ganhos_semana ?? 0} color="verde" icon={<AttachMoney />} periodoAnterior={data?.ganhos_semana_passada ?? null} mod="currency" key="ganhos-semana" />,
+                            <DashboardCardData label="Ganhos Mês" value={data?.ganhos_mes ?? 0} color="verde" icon={<AttachMoney />} periodoAnterior={data?.ganhos_mes_passado ?? null} mod="currency" key="ganhos-mes" />,
+                            <DashboardCardData label="Gastos Hoje" value={data?.gastos_hoje ?? 0} color="vermelha" icon={<MoneyOff />} periodoAnterior={data?.gastos_ontem ?? null} mod="currency" key="gastos-hoje" />,
+                            <DashboardCardData label="Gastos Semana" value={data?.gastos_semana ?? 0} color="vermelha" icon={<MoneyOff />} periodoAnterior={data?.gastos_semana_passada ?? null} mod="currency" key="gastos-semana" />,
+                            <DashboardCardData label="Gastos Mês" value={data?.gastos_mes ?? 0} color="vermelha" icon={<MoneyOff />} periodoAnterior={data?.gastos_mes_passado ?? null} mod="currency" key="gastos-mes" />,
+                            <DashboardCardData label="Lucro Hoje" value={data?.lucro_hoje ?? 0} color="azul" icon={<Savings />} periodoAnterior={data?.lucro_ontem ?? null} mod="currency" key="lucro-hoje" />,
+                            <DashboardCardData label="Lucro Semana" value={data?.lucro_semana ?? 0} color="azul" icon={<Savings />} periodoAnterior={data?.lucro_semana_passada ?? null} mod="currency" key="lucro-semana" />,
+                            <DashboardCardData label="Lucro Mês" value={data?.lucro_mes ?? 0} color="azul" icon={<Savings />} periodoAnterior={data?.lucro_mes_passado ?? null} mod="currency" key="lucro-mes" />,
+                            <DashboardCardData label="Corridas Hoje" value={data?.corridas_hoje ?? 0} color="amarela" icon={<LocalTaxi />} periodoAnterior={data?.corridas_ontem ?? null} mod="default" key="corridas-hoje" />,
+                            <DashboardCardData label="Corridas Semana" value={data?.corridas_semana ?? 0} color="amarela" icon={<LocalTaxi />} periodoAnterior={data?.corridas_semana_passada ?? null} mod="default" key="corridas-semana" />,
+                            <DashboardCardData label="Corridas Mês" value={data?.corridas_mes ?? 0} color="amarela" icon={<LocalTaxi />} periodoAnterior={data?.corridas_mes_passado ?? null} mod="default" key="corridas-mes" />,
+                            <DashboardCardData label="Horas Hoje" value={data?.horas_hoje ?? 0} color="azul" icon={<AccessTime />} periodoAnterior={data?.horas_ontem ?? null} mod="default" key="horas-hoje" />,
+                            <DashboardCardData label="Horas Semana" value={data?.horas_semana ?? 0} color="azul" icon={<AccessTime />} periodoAnterior={data?.horas_semana_passada ?? null} mod="default" key="horas-semana" />,
+                            <DashboardCardData label="Horas Mês" value={data?.horas_mes ?? 0} color="azul" icon={<AccessTime />} periodoAnterior={data?.horas_mes_passado ?? null} mod="default" key="horas-mes" />,
+                        ];
+                        // Agrupa em trios
+                        const groups = [];
+                        for (let i = 0; i < cards.length; i += 3) {
+                            groups.push(cards.slice(i, i + 3));
+                        }
+                        return (
+                            <>
+                                {groups.map((group, idx) => (
+                                    <Box key={`group-${idx}`}> {/* Fragmento com key */}
+                                        <Box
+                                            key={`cards-${idx}`}
+                                            sx={{
+                                                display: "flex",
+                                                flexDirection: "column",
+                                                alignItems: "center",
+                                                justifyContent: "center",
+                                                gap: 2,
+                                                mb: 2,
+                                            }}
+                                        >
+                                            {/* Mobile: primeiro centralizado, os outros dois lado a lado */}
+                                            <Box key={`card-main-${idx}`} sx={{ width: "100%", display: "flex", justifyContent: "center" }}>{group[0]}</Box>
+                                            <Box key={`card-row-${idx}`} sx={{ width: "100%", display: "flex", justifyContent: "center", gap: 2 }}>
+                                                {group.slice(1).map((card, i) => (
+                                                    <Box key={`card-${idx}-${i}`} sx={{ width: "50%", display: "flex", justifyContent: "center" }}>{card}</Box>
+                                                ))}
+                                            </Box>
+                                        </Box>
+                                        {idx < groups.length - 1 && (
+                                            <Box key={`divider-${idx}`} sx={{ width: "100%", my: 2 }}>
+                                                <Box sx={{ maxWidth: 400, mx: "auto" }}>
+                                                    <Box sx={{ borderBottom: "1px solid", borderColor: "divider", opacity: 0.3 }} />
+                                                </Box>
+                                            </Box>
+                                        )}
+                                    </Box>
+                                ))}
+                                {/* SimpleCards para mobile - layout 1/2 igual aos CardData */}
+                                {(() => {
+                                    const simpleCards = [
+                                        <DashboardSimpleCard label="Eficiência" value={data?.eficiencia ?? 0} icon={<TrendingUp />} color="#7b1fa288" mod="percent" key="eficiencia" />,
+                                        <DashboardSimpleCard label="Meta Diária" value={data?.meta_diaria ?? 0} icon={<Flag />} color="#388e3c88" mod="currency" key="meta-diaria" />,
+                                        <DashboardSimpleCard label="Meta Semanal" value={data?.meta_semanal ?? 0} icon={<CalendarToday />} color="#388e3c88" mod="currency" key="meta-semanal" />,
+                                    ];
+                                    return (
+                                        <Box sx={{ width: "100%", mt: 2 }}>
+                                            {/* Primeiro centralizado, largura fixa igual aos outros cards */}
+                                            <Box sx={{ width: "100%", display: "flex", justifyContent: "center", mb: 2 }}>
+                                                <Box sx={{ width: 180, minWidth: 180, maxWidth: 260, display: "flex", justifyContent: "center" }}>
+                                                    {simpleCards[0]}
+                                                </Box>
+                                            </Box>
+                                            {/* Os outros dois lado a lado */}
+                                            <Box sx={{ width: "100%", display: "flex", justifyContent: "center", gap: 2 }}>
+                                                <Box sx={{ width: "50%", display: "flex", justifyContent: "center" }}>{simpleCards[1]}</Box>
+                                                <Box sx={{ width: "50%", display: "flex", justifyContent: "center" }}>{simpleCards[2]}</Box>
+                                            </Box>
+                                        </Box>
+                                    );
+                                })()}
+                            </>
+                        );
+                    })()}
                 </Box>
-            </LoggedLayout>
-        );
+                {/* Desktop: grid padrão 3 colunas */}
+                <Box
+                    sx={{
+                        display: { xs: "none", md: "grid" },
+                        gridTemplateColumns: "repeat(3, 260px)",
+                        gap: 2,
+                        justifyContent: "center",
+                        justifyItems: "center"
+                    }}
+                >
+                    {/* Ganhos */}
+                    <DashboardCardData label="Ganhos Hoje" value={data?.ganhos_hoje ?? 0} color="verde" icon={<AttachMoney />} periodoAnterior={data?.ganhos_ontem ?? null} mod="currency" />
+                    <DashboardCardData label="Ganhos Semana" value={data?.ganhos_semana ?? 0} color="verde" icon={<AttachMoney />} periodoAnterior={data?.ganhos_semana_passada ?? null} mod="currency" />
+                    <DashboardCardData label="Ganhos Mês" value={data?.ganhos_mes ?? 0} color="verde" icon={<AttachMoney />} periodoAnterior={data?.ganhos_mes_passado ?? null} mod="currency" />
+                    {/* Gastos */}
+                    <DashboardCardData label="Gastos Hoje" value={data?.gastos_hoje ?? 0} color="vermelha" icon={<MoneyOff />} periodoAnterior={data?.gastos_ontem ?? null} mod="currency" />
+                    <DashboardCardData label="Gastos Semana" value={data?.gastos_semana ?? 0} color="vermelha" icon={<MoneyOff />} periodoAnterior={data?.gastos_semana_passada ?? null} mod="currency" />
+                    <DashboardCardData label="Gastos Mês" value={data?.gastos_mes ?? 0} color="vermelha" icon={<MoneyOff />} periodoAnterior={data?.gastos_mes_passado ?? null} mod="currency" />
+                    {/* Lucro */}
+                    <DashboardCardData label="Lucro Hoje" value={data?.lucro_hoje ?? 0} color="azul" icon={<Savings />} periodoAnterior={data?.lucro_ontem ?? null} mod="currency" />
+                    <DashboardCardData label="Lucro Semana" value={data?.lucro_semana ?? 0} color="azul" icon={<Savings />} periodoAnterior={data?.lucro_semana_passada ?? null} mod="currency" />
+                    <DashboardCardData label="Lucro Mês" value={data?.lucro_mes ?? 0} color="azul" icon={<Savings />} periodoAnterior={data?.lucro_mes_passado ?? null} mod="currency" />
+                    {/* Corridas */}
+                    <DashboardCardData label="Corridas Hoje" value={data?.corridas_hoje ?? 0} color="amarela" icon={<LocalTaxi />} periodoAnterior={data?.corridas_ontem ?? null} mod="default" />
+                    <DashboardCardData label="Corridas Semana" value={data?.corridas_semana ?? 0} color="amarela" icon={<LocalTaxi />} periodoAnterior={data?.corridas_semana_passada ?? null} mod="default" />
+                    <DashboardCardData label="Corridas Mês" value={data?.corridas_mes ?? 0} color="amarela" icon={<LocalTaxi />} periodoAnterior={data?.corridas_mes_passado ?? null} mod="default" />
+                    {/* Horas */}
+                    <DashboardCardData label="Horas Hoje" value={data?.horas_hoje ?? 0} color="azul" icon={<AccessTime />} periodoAnterior={data?.horas_ontem ?? null} mod="default" />
+                    <DashboardCardData label="Horas Semana" value={data?.horas_semana ?? 0} color="azul" icon={<AccessTime />} periodoAnterior={data?.horas_semana_passada ?? null} mod="default" />
+                    <DashboardCardData label="Horas Mês" value={data?.horas_mes ?? 0} color="azul" icon={<AccessTime />} periodoAnterior={data?.horas_mes_passado ?? null} mod="default" />
+                    {/* Eficiência, Metas */}
+                    <DashboardSimpleCard label="Eficiência" value={data?.eficiencia ?? 0} icon={<TrendingUp />} color="#7b1fa288" mod="percent" />
+                    <DashboardSimpleCard label="Meta Diária" value={data?.meta_diaria ?? 0} icon={<Flag />} color="#388e3c88" mod="currency" />
+                    <DashboardSimpleCard label="Meta Semanal" value={data?.meta_semanal ?? 0} icon={<CalendarToday />} color="#388e3c88" mod="currency" />
+                </Box>
+            </Box>
+            {/* Gráficos das séries temporais abaixo dos cards */}
+            <Box sx={{ width: "100%", mt: 4, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <DashboardLineChartCard
+                    label="Ganhos - Últimos 7 dias"
+                    series={data?.ganhos_7dias ?? []}
+                    color="#388e3c"
+                    trendMethod="media_movel_30"
+                />
+                <DashboardLineChartCard
+                    label="Ganhos - Últimos 30 dias"
+                    series={data?.ganhos_mes_array ?? []}
+                    color="#388e3c"
+                    trendMethod="media_movel_30"
+                />
+                <DashboardLineChartCard
+                    label="Gastos - Últimos 7 dias"
+                    series={data?.gastos_7dias ?? []}
+                    color="#c62828"
+                    trendMethod="media_movel_30"
+                />
+                <DashboardLineChartCard
+                    label="Gastos - Últimos 30 dias"
+                    series={data?.gastos_mes_array ?? []}
+                    color="#c62828"
+                    trendMethod="media_movel_30"
+                />
+                <DashboardLineChartCard
+                    label="Corridas - Últimos 7 dias"
+                    series={data?.corridas_7dias ?? []}
+                    color="#fbc02d"
+                    trendMethod="media_movel_30"
+                />
+                <DashboardLineChartCard
+                    label="Corridas - Últimos 30 dias"
+                    series={data?.corridas_mes_array ?? []}
+                    color="#fbc02d"
+                    trendMethod="media_movel_30"
+                />
+            </Box>
+        </LoggedLayout>
+    );
 }

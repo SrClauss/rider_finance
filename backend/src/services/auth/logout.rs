@@ -1,3 +1,17 @@
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::http::StatusCode;
+    use axum::response::IntoResponse;
+
+    #[tokio::test]
+    async fn test_logout_handler() {
+        let resp = logout_handler().await.into_response();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let headers = resp.headers();
+        assert!(headers.get("set-cookie").is_some());
+    }
+}
 use axum::{response::IntoResponse, http::{StatusCode, header, Response}};
 
 pub async fn logout_handler() -> impl IntoResponse {

@@ -1,8 +1,224 @@
+    pub fn create_fake_user() -> String {
+        use crate::models::usuario::NewUsuario;
+        use crate::schema::usuarios::dsl::*;
+        let conn = &mut establish_connection();
+        let now = chrono::Utc::now().naive_utc();
+        let usuario_id = "user_relatorio_test".to_string();
+        // Remove usuário se já existir
+        diesel::delete(usuarios.filter(id.eq(&usuario_id))).execute(conn).ok();
+        let new_user = NewUsuario {
+            id: usuario_id.clone(),
+            nome_usuario: "user_relatorio_test".to_string(),
+            email: "relatorio@teste.com".to_string(),
+            senha: "senha123".to_string(),
+            nome_completo: "Relatorio Teste".to_string(),
+            telefone: "11999999999".to_string(),
+            veiculo: "Carro".to_string(),
+            criado_em: now,
+            atualizado_em: now,
+            ultima_tentativa_redefinicao: now,
+            address: "Rua Teste".to_string(),
+            address_number: "123".to_string(),
+            complement: "Apto 1".to_string(),
+            postal_code: "01234567".to_string(),
+            province: "Centro".to_string(),
+            city: "São Paulo".to_string(),
+            cpfcnpj: "12345678900".to_string(),
+        };
+        diesel::insert_into(usuarios)
+            .values(&new_user)
+            .execute(conn)
+            .expect("Erro ao inserir usuário");
+        // Garante persistência
+        let _ = usuarios.filter(id.eq(&usuario_id)).first::<crate::models::usuario::Usuario>(conn).expect("Usuário não persistido");
+        usuario_id
+    }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::db::establish_connection;
+    use diesel::prelude::*;
+    use chrono::{NaiveDate};
+    use crate::schema::{transacoes, sessoes_trabalho, metas};
+
+    use axum::extract::Query;
+
+    fn clean_db() {
+    let conn = &mut establish_connection();
+    diesel::delete(transacoes::dsl::transacoes).execute(conn).ok();
+    diesel::delete(sessoes_trabalho::dsl::sessoes_trabalho).execute(conn).ok();
+    diesel::delete(metas::dsl::metas).execute(conn).ok();
+    diesel::delete(crate::schema::categorias::dsl::categorias).execute(conn).ok();
+    }
+
+    #[tokio::test]
+    async fn test_relatorio_stats_handler() {
+    clean_db();
+    let conn = &mut establish_connection();
+    // Gera ID único para usuário e categorias
+    let id_usuario = ulid::Ulid::new().to_string();
+    let cat1_id = ulid::Ulid::new().to_string();
+    let cat2_id = ulid::Ulid::new().to_string();
+    let now = chrono::Utc::now().naive_utc();
+    // Cria usuário
+    let new_user = crate::models::usuario::NewUsuario {
+        id: id_usuario.clone(),
+        nome_usuario: "user_relatorio_test".to_string(),
+        email: "relatorio@teste.com".to_string(),
+        senha: "senha123".to_string(),
+        nome_completo: "Relatorio Teste".to_string(),
+        telefone: "11999999999".to_string(),
+        veiculo: "Carro".to_string(),
+        criado_em: now,
+        atualizado_em: now,
+        ultima_tentativa_redefinicao: now,
+        address: "Rua Teste".to_string(),
+        address_number: "123".to_string(),
+        complement: "Apto 1".to_string(),
+        postal_code: "01234567".to_string(),
+        province: "Centro".to_string(),
+        city: "São Paulo".to_string(),
+        cpfcnpj: "12345678900".to_string(),
+    };
+    diesel::insert_into(crate::schema::usuarios::table)
+        .values(&new_user)
+        .execute(conn)
+        .expect("Erro ao inserir usuário");
+    // Cria categorias cat1 e cat2
+    diesel::insert_into(crate::schema::categorias::table)
+        .values(&crate::models::NewCategoria {
+            id: cat1_id.clone(),
+            id_usuario: Some(id_usuario.clone()),
+            nome: "Categoria 1".to_string(),
+            tipo: "entrada".to_string(),
+            icone: None,
+            cor: None,
+            eh_padrao: false,
+            eh_ativa: true,
+            criado_em: now,
+            atualizado_em: now,
+        })
+        .execute(conn).unwrap();
+    diesel::insert_into(crate::schema::categorias::table)
+        .values(&crate::models::NewCategoria {
+            id: cat2_id.clone(),
+            id_usuario: Some(id_usuario.clone()),
+            nome: "Categoria 2".to_string(),
+            tipo: "saida".to_string(),
+            icone: None,
+            cor: None,
+            eh_padrao: false,
+            eh_ativa: true,
+            criado_em: now,
+            atualizado_em: now,
+        })
+        .execute(conn).unwrap();
+    // Cria transação entrada
+    // Cria transação entrada
+    diesel::insert_into(transacoes::table)
+        .values(&crate::models::NewTransacao {
+            id: ulid::Ulid::new().to_string(),
+            id_usuario: id_usuario.clone(),
+            id_categoria: cat1_id.clone(),
+            valor: 200,
+            tipo: "entrada".to_string(),
+            descricao: Some("Teste entrada".to_string()),
+            data: NaiveDate::from_ymd_opt(2025,8,14).unwrap().and_hms_opt(0,0,0).unwrap(),
+            origem: None,
+            id_externo: None,
+            plataforma: None,
+            observacoes: None,
+            tags: None,
+            criado_em: now,
+            atualizado_em: now,
+        })
+        .execute(conn).unwrap();
+    // Cria transação saída
+    diesel::insert_into(transacoes::table)
+        .values(&crate::models::NewTransacao {
+            id: ulid::Ulid::new().to_string(),
+            id_usuario: id_usuario.clone(),
+            id_categoria: cat2_id.clone(),
+            valor: 50,
+            tipo: "saida".to_string(),
+            descricao: Some("Teste saida".to_string()),
+            data: NaiveDate::from_ymd_opt(2025,8,14).unwrap().and_hms_opt(0,0,0).unwrap(),
+            origem: None,
+            id_externo: None,
+            plataforma: None,
+            observacoes: None,
+            tags: None,
+            criado_em: now,
+            atualizado_em: now,
+        })
+        .execute(conn).unwrap();
+    // Cria sessão trabalho
+    diesel::insert_into(sessoes_trabalho::table)
+        .values(&crate::models::NewSessaoTrabalho {
+            id: ulid::Ulid::new().to_string(),
+            id_usuario: id_usuario.clone(),
+            inicio: NaiveDate::from_ymd_opt(2025,8,14).unwrap().and_hms_opt(8,0,0).unwrap(),
+            fim: Some(NaiveDate::from_ymd_opt(2025,8,14).unwrap().and_hms_opt(12,0,0).unwrap()),
+            total_minutos: Some(240),
+            local_inicio: Some("A".to_string()),
+            local_fim: Some("B".to_string()),
+            total_corridas: 5,
+            total_ganhos: 200,
+            total_gastos: 50,
+            plataforma: Some("Uber".to_string()),
+            observacoes: Some("Teste".to_string()),
+            clima: Some("Sol".to_string()),
+            eh_ativa: false,
+            criado_em: now,
+            atualizado_em: now,
+        })
+        .execute(conn).unwrap();
+    // Cria meta
+    diesel::insert_into(metas::table)
+        .values(&crate::models::NewMeta {
+            id: ulid::Ulid::new().to_string(),
+            id_usuario: id_usuario.clone(),
+            titulo: "Meta Teste".to_string(),
+            descricao: Some("desc".to_string()),
+            tipo: "financeira".to_string(),
+            categoria: "poupança".to_string(),
+            valor_alvo: 1000,
+            valor_atual: 100,
+            unidade: Some("R$".to_string()),
+            data_inicio: NaiveDate::from_ymd_opt(2025,8,14).unwrap().and_hms_opt(0,0,0).unwrap(),
+            data_fim: None,
+            eh_ativa: true,
+            eh_concluida: false,
+            concluida_em: None,
+            lembrete_ativo: false,
+            frequencia_lembrete: None,
+            criado_em: now,
+            atualizado_em: now,
+        })
+        .execute(conn).unwrap();
+        // Testa handler
+        let filtro = RelatorioFiltro {
+            id_usuario: id_usuario.clone(),
+            data_inicio: None,
+            data_fim: None,
+            tipo: None,
+            categoria: None,
+        };
+        let resp = relatorio_stats_handler(Query(filtro)).await;
+        assert_eq!(resp.ganhos, 200.0);
+        assert_eq!(resp.gastos, 50.0);
+        assert_eq!(resp.lucro, 150.0);
+        assert_eq!(resp.corridas, 5);
+        assert_eq!(resp.horas, 4.0);
+        assert_eq!(resp.metas.len(), 1);
+    }
+}
 use axum::{Json, extract::Query};
 use serde::{Serialize, Deserialize};
 use chrono::{NaiveDateTime};
 use diesel::prelude::*;
-use crate::db;
+use crate::db::{self, establish_connection};
 use crate::schema::transacoes::dsl as transacao_dsl;
 use crate::schema::sessoes_trabalho::dsl as sessao_dsl;
 use crate::schema::metas::dsl as meta_dsl;
@@ -28,21 +244,27 @@ pub struct RelatorioStats {
 
 pub async fn relatorio_stats_handler(Query(filtro): Query<RelatorioFiltro>) -> Json<RelatorioStats> {
     let conn = &mut db::establish_connection();
-    let mut query = transacao_dsl::transacoes.filter(transacao_dsl::id_usuario.eq(&filtro.id_usuario)).into_boxed();
+    // Filtros base
+    let mut ganhos_query = transacao_dsl::transacoes.filter(transacao_dsl::id_usuario.eq(&filtro.id_usuario)).filter(transacao_dsl::tipo.eq("entrada")).into_boxed();
+    let mut gastos_query = transacao_dsl::transacoes.filter(transacao_dsl::id_usuario.eq(&filtro.id_usuario)).filter(transacao_dsl::tipo.eq("saida")).into_boxed();
     if let Some(ref tipo) = filtro.tipo {
-        query = query.filter(transacao_dsl::tipo.eq(tipo));
+        ganhos_query = ganhos_query.filter(transacao_dsl::tipo.eq(tipo));
+        gastos_query = gastos_query.filter(transacao_dsl::tipo.eq(tipo));
     }
     if let Some(ref categoria) = filtro.categoria {
-        query = query.filter(transacao_dsl::categoria.eq(categoria));
+        ganhos_query = ganhos_query.filter(transacao_dsl::id_categoria.eq(categoria));
+        gastos_query = gastos_query.filter(transacao_dsl::id_categoria.eq(categoria));
     }
     if let Some(data_inicio) = filtro.data_inicio {
-        query = query.filter(transacao_dsl::data.ge(data_inicio));
+        ganhos_query = ganhos_query.filter(transacao_dsl::data.ge(data_inicio));
+        gastos_query = gastos_query.filter(transacao_dsl::data.ge(data_inicio));
     }
     if let Some(data_fim) = filtro.data_fim {
-        query = query.filter(transacao_dsl::data.le(data_fim));
+        ganhos_query = ganhos_query.filter(transacao_dsl::data.le(data_fim));
+        gastos_query = gastos_query.filter(transacao_dsl::data.le(data_fim));
     }
-    let ganhos: f64 = query.filter(transacao_dsl::tipo.eq("entrada")).select(diesel::dsl::sum(transacao_dsl::valor)).first::<Option<i64>>(conn).unwrap_or(Some(0)).unwrap_or(0) as f64;
-    let gastos: f64 = query.filter(transacao_dsl::tipo.eq("saida")).select(diesel::dsl::sum(transacao_dsl::valor)).first::<Option<i64>>(conn).unwrap_or(Some(0)).unwrap_or(0) as f64;
+    let ganhos: f64 = ganhos_query.select(diesel::dsl::sum(transacao_dsl::valor)).first::<Option<i64>>(conn).unwrap_or(Some(0)).unwrap_or(0) as f64;
+    let gastos: f64 = gastos_query.select(diesel::dsl::sum(transacao_dsl::valor)).first::<Option<i64>>(conn).unwrap_or(Some(0)).unwrap_or(0) as f64;
     let lucro = ganhos - gastos;
     let corridas: u32 = sessao_dsl::sessoes_trabalho.filter(sessao_dsl::id_usuario.eq(&filtro.id_usuario)).select(diesel::dsl::sum(sessao_dsl::total_corridas)).first::<Option<i64>>(conn).unwrap_or(Some(0)).unwrap_or(0) as u32;
     let minutos: i64 = sessao_dsl::sessoes_trabalho.filter(sessao_dsl::id_usuario.eq(&filtro.id_usuario)).select(diesel::dsl::sum(sessao_dsl::total_minutos)).first::<Option<i64>>(conn).unwrap_or(Some(0)).unwrap_or(0);
@@ -53,30 +275,3 @@ pub async fn relatorio_stats_handler(Query(filtro): Query<RelatorioFiltro>) -> J
 
 // Interseção e união dos dados de dashboard e relatório podem ser feitas no frontend, mas aqui o endpoint retorna tudo filtrado
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use axum::Json;
-    use chrono::Utc;
-    use ulid::Ulid;
-
-    #[tokio::test]
-    async fn test_relatorio_stats_handler() {
-        let user_id = Ulid::new().to_string();
-        let filtro = RelatorioFiltro {
-            id_usuario: user_id.clone(),
-            data_inicio: None,
-            data_fim: None,
-            tipo: None,
-            categoria: None,
-        };
-        let resp = relatorio_stats_handler(Query(filtro)).await;
-        let stats = resp.0;
-        assert_eq!(stats.ganhos, 0.0);
-        assert_eq!(stats.gastos, 0.0);
-        assert_eq!(stats.lucro, 0.0);
-        assert_eq!(stats.corridas, 0);
-        assert_eq!(stats.horas, 0.0);
-        assert!(stats.metas.is_empty());
-    }
-}
