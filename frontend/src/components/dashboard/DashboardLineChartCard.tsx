@@ -8,6 +8,8 @@ interface DashboardLineChartCardProps {
   series: number[];
   color?: string;
   trendMethod?: TrendMethod;
+  labels?: string[];
+  projecao?: number | null;
 }
 
 function getTrendPercent(series: number[]): { text: string; color: string; value: number } | null {
@@ -26,8 +28,33 @@ function getTrendPercent(series: number[]): { text: string; color: string; value
   };
 }
 
-export default function DashboardLineChartCard({ label, series, color = '#1976d2', trendMethod }: DashboardLineChartCardProps) {
+export default function DashboardLineChartCard({ label, series, color = '#1976d2', trendMethod, labels, projecao }: DashboardLineChartCardProps) {
   const trend = getTrendPercent(series);
+  // Se labels não for passado, usa 1..N
+  const xLabels = labels && labels.length === series.length ? labels : series.map((_, i) => `${i + 1}`);
+  // Projeção: desenha uma linha horizontal se fornecido
+  const chartSeries = [
+    { data: series, color, label: 'Valor' },
+    ...(projecao != null ? [{
+      data: Array(series.length).fill(projecao),
+      color: '#888',
+      label: 'Projeção',
+      showMark: false,
+      area: false,
+      style: { strokeDasharray: '6 4' }
+    }] : [])
+  ];
+
+  // Ajuste dinâmico do eixo Y baseado na média dos valores
+  let yMin = 0;
+  let yMax = 100;
+  if (series && series.length > 0) {
+    const avg = series.reduce((a, b) => a + b, 0) / series.length;
+    const max = Math.max(...series);
+    yMax = Math.max(max, avg * 2, 10);
+    yMin = 0;
+  }
+
   return (
     <Box sx={{
       background: '#181a20',
@@ -49,8 +76,9 @@ export default function DashboardLineChartCard({ label, series, color = '#1976d2
       </Box>
       <LineChart
         height={220}
-        series={[{ data: series, color, label: 'Valor' }]}
-        xAxis={[{ scaleType: 'point', data: series.map((_, i) => `${i + 1}`) }]}
+        series={chartSeries}
+        xAxis={[{ scaleType: 'point', data: xLabels }]}
+        yAxis={[{ min: yMin, max: yMax }]}
         grid={{ vertical: true, horizontal: true }}
       />
       <Divider sx={{ my: 1, opacity: 0.3 }} />

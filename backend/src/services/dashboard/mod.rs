@@ -283,10 +283,10 @@ pub struct DashboardFiltro {
 
 
 #[derive(Deserialize, Serialize)]
-struct Claims {
-    sub: String,
-    email: String,
-    exp: usize,
+pub struct Claims {
+    pub sub: String,
+    pub email: String,
+    pub exp: usize,
 }
 
 #[axum::debug_handler]

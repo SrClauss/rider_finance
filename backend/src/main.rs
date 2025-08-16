@@ -18,7 +18,7 @@ async fn main() {
     use backend::services::dashboard::dashboard_stats_handler;
     use backend::services::transacao::{create_transacao_handler, get_transacao_handler, list_transacoes_handler, update_transacao_handler, delete_transacao_handler};
     use backend::services::meta::{list_metas_a_cumprir_handler, list_metas_cumpridas_handler};
-    use backend::services::categoria::{create_categoria_handler, list_categorias_handler, get_categoria_handler, delete_categoria_handler};
+    use backend::services::categoria::{create_categoria_handler, get_categoria_handler, delete_categoria_handler};
     use backend::services::assinatura::{create_assinatura_handler, get_assinatura_handler, list_assinaturas_handler, delete_assinatura_handler, asaas_webhook_handler, criar_checkout_handler};
     use backend::services::configuracao::{checkout_info_handler, usuario_completo_handler};
     use backend::services::auth::validate_token::validate_token_handler;
@@ -42,7 +42,7 @@ async fn main() {
         .route("/api/categoria", post(create_categoria_handler))
         .route("/api/categoria/{id}", get(get_categoria_handler))
         .route("/api/categoria/{id}", delete(delete_categoria_handler))
-        .route("/api/categorias/{id_usuario}", get(list_categorias_handler))
+    // rota removida: /api/categorias/{id_usuario}
         .route("/api/assinatura", post(create_assinatura_handler))
         .route("/api/assinatura/{id}", get(get_assinatura_handler))
     .route("/api/checkout-info", get(checkout_info_handler))
@@ -54,6 +54,7 @@ async fn main() {
         // .route("/api/usuario/{id}", get(get_usuario_info_handler)) // Removido pois não existe ou está no lugar errado
         .route("/api/webhook/asaas", post(asaas_webhook_handler))
         .route("/api/assinatura/byuserid/{id_usuario}", get(get_assinatura_by_usuario_handler))
+        .route("/api/categorias", get(backend::services::categoria::list_categorias_autenticado_handler))
 
         .merge(routes());
  

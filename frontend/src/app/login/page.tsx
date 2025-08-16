@@ -1,3 +1,4 @@
+
 "use client";
 import {
   Box,
@@ -16,6 +17,7 @@ import { DirectionsCar, Visibility, VisibilityOff } from "@mui/icons-material";
 import {ThemeProvider} from "@/theme/ThemeProvider";
 import React, { useReducer } from "react";
 import axios from "axios";
+import { carregarCategorias, useCategoriaContext } from "@/context/CategoriaContext";
 
 type State = {
   usuario: string;
@@ -57,7 +59,7 @@ function reducer(state: State, action: Action): State {
   }
 }
 
-export default function LoginPage() {
+export default function Page() {
   const [state, dispatch] = useReducer(reducer, initialState);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -76,8 +78,11 @@ export default function LoginPage() {
           withCredentials: true,
         }
       );
-      // O cookie http-only será setado automaticamente pelo navegador
-      window.location.href = "/";
+      if (response.status === 200) {
+        window.location.href = "/";
+      } else {
+        dispatch({ type: "SET_ERROR", payload: "Usuário ou senha inválidos" });
+      }
     } catch (err: any) {
       dispatch({
         type: "SET_ERROR",
@@ -109,6 +114,16 @@ export default function LoginPage() {
           }}
         >
           <CardContent sx={{ p: 4 }}>
+            {/* Box informativo do usuário de teste */}
+            <Box sx={{ mb: 2, p: 2, borderRadius: 2, background: '#f5f5f5', border: '1px solid #e0e0e0', textAlign: 'center' }}>
+              <Typography variant="subtitle2" color="text.secondary" fontWeight={600}>
+                Usuário de Teste
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                <strong>Login:</strong> seed_user<br />
+                <strong>Senha:</strong> senha123
+              </Typography>
+            </Box>
             <Box sx={{ textAlign: "center", mb: 4 }}>
               <Avatar
                 sx={{

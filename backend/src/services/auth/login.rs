@@ -1,3 +1,14 @@
+use axum_extra::extract::cookie::CookieJar;
+use jsonwebtoken::{DecodingKey, Validation, decode, Algorithm};
+/// Extrai o id_usuario do cookie http-only (JWT)
+pub fn extract_user_id_from_cookie(jar: &CookieJar) -> Option<String> {
+    let cookie = jar.get("auth_token")?;
+    let token = cookie.value();
+    let decoding_key = DecodingKey::from_secret(std::env::var("JWT_SECRET").unwrap_or_else(|_| "secret".to_string()).as_bytes());
+    let validation = Validation::new(Algorithm::HS256);
+    let token_data = decode::<Claims>(token, &decoding_key, &validation).ok()?;
+    Some(token_data.claims.sub)
+}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -109,7 +120,7 @@ use jsonwebtoken::{encode, Header, EncodingKey};
 use serde::{Serialize};
 
 /// Payload do JWT
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 struct Claims {
     sub: String,
     email: String,

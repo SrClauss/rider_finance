@@ -17,6 +17,7 @@ import Typography from "@mui/material/Typography";
 import MenuIcon from "@mui/icons-material/Menu";
 import HomeIcon from "@mui/icons-material/Home";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
+import ListAltIcon from "@mui/icons-material/ListAlt";
 import LogoutIcon from "@mui/icons-material/Logout";
 import { useRouter } from "next/navigation";
 import { ThemeProvider } from "@/theme/ThemeProvider"; // Adjust the import path as necessary
@@ -66,15 +67,23 @@ export default function LoggedLayout({ children }: LoggedLayoutProps) {
       <Divider />
       <List>
         <ListItem key="Dashboard" disablePadding>
-          <ListItemButton>
+          <ListItemButton onClick={() => router.push("/") }>
             <ListItemIcon>
               <HomeIcon />
             </ListItemIcon>
             <ListItemText primary="Dashboard" />
           </ListItemButton>
         </ListItem>
+        <ListItem key="Transacoes" disablePadding>
+          <ListItemButton onClick={() => router.push("/transactions") }>
+            <ListItemIcon>
+              <ListAltIcon />
+            </ListItemIcon>
+            <ListItemText primary="Transações" />
+          </ListItemButton>
+        </ListItem>
         <ListItem key="Perfil" disablePadding>
-          <ListItemButton>
+          <ListItemButton onClick={() => router.push("/perfil") }>
             <ListItemIcon>
               <AccountCircleIcon />
             </ListItemIcon>
