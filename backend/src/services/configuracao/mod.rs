@@ -9,6 +9,7 @@ mod tests {
     use serial_test::serial;
 
     fn clean_db() {
+        std::env::set_var("ENVIRONMENT", "tests");
         let conn = &mut establish_connection();
         diesel::delete(crate::schema::configuracoes::dsl::configuracoes).execute(conn).ok();
         diesel::delete(crate::schema::usuarios::dsl::usuarios).execute(conn).ok();

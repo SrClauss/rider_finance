@@ -8,6 +8,7 @@ mod tests {
 
     #[test]
     fn test_insert_and_query_transacao() {
+        std::env::set_var("ENVIRONMENT", "tests");
         use crate::models::usuario::NewUsuario;
         use crate::models::categoria::NewCategoria;
     use crate::schema::usuarios::dsl::{usuarios, id as usuario_id};

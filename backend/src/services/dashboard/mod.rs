@@ -29,6 +29,7 @@ mod tests {
     use serial_test::serial;
 
     fn clean_db() {
+        std::env::set_var("ENVIRONMENT", "tests");
         let conn = &mut establish_connection();
         diesel::delete(crate::schema::transacoes::dsl::transacoes).execute(conn).ok();
         diesel::delete(crate::schema::sessoes_trabalho::dsl::sessoes_trabalho).execute(conn).ok();
@@ -260,11 +261,14 @@ pub struct DashboardStats {
     pub ganhos_7dias: Vec<i32>,
     pub gastos_7dias: Vec<i32>,
     pub lucro_7dias: Vec<i32>,
-    pub ganhos_mes_array: Vec<i32>,
-    pub gastos_mes_array: Vec<i32>,
-    pub lucro_mes_array: Vec<i32>,
     pub corridas_7dias: Vec<u32>,
-    pub corridas_mes_array: Vec<u32>,
+    pub ultimos_30_dias_labels: Vec<String>,
+    pub ganhos_30dias: Vec<i32>,
+    pub gastos_30dias: Vec<i32>,
+    pub lucro_30dias: Vec<i32>,
+    pub corridas_30dias: Vec<u32>,
+    pub projecao_mes: Option<i32>,
+    pub projecao_semana: Option<i32>,
     pub trend_method: String,
 }
 
@@ -294,12 +298,13 @@ pub async fn dashboard_stats_handler(
     let now = Utc::now().naive_utc();
     // Extrai token do cookie
     let token = jar.get("auth_token").map(|c| c.value().to_string()).unwrap_or_default();
+
     let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "secret".to_string());
     let claims = decode::<Claims>(token.as_str(), &DecodingKey::from_secret(secret.as_ref()), &Validation::default())
         .map(|data| data.claims)
         .unwrap_or_else(|_| Claims { sub: "".to_string(), email: "".to_string(), exp: 0 });
     let id_usuario = claims.sub.clone();
-    println!("ID do usuário: {}", id_usuario);
+
     // Buscar configurações do usuário
     let configs: Vec<Configuracao> = config_dsl::configuracoes
         .filter(config_dsl::id_usuario.eq(&id_usuario))
@@ -371,50 +376,95 @@ pub async fn dashboard_stats_handler(
         corridas_7dias.push(corridas_dia);
     }
 
-    // Arrays do mês atual (por dia)
-    let mut ganhos_mes = Vec::new();
-    let mut gastos_mes = Vec::new();
-    let mut lucro_mes = Vec::new();
-    let mut corridas_mes_array = Vec::new();
-    let mes_atual = now.date().month();
-    let ano_atual = now.date().year();
-    // Descobre o número de dias do mês atual
-    let dias_no_mes = chrono::NaiveDate::from_ymd_opt(ano_atual, mes_atual, 1)
-        .unwrap()
-        .with_month(mes_atual % 12 + 1)
-        .unwrap_or_else(|| chrono::NaiveDate::from_ymd_opt(ano_atual + 1, 1, 1).unwrap())
-        .signed_duration_since(chrono::NaiveDate::from_ymd_opt(ano_atual, mes_atual, 1).unwrap())
-        .num_days();
-    for dia in 1..=dias_no_mes.try_into().unwrap_or(0) {
-        if let Some(data_dia) = chrono::NaiveDate::from_ymd_opt(ano_atual, mes_atual, dia) {
-            let inicio_dia = NaiveDateTime::new(data_dia, chrono::NaiveTime::from_hms_opt(0,0,0).unwrap());
-            let fim_dia = NaiveDateTime::new(data_dia, chrono::NaiveTime::from_hms_opt(23,59,59).unwrap());
-            let ganhos_dia: i32 = transacao_dsl::transacoes
-                .filter(transacao_dsl::id_usuario.eq(&id_usuario))
-                .filter(transacao_dsl::data.ge(inicio_dia))
-                .filter(transacao_dsl::data.le(fim_dia))
-                .filter(transacao_dsl::tipo.eq("entrada"))
-                .select(diesel::dsl::sum(transacao_dsl::valor))
-                .first::<Option<i64>>(conn).unwrap_or(Some(0)).unwrap_or(0) as i32;
-            let gastos_dia: i32 = transacao_dsl::transacoes
-                .filter(transacao_dsl::id_usuario.eq(&id_usuario))
-                .filter(transacao_dsl::data.ge(inicio_dia))
-                .filter(transacao_dsl::data.le(fim_dia))
-                .filter(transacao_dsl::tipo.eq("saida"))
-                .select(diesel::dsl::sum(transacao_dsl::valor))
-                .first::<Option<i64>>(conn).unwrap_or(Some(0)).unwrap_or(0) as i32;
-            let corridas_dia: u32 = sessao_dsl::sessoes_trabalho
-                .filter(sessao_dsl::id_usuario.eq(&id_usuario))
-                .filter(sessao_dsl::inicio.ge(inicio_dia))
-                .filter(sessao_dsl::inicio.le(fim_dia))
-                .select(diesel::dsl::sum(sessao_dsl::total_corridas))
-                .first::<Option<i64>>(conn).unwrap_or(Some(0)).unwrap_or(0).try_into().unwrap_or(0);
-            ganhos_mes.push(ganhos_dia);
-            gastos_mes.push(gastos_dia);
-            lucro_mes.push(ganhos_dia - gastos_dia);
-            corridas_mes_array.push(corridas_dia);
-        }
+    // Arrays dos últimos 30 dias corridos
+    let mut ultimos_30_dias_labels = Vec::new();
+    let mut ganhos_30dias = Vec::new();
+    let mut gastos_30dias = Vec::new();
+    let mut lucro_30dias = Vec::new();
+    let mut corridas_30dias = Vec::new();
+    for i in (0..30).rev() {
+        let data_dia = now.date() - chrono::Duration::days(i);
+        ultimos_30_dias_labels.push(data_dia.format("%d/%m").to_string());
+        let inicio_dia = NaiveDateTime::new(data_dia, chrono::NaiveTime::from_hms_opt(0,0,0).unwrap());
+        let fim_dia = NaiveDateTime::new(data_dia, chrono::NaiveTime::from_hms_opt(23,59,59).unwrap());
+        let ganhos_dia: i32 = transacao_dsl::transacoes
+            .filter(transacao_dsl::id_usuario.eq(&id_usuario))
+            .filter(transacao_dsl::data.ge(inicio_dia))
+            .filter(transacao_dsl::data.le(fim_dia))
+            .filter(transacao_dsl::tipo.eq("entrada"))
+            .select(diesel::dsl::sum(transacao_dsl::valor))
+            .first::<Option<i64>>(conn).unwrap_or(Some(0)).unwrap_or(0) as i32;
+        let gastos_dia: i32 = transacao_dsl::transacoes
+            .filter(transacao_dsl::id_usuario.eq(&id_usuario))
+            .filter(transacao_dsl::data.ge(inicio_dia))
+            .filter(transacao_dsl::data.le(fim_dia))
+            .filter(transacao_dsl::tipo.eq("saida"))
+            .select(diesel::dsl::sum(transacao_dsl::valor))
+            .first::<Option<i64>>(conn).unwrap_or(Some(0)).unwrap_or(0) as i32;
+        let corridas_dia: u32 = sessao_dsl::sessoes_trabalho
+            .filter(sessao_dsl::id_usuario.eq(&id_usuario))
+            .filter(sessao_dsl::inicio.ge(inicio_dia))
+            .filter(sessao_dsl::inicio.le(fim_dia))
+            .select(diesel::dsl::sum(sessao_dsl::total_corridas))
+            .first::<Option<i64>>(conn).unwrap_or(Some(0)).unwrap_or(0).try_into().unwrap_or(0);
+        ganhos_30dias.push(ganhos_dia);
+        gastos_30dias.push(gastos_dia);
+        lucro_30dias.push(ganhos_dia - gastos_dia);
+        corridas_30dias.push(corridas_dia);
     }
+
+    // Projeção do mês corrente
+    let hoje = now.date();
+    let mes = hoje.month();
+    let ano = hoje.year();
+    let inicio_mes = chrono::NaiveDate::from_ymd_opt(ano, mes, 1).unwrap();
+    let dias_passados_mes = (hoje - inicio_mes).num_days() + 1;
+    let dias_no_mes = chrono::NaiveDate::from_ymd_opt(ano, mes % 12 + 1, 1)
+        .unwrap_or_else(|| chrono::NaiveDate::from_ymd_opt(ano + 1, 1, 1).unwrap())
+        .signed_duration_since(inicio_mes)
+        .num_days();
+    let mut soma_ganhos_mes = 0;
+    for i in 0..dias_passados_mes {
+        let data_dia = inicio_mes + chrono::Duration::days(i as i64);
+        let inicio_dia = NaiveDateTime::new(data_dia, chrono::NaiveTime::from_hms_opt(0,0,0).unwrap());
+        let fim_dia = NaiveDateTime::new(data_dia, chrono::NaiveTime::from_hms_opt(23,59,59).unwrap());
+        let ganhos_dia: i32 = transacao_dsl::transacoes
+            .filter(transacao_dsl::id_usuario.eq(&id_usuario))
+            .filter(transacao_dsl::data.ge(inicio_dia))
+            .filter(transacao_dsl::data.le(fim_dia))
+            .filter(transacao_dsl::tipo.eq("entrada"))
+            .select(diesel::dsl::sum(transacao_dsl::valor))
+            .first::<Option<i64>>(conn).unwrap_or(Some(0)).unwrap_or(0) as i32;
+        soma_ganhos_mes += ganhos_dia;
+    }
+    let projecao_mes = if dias_passados_mes > 0 {
+        Some((soma_ganhos_mes as f64 / dias_passados_mes as f64 * dias_no_mes as f64).round() as i32)
+    } else {
+        None
+    };
+
+    // Projeção da semana corrente
+    let inicio_semana = hoje - chrono::Duration::days(hoje.weekday().num_days_from_monday() as i64);
+    let dias_passados_semana = (hoje - inicio_semana).num_days() + 1;
+    let mut soma_ganhos_semana = 0;
+    for i in 0..dias_passados_semana {
+        let data_dia = inicio_semana + chrono::Duration::days(i as i64);
+        let inicio_dia = NaiveDateTime::new(data_dia, chrono::NaiveTime::from_hms_opt(0,0,0).unwrap());
+        let fim_dia = NaiveDateTime::new(data_dia, chrono::NaiveTime::from_hms_opt(23,59,59).unwrap());
+        let ganhos_dia: i32 = transacao_dsl::transacoes
+            .filter(transacao_dsl::id_usuario.eq(&id_usuario))
+            .filter(transacao_dsl::data.ge(inicio_dia))
+            .filter(transacao_dsl::data.le(fim_dia))
+            .filter(transacao_dsl::tipo.eq("entrada"))
+            .select(diesel::dsl::sum(transacao_dsl::valor))
+            .first::<Option<i64>>(conn).unwrap_or(Some(0)).unwrap_or(0) as i32;
+        soma_ganhos_semana += ganhos_dia;
+    }
+    let projecao_semana = if dias_passados_semana > 0 {
+        Some((soma_ganhos_semana as f64 / dias_passados_semana as f64 * 7.0).round() as i32)
+    } else {
+        None
+    };
 
     let mut ganhos_query = transacao_dsl::transacoes
         .filter(transacao_dsl::id_usuario.eq(&id_usuario))
@@ -451,7 +501,7 @@ pub async fn dashboard_stats_handler(
     } else if projecao_metodo == "media_movel_7" {
         media_movel(&ganhos_7dias, 7).unwrap_or(0)
     } else if projecao_metodo == "media_movel_30" {
-        media_movel(&ganhos_mes, 30).unwrap_or(0)
+        media_movel(&ganhos_30dias, 30).unwrap_or(0)
     } else {
         // Cálculo por média, excluindo extremos se configurado
         let mut v = ganhos_valores.clone();
@@ -682,11 +732,14 @@ pub async fn dashboard_stats_handler(
     ganhos_7dias,
     gastos_7dias,
     lucro_7dias,
-    ganhos_mes_array: ganhos_mes,
-    gastos_mes_array: gastos_mes,
-    lucro_mes_array: lucro_mes,
     corridas_7dias,
-    corridas_mes_array,
+    ultimos_30_dias_labels,
+    ganhos_30dias,
+    gastos_30dias,
+    lucro_30dias,
+    corridas_30dias,
+    projecao_mes,
+    projecao_semana,
     trend_method: projecao_metodo,
     };
     Json(stats)

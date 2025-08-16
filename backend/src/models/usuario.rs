@@ -8,6 +8,7 @@ mod tests {
 
     #[test]
     fn test_insert_and_query_usuario() {
+        std::env::set_var("ENVIRONMENT", "tests");
         let conn = &mut db::establish_connection();
         let now = Utc::now().naive_utc();
         let usuario_id = ulid::Ulid::new().to_string();

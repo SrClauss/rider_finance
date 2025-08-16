@@ -7,6 +7,7 @@ mod tests {
     use chrono::{NaiveDate};
 
     fn clean_db() {
+        std::env::set_var("ENVIRONMENT", "tests");
         let conn = &mut establish_connection();
         diesel::delete(crate::schema::metas::dsl::metas).execute(conn).ok();
         diesel::delete(crate::schema::usuarios::dsl::usuarios).execute(conn).ok();

@@ -9,6 +9,7 @@ mod tests {
 
     #[test]
     fn test_insert_and_query_sessao_trabalho() {
+        std::env::set_var("ENVIRONMENT", "tests");
         use crate::models::usuario::NewUsuario;
         let conn = &mut db::establish_connection();
         let now = Utc::now().naive_utc();

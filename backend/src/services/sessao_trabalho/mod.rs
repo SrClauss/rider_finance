@@ -41,6 +41,7 @@ mod tests {
     use serial_test::serial;
 
     fn clean_db() {
+        std::env::set_var("ENVIRONMENT", "tests");
         let conn = &mut establish_connection();
         diesel::delete(sessoes_trabalho::dsl::sessoes_trabalho).execute(conn).ok();
     }

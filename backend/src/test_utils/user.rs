@@ -12,6 +12,8 @@ pub fn create_fake_user_with(
     email_: &str,
     senha_: &str,
 ) -> String {
+    // Garante que ENVIRONMENT=tests para este helper
+    std::env::set_var("ENVIRONMENT", "tests");
     let conn = &mut establish_connection();
     let now = Utc::now().naive_utc();
     // Remove usuário se já existir

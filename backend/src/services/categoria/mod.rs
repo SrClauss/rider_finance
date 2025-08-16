@@ -6,6 +6,7 @@ mod tests {
 
 
     fn clean_db() {
+        std::env::set_var("ENVIRONMENT", "tests");
         let conn = &mut db::establish_connection();
         diesel::delete(categorias).execute(conn).ok();
         diesel::delete(crate::schema::usuarios::dsl::usuarios).execute(conn).ok();

@@ -45,6 +45,7 @@ mod tests {
     use axum::extract::Query;
 
     fn clean_db() {
+    std::env::set_var("ENVIRONMENT", "tests");
     let conn = &mut establish_connection();
     diesel::delete(transacoes::dsl::transacoes).execute(conn).ok();
     diesel::delete(sessoes_trabalho::dsl::sessoes_trabalho).execute(conn).ok();
@@ -60,158 +61,172 @@ mod tests {
     let id_usuario = ulid::Ulid::new().to_string();
     let cat1_id = ulid::Ulid::new().to_string();
     let cat2_id = ulid::Ulid::new().to_string();
-    let now = chrono::Utc::now().naive_utc();
-    // Cria usuário
-    let new_user = crate::models::usuario::NewUsuario {
-        id: id_usuario.clone(),
-        nome_usuario: "user_relatorio_test".to_string(),
-        email: "relatorio@teste.com".to_string(),
-        senha: "senha123".to_string(),
-        nome_completo: "Relatorio Teste".to_string(),
-        telefone: "11999999999".to_string(),
-        veiculo: "Carro".to_string(),
-        criado_em: now,
-        atualizado_em: now,
-        ultima_tentativa_redefinicao: now,
-        address: "Rua Teste".to_string(),
-        address_number: "123".to_string(),
-        complement: "Apto 1".to_string(),
-        postal_code: "01234567".to_string(),
-        province: "Centro".to_string(),
-        city: "São Paulo".to_string(),
-        cpfcnpj: "12345678900".to_string(),
-    };
-    diesel::insert_into(crate::schema::usuarios::table)
-        .values(&new_user)
-        .execute(conn)
-        .expect("Erro ao inserir usuário");
-    // Cria categorias cat1 e cat2
-    diesel::insert_into(crate::schema::categorias::table)
-        .values(&crate::models::NewCategoria {
-            id: cat1_id.clone(),
-            id_usuario: Some(id_usuario.clone()),
-            nome: "Categoria 1".to_string(),
-            tipo: "entrada".to_string(),
-            icone: None,
-            cor: None,
-            eh_padrao: false,
-            eh_ativa: true,
+    async fn test_relatorio_stats_handler() {
+        use axum_extra::extract::cookie::{Cookie, CookieJar};
+        use jsonwebtoken::{encode, EncodingKey, Header};
+        use crate::services::transacao::Claims;
+        clean_db();
+        let conn = &mut establish_connection();
+        // Gera ID único para usuário e categorias
+        let id_usuario = ulid::Ulid::new().to_string();
+        let cat1_id = ulid::Ulid::new().to_string();
+        let cat2_id = ulid::Ulid::new().to_string();
+        let now = chrono::Utc::now().naive_utc();
+        // Cria usuário
+        let new_user = crate::models::usuario::NewUsuario {
+            id: id_usuario.clone(),
+            nome_usuario: "user_relatorio_test".to_string(),
+            email: "relatorio@teste.com".to_string(),
+            senha: "senha123".to_string(),
+            nome_completo: "Relatorio Teste".to_string(),
+            telefone: "11999999999".to_string(),
+            veiculo: "Carro".to_string(),
             criado_em: now,
             atualizado_em: now,
-        })
-        .execute(conn).unwrap();
-    diesel::insert_into(crate::schema::categorias::table)
-        .values(&crate::models::NewCategoria {
-            id: cat2_id.clone(),
-            id_usuario: Some(id_usuario.clone()),
-            nome: "Categoria 2".to_string(),
-            tipo: "saida".to_string(),
-            icone: None,
-            cor: None,
-            eh_padrao: false,
-            eh_ativa: true,
-            criado_em: now,
-            atualizado_em: now,
-        })
-        .execute(conn).unwrap();
-    // Cria transação entrada
-    // Cria transação entrada
-    diesel::insert_into(transacoes::table)
-        .values(&crate::models::NewTransacao {
-            id: ulid::Ulid::new().to_string(),
-            id_usuario: id_usuario.clone(),
-            id_categoria: cat1_id.clone(),
-            valor: 200,
-            tipo: "entrada".to_string(),
-            descricao: Some("Teste entrada".to_string()),
-            data: NaiveDate::from_ymd_opt(2025,8,14).unwrap().and_hms_opt(0,0,0).unwrap(),
-            origem: None,
-            id_externo: None,
-            plataforma: None,
-            observacoes: None,
-            tags: None,
-            criado_em: now,
-            atualizado_em: now,
-        })
-        .execute(conn).unwrap();
-    // Cria transação saída
-    diesel::insert_into(transacoes::table)
-        .values(&crate::models::NewTransacao {
-            id: ulid::Ulid::new().to_string(),
-            id_usuario: id_usuario.clone(),
-            id_categoria: cat2_id.clone(),
-            valor: 50,
-            tipo: "saida".to_string(),
-            descricao: Some("Teste saida".to_string()),
-            data: NaiveDate::from_ymd_opt(2025,8,14).unwrap().and_hms_opt(0,0,0).unwrap(),
-            origem: None,
-            id_externo: None,
-            plataforma: None,
-            observacoes: None,
-            tags: None,
-            criado_em: now,
-            atualizado_em: now,
-        })
-        .execute(conn).unwrap();
-    // Cria sessão trabalho
-    diesel::insert_into(sessoes_trabalho::table)
-        .values(&crate::models::NewSessaoTrabalho {
-            id: ulid::Ulid::new().to_string(),
-            id_usuario: id_usuario.clone(),
-            inicio: NaiveDate::from_ymd_opt(2025,8,14).unwrap().and_hms_opt(8,0,0).unwrap(),
-            fim: Some(NaiveDate::from_ymd_opt(2025,8,14).unwrap().and_hms_opt(12,0,0).unwrap()),
-            total_minutos: Some(240),
-            local_inicio: Some("A".to_string()),
-            local_fim: Some("B".to_string()),
-            total_corridas: 5,
-            total_ganhos: 200,
-            total_gastos: 50,
-            plataforma: Some("Uber".to_string()),
-            observacoes: Some("Teste".to_string()),
-            clima: Some("Sol".to_string()),
-            eh_ativa: false,
-            criado_em: now,
-            atualizado_em: now,
-        })
-        .execute(conn).unwrap();
-    // Cria meta
-    diesel::insert_into(metas::table)
-        .values(&crate::models::NewMeta {
-            id: ulid::Ulid::new().to_string(),
-            id_usuario: id_usuario.clone(),
-            titulo: "Meta Teste".to_string(),
-            descricao: Some("desc".to_string()),
-            tipo: "financeira".to_string(),
-            categoria: "poupança".to_string(),
-            valor_alvo: 1000,
-            valor_atual: 100,
-            unidade: Some("R$".to_string()),
-            data_inicio: NaiveDate::from_ymd_opt(2025,8,14).unwrap().and_hms_opt(0,0,0).unwrap(),
-            data_fim: None,
-            eh_ativa: true,
-            eh_concluida: false,
-            concluida_em: None,
-            lembrete_ativo: false,
-            frequencia_lembrete: None,
-            criado_em: now,
-            atualizado_em: now,
-        })
-        .execute(conn).unwrap();
+            ultima_tentativa_redefinicao: now,
+            address: "Rua Teste".to_string(),
+            address_number: "123".to_string(),
+            complement: "Apto 1".to_string(),
+            postal_code: "01234567".to_string(),
+            province: "Centro".to_string(),
+            city: "São Paulo".to_string(),
+            cpfcnpj: "12345678900".to_string(),
+        };
+        diesel::insert_into(crate::schema::usuarios::table)
+            .values(&new_user)
+            .execute(conn)
+            .expect("Erro ao inserir usuário");
+        // Cria categorias cat1 e cat2
+        diesel::insert_into(crate::schema::categorias::table)
+            .values(&crate::models::NewCategoria {
+                id: cat1_id.clone(),
+                id_usuario: Some(id_usuario.clone()),
+                nome: "Categoria 1".to_string(),
+                tipo: "entrada".to_string(),
+                icone: None,
+                cor: None,
+                eh_padrao: false,
+                eh_ativa: true,
+                criado_em: now,
+                atualizado_em: now,
+            })
+            .execute(conn).unwrap();
+        diesel::insert_into(crate::schema::categorias::table)
+            .values(&crate::models::NewCategoria {
+                id: cat2_id.clone(),
+                id_usuario: Some(id_usuario.clone()),
+                nome: "Categoria 2".to_string(),
+                tipo: "saida".to_string(),
+                icone: None,
+                cor: None,
+                eh_padrao: false,
+                eh_ativa: true,
+                criado_em: now,
+                atualizado_em: now,
+            })
+            .execute(conn).unwrap();
+        // Cria transação entrada
+        diesel::insert_into(transacoes::table)
+            .values(&crate::models::NewTransacao {
+                id: ulid::Ulid::new().to_string(),
+                id_usuario: id_usuario.clone(),
+                id_categoria: cat1_id.clone(),
+                valor: 200,
+                tipo: "entrada".to_string(),
+                descricao: Some("Teste entrada".to_string()),
+                data: now,
+                origem: None,
+                id_externo: None,
+                plataforma: None,
+                observacoes: None,
+                tags: None,
+                criado_em: now,
+                atualizado_em: now,
+            })
+            .execute(conn).unwrap();
+        // Cria transação saída
+        diesel::insert_into(transacoes::table)
+            .values(&crate::models::NewTransacao {
+                id: ulid::Ulid::new().to_string(),
+                id_usuario: id_usuario.clone(),
+                id_categoria: cat2_id.clone(),
+                valor: 50,
+                tipo: "saida".to_string(),
+                descricao: Some("Teste saida".to_string()),
+                data: now,
+                origem: None,
+                id_externo: None,
+                plataforma: None,
+                observacoes: None,
+                tags: None,
+                criado_em: now,
+                atualizado_em: now,
+            })
+            .execute(conn).unwrap();
+        // Cria sessão de trabalho
+        diesel::insert_into(sessoes_trabalho::table)
+            .values(&crate::models::sessao_trabalho::NewSessaoTrabalho {
+                id: ulid::Ulid::new().to_string(),
+                id_usuario: id_usuario.clone(),
+                inicio: now,
+                fim: None,
+                total_minutos: Some(240),
+                local_inicio: Some("Local A".to_string()),
+                local_fim: Some("Local B".to_string()),
+                total_corridas: 5,
+                total_ganhos: 200,
+                total_gastos: 50,
+                plataforma: Some("Uber".to_string()),
+                observacoes: Some("Teste".to_string()),
+                clima: Some("Sol".to_string()),
+                eh_ativa: true,
+                criado_em: now,
+                atualizado_em: now,
+            })
+            .execute(conn).unwrap();
+        // Cria meta
+        diesel::insert_into(metas::table)
+            .values(&crate::models::meta::NewMeta {
+                id: ulid::Ulid::new().to_string(),
+                id_usuario: id_usuario.clone(),
+                titulo: "Meta Teste".to_string(),
+                descricao: Some("desc".to_string()),
+                tipo: "financeira".to_string(),
+                categoria: "poupança".to_string(),
+                valor_alvo: 1000,
+                valor_atual: 100,
+                unidade: Some("R$".to_string()),
+                data_inicio: chrono::NaiveDate::from_ymd_opt(2025,8,14).unwrap().and_hms_opt(0,0,0).unwrap(),
+                data_fim: None,
+                eh_ativa: true,
+                eh_concluida: false,
+                concluida_em: None,
+                lembrete_ativo: false,
+                frequencia_lembrete: None,
+                criado_em: now,
+                atualizado_em: now,
+            })
+            .execute(conn).unwrap();
+        // Gera JWT válido para o usuário seed
+        let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "secret".to_string());
+        let claims = Claims { sub: id_usuario.clone(), email: "relatorio@teste.com".to_string(), exp: 2000000000 };
+        let token = encode(&Header::default(), &claims, &EncodingKey::from_secret(secret.as_ref())).unwrap();
+        let jar = CookieJar::new().add(Cookie::new("auth_token", token));
         // Testa handler
         let filtro = RelatorioFiltro {
-            id_usuario: id_usuario.clone(),
             data_inicio: None,
             data_fim: None,
             tipo: None,
             categoria: None,
         };
-        let resp = relatorio_stats_handler(Query(filtro)).await;
+        let Json(resp) = relatorio_stats_handler(jar, Query(filtro)).await;
         assert_eq!(resp.ganhos, 200.0);
         assert_eq!(resp.gastos, 50.0);
         assert_eq!(resp.lucro, 150.0);
         assert_eq!(resp.corridas, 5);
         assert_eq!(resp.horas, 4.0);
         assert_eq!(resp.metas.len(), 1);
+    }
     }
 }
 use axum::{Json, extract::Query};
@@ -223,9 +238,12 @@ use crate::schema::transacoes::dsl as transacao_dsl;
 use crate::schema::sessoes_trabalho::dsl as sessao_dsl;
 use crate::schema::metas::dsl as meta_dsl;
 
+use axum_extra::extract::cookie::CookieJar;
+use jsonwebtoken::{decode, DecodingKey, Validation};
+use crate::services::transacao::Claims;
+
 #[derive(Deserialize)]
 pub struct RelatorioFiltro {
-    pub id_usuario: String,
     pub data_inicio: Option<NaiveDateTime>,
     pub data_fim: Option<NaiveDateTime>,
     pub tipo: Option<String>, // receita, despesa, etc
@@ -242,11 +260,17 @@ pub struct RelatorioStats {
     pub metas: Vec<f64>,
 }
 
-pub async fn relatorio_stats_handler(Query(filtro): Query<RelatorioFiltro>) -> Json<RelatorioStats> {
+pub async fn relatorio_stats_handler(jar: CookieJar, Query(filtro): Query<RelatorioFiltro>) -> Json<RelatorioStats> {
     let conn = &mut db::establish_connection();
+    let token = jar.get("auth_token").map(|c| c.value().to_string()).unwrap_or_default();
+    let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "secret".to_string());
+    let claims = decode::<Claims>(token.as_str(), &DecodingKey::from_secret(secret.as_ref()), &Validation::default())
+        .map(|token_data| token_data.claims)
+        .unwrap_or_else(|_| Claims { sub: "".to_string(), email: "".to_string(), exp: 0 });
+    let user_id = claims.sub;
     // Filtros base
-    let mut ganhos_query = transacao_dsl::transacoes.filter(transacao_dsl::id_usuario.eq(&filtro.id_usuario)).filter(transacao_dsl::tipo.eq("entrada")).into_boxed();
-    let mut gastos_query = transacao_dsl::transacoes.filter(transacao_dsl::id_usuario.eq(&filtro.id_usuario)).filter(transacao_dsl::tipo.eq("saida")).into_boxed();
+    let mut ganhos_query = transacao_dsl::transacoes.filter(transacao_dsl::id_usuario.eq(&user_id)).filter(transacao_dsl::tipo.eq("entrada")).into_boxed();
+    let mut gastos_query = transacao_dsl::transacoes.filter(transacao_dsl::id_usuario.eq(&user_id)).filter(transacao_dsl::tipo.eq("saida")).into_boxed();
     if let Some(ref tipo) = filtro.tipo {
         ganhos_query = ganhos_query.filter(transacao_dsl::tipo.eq(tipo));
         gastos_query = gastos_query.filter(transacao_dsl::tipo.eq(tipo));
@@ -266,10 +290,10 @@ pub async fn relatorio_stats_handler(Query(filtro): Query<RelatorioFiltro>) -> J
     let ganhos: f64 = ganhos_query.select(diesel::dsl::sum(transacao_dsl::valor)).first::<Option<i64>>(conn).unwrap_or(Some(0)).unwrap_or(0) as f64;
     let gastos: f64 = gastos_query.select(diesel::dsl::sum(transacao_dsl::valor)).first::<Option<i64>>(conn).unwrap_or(Some(0)).unwrap_or(0) as f64;
     let lucro = ganhos - gastos;
-    let corridas: u32 = sessao_dsl::sessoes_trabalho.filter(sessao_dsl::id_usuario.eq(&filtro.id_usuario)).select(diesel::dsl::sum(sessao_dsl::total_corridas)).first::<Option<i64>>(conn).unwrap_or(Some(0)).unwrap_or(0) as u32;
-    let minutos: i64 = sessao_dsl::sessoes_trabalho.filter(sessao_dsl::id_usuario.eq(&filtro.id_usuario)).select(diesel::dsl::sum(sessao_dsl::total_minutos)).first::<Option<i64>>(conn).unwrap_or(Some(0)).unwrap_or(0);
+    let corridas: u32 = sessao_dsl::sessoes_trabalho.filter(sessao_dsl::id_usuario.eq(&user_id)).select(diesel::dsl::sum(sessao_dsl::total_corridas)).first::<Option<i64>>(conn).unwrap_or(Some(0)).unwrap_or(0) as u32;
+    let minutos: i64 = sessao_dsl::sessoes_trabalho.filter(sessao_dsl::id_usuario.eq(&user_id)).select(diesel::dsl::sum(sessao_dsl::total_minutos)).first::<Option<i64>>(conn).unwrap_or(Some(0)).unwrap_or(0);
     let horas = minutos as f64 / 60.0;
-    let metas: Vec<f64> = meta_dsl::metas.filter(meta_dsl::id_usuario.eq(&filtro.id_usuario)).filter(meta_dsl::eh_ativa.eq(true)).select(meta_dsl::valor_alvo).load::<i32>(conn).unwrap_or_default().into_iter().map(|v| v as f64).collect();
+    let metas: Vec<f64> = meta_dsl::metas.filter(meta_dsl::id_usuario.eq(&user_id)).filter(meta_dsl::eh_ativa.eq(true)).select(meta_dsl::valor_alvo).load::<i32>(conn).unwrap_or_default().into_iter().map(|v| v as f64).collect();
     Json(RelatorioStats { ganhos, gastos, lucro, corridas, horas, metas })
 }
 

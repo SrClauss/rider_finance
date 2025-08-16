@@ -38,13 +38,36 @@ use rand::Rng;
 use crate::models::sessao_trabalho::NewSessaoTrabalho;
 use crate::schema::sessoes_trabalho::dsl;
 use diesel::prelude::*;
+
 use crate::db;
 
 // Ajuste os tipos e funções conforme seu schema real
 // Exemplo: insert_transaction(date, value, tipo) e insert_work_session(date, horas)
 
+use crate::services::auth::register::{RegisterPayload, register_user_handler};
+use axum::Json;
+
 pub async fn seed_movimentacao_robusta() {
-    let id_usuario = create_fake_user();
+    // Cria um usuário realista usando o fluxo de registro (senha será hasheada)
+    let payload = RegisterPayload {
+        nome_usuario: "seed_user".to_string(),
+        email: "seed_user@teste.com".to_string(),
+        senha: "senha123".to_string(),
+        nome_completo: "Usuário Seed".to_string(),
+        telefone: "11999999999".to_string(),
+        veiculo: "Carro".to_string(),
+        address: "Rua Seed".to_string(),
+        address_number: "123".to_string(),
+        complement: "Apto 1".to_string(),
+        postal_code: "01234567".to_string(),
+        province: "Centro".to_string(),
+        city: "São Paulo".to_string(),
+        cpfcnpj: "12345678900".to_string(),
+        captcha_token: None,
+        captcha_answer: None,
+    };
+    let resp = register_user_handler(Json(payload)).await;
+    let id_usuario = resp.id.as_ref().expect("Falha ao criar usuário seed").clone();
     // Cria categorias de entrada e saída usando o módulo categoria
     use crate::services::categoria::{CreateCategoriaPayload, create_categoria_handler};
     let payload_entrada = CreateCategoriaPayload {
@@ -92,29 +115,41 @@ pub async fn seed_movimentacao_robusta() {
         let fim_hora: u32 = (8 + (horas_val / 2)) as u32;
         let fim_val = Some(NaiveDateTime::new(data, NaiveTime::from_hms_opt(fim_hora, 0, 0).unwrap()));
         let total_minutos_val = Some(horas_val * 60);
-    let total_corridas_val = rng.random_range(1..8);
+        let total_corridas_val = rng.random_range(1..8);
         let mut soma_entradas_val = 0.0_f32;
         let mut soma_saidas_val = 0.0_f32;
+        // Gera JWT válido para o usuário seed (acessível nos dois loops)
+        let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "secret".to_string());
+        let claims = crate::services::transacao::Claims { sub: id_usuario.clone(), email: "seed_user@teste.com".to_string(), exp: 2000000000 };
+        let token = encode(&Header::default(), &claims, &EncodingKey::from_secret(secret.as_ref())).unwrap();
+        let _jar = CookieJar::new().add(Cookie::new("auth_token", token));
         // Para teste, limite o número de transações
         let entradas = if cfg!(test) { 2 } else if is_weekend {
             rng.random_range(5..12)
         } else {
             rng.random_range(15..28)
         };
+        // Gera JWT válido para o usuário seed (acessível nos dois loops)
+        use axum_extra::extract::cookie::{Cookie, CookieJar};
+        use jsonwebtoken::{encode, EncodingKey, Header};
+        let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "secret".to_string());
+        let claims = crate::services::transacao::Claims { sub: id_usuario.clone(), email: "seed_user@teste.com".to_string(), exp: 2000000000 };
+        let token = encode(&Header::default(), &claims, &EncodingKey::from_secret(secret.as_ref())).unwrap();
+        let jar = CookieJar::new().add(Cookie::new("auth_token", token));
+
         for _ in 0..entradas {
             let base = if is_weekend { media_entrada as f32 * 0.7 } else { media_entrada as f32 };
             let mut valor_val: f32 = base + rng.random_range(-20.0..20.0) + rng.random_range(-10.0..10.0);
             valor_val = valor_val.max(15.0).min(220.0);
             soma_entradas_val += valor_val;
             let transacao_payload = CreateTransacaoPayload {
-                id_usuario: id_usuario.clone(),
                 id_categoria: id_categoria_entrada.clone(),
                 valor: valor_val.round() as i32,
                 tipo: "entrada".to_string(),
                 descricao: Some("Seed entrada".to_string()),
                 data: Some(inicio_val),
             };
-            let _ = create_transacao_handler(axum::Json(transacao_payload)).await;
+            let _ = create_transacao_handler(jar.clone(), axum::Json(transacao_payload)).await;
         }
         historico_entradas.push(soma_entradas_val as f64);
         let saidas = if cfg!(test) { 1 } else if is_weekend {
@@ -128,14 +163,13 @@ pub async fn seed_movimentacao_robusta() {
             valor_val = valor_val.max(8.0).min(130.0);
             soma_saidas_val += valor_val;
             let transacao_payload = CreateTransacaoPayload {
-                id_usuario: id_usuario.clone(),
                 id_categoria: id_categoria_saida.clone(),
                 valor: valor_val.round() as i32,
                 tipo: "saida".to_string(),
                 descricao: Some("Seed saida".to_string()),
                 data: Some(inicio_val),
             };
-            let _ = create_transacao_handler(axum::Json(transacao_payload)).await;
+            let _ = create_transacao_handler(jar.clone(), axum::Json(transacao_payload)).await;
         }
         historico_saidas.push(soma_saidas_val as f64);
         if historico_entradas.len() >= 7 {

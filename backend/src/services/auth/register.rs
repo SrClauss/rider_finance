@@ -5,6 +5,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_register_user_handler_campos_obrigatorios() {
+        std::env::set_var("ENVIRONMENT", "tests");
         let payload = RegisterPayload {
             nome_usuario: "".to_string(),
             email: "".to_string(),
@@ -29,6 +30,7 @@ mod tests {
 
     #[test]
     fn test_register_user_campos_obrigatorios() {
+        std::env::set_var("ENVIRONMENT", "tests");
         let now = chrono::Utc::now().naive_utc();
         let novo_usuario = NewUsuario::new(
             None,
@@ -86,7 +88,7 @@ use crate::models::NewUsuario;
 /// Registra usuário no banco de dados de testes
 pub fn register_user_test(novo_usuario: NewUsuario) -> Result<(), String> {
     use crate::db;
-    let conn = &mut db::establish_connection_test();
+    let conn = &mut db::establish_connection();
     match diesel::insert_into(crate::schema::usuarios::table)
         .values(&novo_usuario)
         .execute(conn) {

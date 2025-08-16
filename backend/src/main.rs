@@ -35,7 +35,7 @@ async fn main() {
         .route("/api/transacao/{id}", get(get_transacao_handler))
         .route("/api/transacao/{id}", put(update_transacao_handler))
         .route("/api/transacao/{id}", delete(delete_transacao_handler))
-        .route("/api/transacoes/{id_usuario}", get(list_transacoes_handler))
+    .route("/api/transacoes", post(list_transacoes_handler))
         .route("/api/captcha", get(generate_captcha_handler))
         .route("/api/meta/a_cumprir/{id_usuario}", get(list_metas_a_cumprir_handler))
         .route("/api/meta/cumpridas/{id_usuario}", get(list_metas_cumpridas_handler))
