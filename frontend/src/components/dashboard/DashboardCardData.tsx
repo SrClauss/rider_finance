@@ -57,8 +57,9 @@ export default function DashboardCardData({ label, value, color, icon, periodoAn
                 boxShadow: 2,
                 p: 1.5,
                 width: { xs: 160, sm: 200, md: 260 },
-                minWidth: { xs: 160, sm: 200, md: 260 },
-                maxWidth: { xs: 340, sm: 400, md: 260 },
+                minWidth: { xs: "80%", sm: "85%", md: 260 },
+                maxWidth: { xs: "80%", sm: "85%", md: 260 },
+
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "flex-start",

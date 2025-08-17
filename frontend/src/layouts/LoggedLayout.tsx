@@ -18,6 +18,7 @@ import MenuIcon from "@mui/icons-material/Menu";
 import HomeIcon from "@mui/icons-material/Home";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import ListAltIcon from "@mui/icons-material/ListAlt";
+import FlagIcon from "@mui/icons-material/Flag";
 import LogoutIcon from "@mui/icons-material/Logout";
 import { useRouter } from "next/navigation";
 import { ThemeProvider } from "@/theme/ThemeProvider"; // Adjust the import path as necessary
@@ -80,6 +81,14 @@ export default function LoggedLayout({ children }: LoggedLayoutProps) {
               <ListAltIcon />
             </ListItemIcon>
             <ListItemText primary="Transações" />
+          </ListItemButton>
+        </ListItem>
+        <ListItem key="Metas" disablePadding>
+          <ListItemButton onClick={() => router.push("/goals") }>
+            <ListItemIcon>
+              <FlagIcon />
+            </ListItemIcon>
+            <ListItemText primary="Metas" />
           </ListItemButton>
         </ListItem>
         <ListItem key="Perfil" disablePadding>

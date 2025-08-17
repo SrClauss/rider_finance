@@ -7,18 +7,27 @@ import FilterListIcon from "@mui/icons-material/FilterList";
 import AddIcon from "@mui/icons-material/Add";
 import LoggedLayout from "@/layouts/LoggedLayout";
 import TransactionList from "@/components/transactions/TransactionList";
-import TransactionModal from "@/components/transactions/TransactionModal";
+import TransactionModal from "@/modals/TransactionModal";
+import CategoriaModal from "@/modals/CategoriaModal";
+
+import ConfirmDeleteModal from "@/modals/ConfirmDeleteModal";
 import type { Transaction } from "@/interfaces/Transaction";
 import axios from "axios";
 import dayjs from "dayjs";
 import { CategoriaProvider, useCategoriaContext, carregarCategorias } from "@/context/CategoriaContext";
 
 export default function TransactionsPage() {
+  // Controle de deleção
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [selectedDeleteId, setSelectedDeleteId] = useState<string | null>(null);
+  // Controle de edição
+  const [editTx, setEditTx] = useState<Transaction | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [categoriaModalOpen, setCategoriaModalOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
   const [total, setTotal] = useState(0);
@@ -38,6 +47,53 @@ export default function TransactionsPage() {
   };
 
   const { categorias, setCategorias } = useCategoriaContext();
+  // Função chamada ao clicar em deletar
+  const handleDeleteClick = (id: string) => {
+    setSelectedDeleteId(id);
+    setDeleteModalOpen(true);
+  };
+
+  // Confirma a deleção
+  const handleConfirmDelete = async () => {
+    if (!selectedDeleteId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      await axios.delete(`/api/transacao/${selectedDeleteId}`);
+      setDeleteModalOpen(false);
+      setSelectedDeleteId(null);
+      await fetchTransacoes();
+    } catch (e: any) {
+      setError(e?.response?.data?.message || "Erro ao deletar transação");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Função chamada ao clicar em editar
+  const handleEditClick = (tx: Transaction) => {
+    setEditTx(tx);
+    setModalOpen(true);
+  };
+
+  // Ao fechar modal de transação, limpa edição
+  const handleCloseTransactionModal = () => {
+    setModalOpen(false);
+    setEditTx(null);
+  };
+
+  // Ao salvar edição
+  const handleTransactionEdited = async () => {
+    setModalOpen(false);
+    setEditTx(null);
+    await fetchTransacoes();
+  };
+  // Atualiza categorias após criar nova categoria
+  const handleCategoriaCreated = async () => {
+    setCategoriaModalOpen(false);
+    const novas = await carregarCategorias();
+    setCategorias(novas);
+  };
   // Carrega categorias ao entrar na página, se ainda não estiverem carregadas
   useEffect(() => {
     if (!categorias || categorias.length === 0) {
@@ -45,26 +101,31 @@ export default function TransactionsPage() {
     }
   }, []);
 
-  useEffect(() => {
+  const fetchTransacoes = async (overridePage?: number) => {
     setLoading(true);
     setError(null);
-    
     const filtros: any = {
-      page,
+      page: overridePage ?? page,
       page_size: pageSize,
     };
     if (idCategoria) filtros.id_categoria = idCategoria;
     if (descricao) filtros.descricao = descricao;
     if (tipo) filtros.tipo = tipo;
-  if (dataInicio) filtros.data_inicio = dayjs(dataInicio).format("YYYY-MM-DDTHH:mm:ss");
-  if (dataFim) filtros.data_fim = dayjs(dataFim).format("YYYY-MM-DDTHH:mm:ss");
-    axios.post("/api/transacoes", filtros, { withCredentials: true })
-      .then((res) => {
-        setTransactions(Array.isArray(res.data?.items) ? res.data.items : []);
-        setTotal(typeof res.data?.total === 'number' ? res.data.total : 0);
-      })
-      .catch(() => setError("Erro ao buscar transações"))
-      .finally(() => setLoading(false));
+    if (dataInicio) filtros.data_inicio = dayjs(dataInicio).format("YYYY-MM-DDTHH:mm:ss");
+    if (dataFim) filtros.data_fim = dayjs(dataFim).format("YYYY-MM-DDTHH:mm:ss");
+    try {
+      const res = await axios.post("/api/transacoes", filtros, { withCredentials: true });
+      setTransactions(Array.isArray(res.data?.items) ? res.data.items : []);
+      setTotal(typeof res.data?.total === 'number' ? res.data.total : 0);
+    } catch {
+      setError("Erro ao buscar transações");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTransacoes();
   }, [page, pageSize, idCategoria, descricao, tipo, dataInicio, dataFim]);
 
   const handleAdd = () => setModalOpen(true);
@@ -73,10 +134,10 @@ export default function TransactionsPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await axios.post<Transaction>("/api/transacao", newTx, { withCredentials: true });
-      // Recarrega a página 1 após criar
-      setPage(1);
+      await axios.post<Transaction>("/api/transacao", newTx, { withCredentials: true });
       setModalOpen(false);
+      setPage(1);
+      await fetchTransacoes(1);
     } catch (e: any) {
       setError(e?.response?.data?.message || "Erro ao criar transação");
     } finally {
@@ -129,6 +190,15 @@ export default function TransactionsPage() {
                 <MenuItem key={cat.id} value={cat.id}>{cat.nome}</MenuItem>
               ))}
             </TextField>
+            <Button
+              variant="outlined"
+              color="primary"
+              onClick={() => setCategoriaModalOpen(true)}
+              sx={{ mb: 2 }}
+              startIcon={<AddIcon />}
+            >
+              Nova Categoria
+            </Button>
             <TextField
               label="Descrição"
               value={descricao}
@@ -188,7 +258,11 @@ export default function TransactionsPage() {
             <Typography variant="subtitle2" color="#bbb" sx={{ mb: 1 }}>
               Exibindo as últimas {(Array.isArray(transactions) ? transactions.length : 0)} transações de um total de {typeof total === 'number' ? total : 0}.
             </Typography>
-            <TransactionList transactions={transactions} />
+            <TransactionList
+              transactions={transactions}
+              onEdit={handleEditClick}
+              onDelete={handleDeleteClick}
+            />
             <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
               <Pagination
                 count={Math.ceil(total / pageSize)}
@@ -199,7 +273,21 @@ export default function TransactionsPage() {
             </Box>
           </>
         )}
-        <TransactionModal open={modalOpen} onClose={handleCloseModal} onCreated={handleTransactionCreated} />
+  <TransactionModal
+    open={modalOpen}
+    onClose={handleCloseTransactionModal}
+    onCreated={handleTransactionCreated}
+    onEdited={handleTransactionEdited}
+    transaction={editTx}
+  />
+  <ConfirmDeleteModal
+    open={deleteModalOpen}
+    onClose={() => setDeleteModalOpen(false)}
+    onConfirm={handleConfirmDelete}
+    title="Confirmar exclusão"
+    description="Tem certeza que deseja deletar esta transação? Esta ação não pode ser desfeita."
+  />
+  <CategoriaModal open={categoriaModalOpen} onClose={() => setCategoriaModalOpen(false)} onCreated={handleCategoriaCreated} />
       </Box>
     </LoggedLayout>
     </CategoriaProvider>

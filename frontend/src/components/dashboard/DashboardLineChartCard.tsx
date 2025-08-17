@@ -45,14 +45,17 @@ export default function DashboardLineChartCard({ label, series, color = '#1976d2
     }] : [])
   ];
 
-  // Ajuste dinâmico do eixo Y baseado na média dos valores
+  // Ajuste dinâmico do eixo Y baseado no valor mínimo e máximo reais da série
   let yMin = 0;
   let yMax = 100;
   if (series && series.length > 0) {
-    const avg = series.reduce((a, b) => a + b, 0) / series.length;
-    const max = Math.max(...series);
-    yMax = Math.max(max, avg * 2, 10);
-    yMin = 0;
+    yMin = Math.min(...series);
+    yMax = Math.max(...series);
+    if (yMin === yMax) {
+      // Se todos os valores são iguais, expande um pouco o range
+      yMin = yMin - 1;
+      yMax = yMax + 1;
+    }
   }
 
   return (
@@ -62,7 +65,7 @@ export default function DashboardLineChartCard({ label, series, color = '#1976d2
       boxShadow: 2,
       p: 2,
       mb: 3,
-      maxWidth: { xs: 340, sm: 400, md: 600 },
+      maxWidth:"70%",
       width: '100%',
       mx: { xs: 2, md: 'auto' }
     }}>

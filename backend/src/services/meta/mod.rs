@@ -101,10 +101,12 @@ mod tests {
         assert!(found2.0.is_none());
     }
 }
-pub async fn list_metas_a_cumprir_handler(Path(id_usuario_param): Path<String>) -> Json<Vec<MetaResponse>> {
+
+pub async fn list_metas_a_cumprir_handler(jar: CookieJar) -> Json<Vec<MetaResponse>> {
     let conn = &mut db::establish_connection();
+    let user_id = extract_user_id_from_cookie(&jar).expect("Usuário não autenticado");
     let results = metas
-        .filter(id_usuario.eq(id_usuario_param))
+        .filter(id_usuario.eq(user_id))
         .filter(eh_concluida.eq(false))
         .order(data_inicio.desc())
         .load::<Meta>(conn)
@@ -161,6 +163,8 @@ pub async fn list_metas_cumpridas_handler(Path(id_usuario_param): Path<String>) 
     }).collect())
 }
 use axum::{Json, extract::Path};
+use axum_extra::extract::cookie::CookieJar;
+use crate::services::auth::login::extract_user_id_from_cookie;
 use serde::{Serialize, Deserialize};
 use diesel::prelude::*;
 use crate::db;
@@ -170,7 +174,6 @@ use chrono::NaiveDateTime;
 
 #[derive(Deserialize)]
 pub struct CreateMetaPayload {
-    pub id_usuario: String,
     pub titulo: String,
     pub descricao: Option<String>,
     pub tipo: String,
@@ -209,12 +212,13 @@ pub struct MetaResponse {
     pub atualizado_em: NaiveDateTime,
 }
 
-pub async fn create_meta_handler(Json(payload): Json<CreateMetaPayload>) -> Json<MetaResponse> {
+pub async fn create_meta_handler(jar: CookieJar, Json(payload): Json<CreateMetaPayload>) -> Json<MetaResponse> {
     let conn = &mut db::establish_connection();
     let now = chrono::Utc::now().naive_utc();
+    let user_id = extract_user_id_from_cookie(&jar).expect("Usuário não autenticado");
     let nova_meta = NewMeta {
         id: ulid::Ulid::new().to_string(),
-        id_usuario: payload.id_usuario,
+        id_usuario: user_id,
         titulo: payload.titulo,
         descricao: payload.descricao,
         tipo: payload.tipo,
