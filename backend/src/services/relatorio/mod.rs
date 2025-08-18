@@ -39,9 +39,7 @@ mod tests {
     use super::*;
     use crate::db::establish_connection;
     use diesel::prelude::*;
-    use chrono::{NaiveDate};
     use crate::schema::{transacoes, sessoes_trabalho, metas};
-
     use axum::extract::Query;
 
     fn clean_db() {
@@ -54,18 +52,12 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_relatorio_stats_handler() {
-    clean_db();
-    let conn = &mut establish_connection();
-    // Gera ID único para usuário e categorias
-    let id_usuario = ulid::Ulid::new().to_string();
-    let cat1_id = ulid::Ulid::new().to_string();
-    let cat2_id = ulid::Ulid::new().to_string();
+    
     async fn test_relatorio_stats_handler() {
         use axum_extra::extract::cookie::{Cookie, CookieJar};
         use jsonwebtoken::{encode, EncodingKey, Header};
         use crate::services::transacao::Claims;
-        clean_db();
+        clean_db(); // Limpa tudo antes do teste
         let conn = &mut establish_connection();
         // Gera ID único para usuário e categorias
         let id_usuario = ulid::Ulid::new().to_string();
@@ -75,8 +67,8 @@ mod tests {
         // Cria usuário
         let new_user = crate::models::usuario::NewUsuario {
             id: id_usuario.clone(),
-            nome_usuario: "user_relatorio_test".to_string(),
-            email: "relatorio@teste.com".to_string(),
+            nome_usuario: format!("user_relatorio_test_{}", id_usuario),
+            email: format!("relatorio_{}@teste.com", id_usuario),
             senha: "senha123".to_string(),
             nome_completo: "Relatorio Teste".to_string(),
             telefone: "11999999999".to_string(),
@@ -96,6 +88,13 @@ mod tests {
             .values(&new_user)
             .execute(conn)
             .expect("Erro ao inserir usuário");
+        // Assert usuário criado
+        let usuario_existe = crate::schema::usuarios::dsl::usuarios
+            .filter(crate::schema::usuarios::dsl::id.eq(&id_usuario))
+            .first::<crate::models::usuario::Usuario>(conn)
+            .is_ok();
+        assert!(usuario_existe, "Usuário não foi criado corretamente");
+
         // Cria categorias cat1 e cat2
         diesel::insert_into(crate::schema::categorias::table)
             .values(&crate::models::NewCategoria {
@@ -125,6 +124,17 @@ mod tests {
                 atualizado_em: now,
             })
             .execute(conn).unwrap();
+        // Assert categorias criadas
+        let cat1_existe = crate::schema::categorias::dsl::categorias
+            .filter(crate::schema::categorias::dsl::id.eq(&cat1_id))
+            .first::<crate::models::categoria::Categoria>(conn)
+            .is_ok();
+        let cat2_existe = crate::schema::categorias::dsl::categorias
+            .filter(crate::schema::categorias::dsl::id.eq(&cat2_id))
+            .first::<crate::models::categoria::Categoria>(conn)
+            .is_ok();
+        assert!(cat1_existe && cat2_existe, "Categorias não foram criadas corretamente");
+
         // Cria transação entrada
         diesel::insert_into(transacoes::table)
             .values(&crate::models::NewTransacao {
@@ -163,6 +173,14 @@ mod tests {
                 atualizado_em: now,
             })
             .execute(conn).unwrap();
+        // Assert transações criadas
+        let transacoes_count: i64 = crate::schema::transacoes::dsl::transacoes
+            .filter(crate::schema::transacoes::dsl::id_usuario.eq(&id_usuario))
+            .count()
+            .get_result(conn)
+            .unwrap();
+        assert_eq!(transacoes_count, 2, "Transações não foram criadas corretamente");
+
         // Cria sessão de trabalho
         diesel::insert_into(sessoes_trabalho::table)
             .values(&crate::models::sessao_trabalho::NewSessaoTrabalho {
@@ -184,6 +202,14 @@ mod tests {
                 atualizado_em: now,
             })
             .execute(conn).unwrap();
+        // Assert sessão criada
+        let sessoes_count: i64 = crate::schema::sessoes_trabalho::dsl::sessoes_trabalho
+            .filter(crate::schema::sessoes_trabalho::dsl::id_usuario.eq(&id_usuario))
+            .count()
+            .get_result(conn)
+            .unwrap();
+        assert_eq!(sessoes_count, 1, "Sessão de trabalho não foi criada corretamente");
+
         // Cria meta
         diesel::insert_into(metas::table)
             .values(&crate::models::meta::NewMeta {
@@ -201,15 +227,22 @@ mod tests {
                 eh_ativa: true,
                 eh_concluida: false,
                 concluida_em: None,
-                lembrete_ativo: false,
-                frequencia_lembrete: None,
+                concluida_com: None,
                 criado_em: now,
                 atualizado_em: now,
             })
             .execute(conn).unwrap();
+        // Assert meta criada
+        let metas_count: i64 = crate::schema::metas::dsl::metas
+            .filter(crate::schema::metas::dsl::id_usuario.eq(&id_usuario))
+            .count()
+            .get_result(conn)
+            .unwrap();
+        assert_eq!(metas_count, 1, "Meta não foi criada corretamente");
+
         // Gera JWT válido para o usuário seed
         let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "secret".to_string());
-        let claims = Claims { sub: id_usuario.clone(), email: "relatorio@teste.com".to_string(), exp: 2000000000 };
+        let claims = Claims { sub: id_usuario.clone(), email: format!("relatorio_{}@teste.com", id_usuario), exp: 2000000000 };
         let token = encode(&Header::default(), &claims, &EncodingKey::from_secret(secret.as_ref())).unwrap();
         let jar = CookieJar::new().add(Cookie::new("auth_token", token));
         // Testa handler
@@ -228,7 +261,7 @@ mod tests {
         assert_eq!(resp.metas.len(), 1);
     }
     }
-}
+
 use axum::{Json, extract::Query};
 use serde::{Serialize, Deserialize};
 use chrono::{NaiveDateTime};

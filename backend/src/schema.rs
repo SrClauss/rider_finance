@@ -69,13 +69,12 @@ diesel::table! {
         unidade -> Nullable<Varchar>,
         data_inicio -> Timestamp,
         data_fim -> Nullable<Timestamp>,
-        eh_ativa -> Bool,
-        eh_concluida -> Bool,
-        concluida_em -> Nullable<Timestamp>,
-        lembrete_ativo -> Bool,
-        frequencia_lembrete -> Nullable<Varchar>,
-        criado_em -> Timestamp,
-        atualizado_em -> Timestamp,
+    eh_ativa -> Bool,
+    eh_concluida -> Bool,
+    concluida_em -> Nullable<Timestamp>,
+    criado_em -> Timestamp,
+    atualizado_em -> Timestamp,
+    concluida_com -> Nullable<Int4>,
     }
 }
 

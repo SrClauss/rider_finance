@@ -9,6 +9,7 @@ import GoalModal from "../../modals/GoalModal";
 
 import axios from "axios";
 import { Goal } from "@/interfaces/goal";
+import GoalCard from "../../components/goals/GoalCard";
 
 export default function GoalsPage() {
   const [goals, setGoals] = useState<Goal[]>([]);
@@ -122,29 +123,14 @@ export default function GoalsPage() {
           <Typography color="#aaa" sx={{ mt: 4, textAlign: "center" }}>Nenhuma meta cadastrada.</Typography>
         ) : (
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
-            {goals.map(goal => {
-              const progress = goal.valor_alvo > 0 ? (goal.valor_atual / goal.valor_alvo) * 100 : 0;
-              return (
-                <Card key={goal.id} sx={{ bgcolor: "#232733", color: "#fff", borderRadius: 2 }}>
-                  <CardContent>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Typography variant="h6" fontWeight={700}>{goal.titulo}</Typography>
-                      <Button size="small" color="primary" onClick={() => handleEdit(goal)}>Editar</Button>
-                      <Button size="small" color="error" onClick={() => handleDeleteClick(goal.id)}>Excluir</Button>
-                    </Box>
-                    <Typography variant="body2" color="#bbb" sx={{ mb: 1 }}>{goal.descricao}</Typography>
-                    <Typography variant="body2" color="#bbb">Meta: R$ {(goal.valor_alvo ?? 0).toLocaleString("pt-BR")}</Typography>
-                    <Typography variant="body2" color="#bbb">Atual: R$ {(goal.valor_atual ?? 0).toLocaleString("pt-BR")}</Typography>
-                    <Typography variant="body2" color="#bbb">Início: {goal.data_inicio ? new Date(goal.data_inicio).toLocaleDateString("pt-BR") : '-'}</Typography>
-                    <Typography variant="body2" color="#bbb">Limite: {goal.data_fim ? new Date(goal.data_fim).toLocaleDateString("pt-BR") : '-'}</Typography>
-                    <Box sx={{ mt: 2 }}>
-                      <LinearProgress variant="determinate" value={progress} sx={{ height: 10, borderRadius: 5, bgcolor: '#444', '& .MuiLinearProgress-bar': { bgcolor: progress >= 100 ? '#00e676' : '#1976d2' } }} />
-                      <Typography variant="caption" color="#bbb">Progresso: {progress.toFixed(1)}%</Typography>
-                    </Box>
-                  </CardContent>
-                </Card>
-              );
-            })}
+            {goals.map(goal => (
+              <GoalCard
+                key={goal.id}
+                goal={goal}
+                onEdit={handleEdit}
+                onDelete={g => handleDeleteClick(g.id)}
+              />
+            ))}
           </Box>
         )}
   <GoalModal open={modalOpen} onClose={handleModalClose} onSaved={handleGoalSaved} goal={editGoal} />

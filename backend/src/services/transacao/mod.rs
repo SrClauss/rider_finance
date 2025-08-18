@@ -1,3 +1,16 @@
+use chrono::NaiveDateTime;
+
+use axum::{Json, extract::Path};
+use axum_extra::extract::cookie::CookieJar;
+
+use serde::{Serialize, Deserialize};
+use diesel::prelude::*;
+use diesel::AsChangeset;
+use crate::db;
+use crate::schema::transacoes::dsl::*;
+use crate::models::Transacao;
+use jsonwebtoken::{decode, DecodingKey, Validation};
+
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Claims {
     pub sub: String,
@@ -7,16 +20,181 @@ pub struct Claims {
 
 #[cfg(test)]
 mod tests {
-    // use super::*;
-    // use axum::extract::Path;
-    // use axum::Json;
-    // use tokio;
-    // Os testes devem ser reescritos para usar o padrão correto de autenticação e handlers
-    // Exemplo de teste pode ser refeito aqui
-    // #[tokio::test]
-    // async fn test_create_and_get_transacao() { ... }
+    use crate::models::categoria::NewCategoria;
+    use crate::schema::categorias::dsl::*;
+
+    fn create_fake_categoria(conn: &mut diesel::PgConnection, user_id: &str, categoria_id: &str) {
+        let now = Utc::now().naive_utc();
+        let new_cat = NewCategoria {
+            id: categoria_id.to_string(),
+            id_usuario: Some(user_id.to_string()),
+            nome: "Categoria Teste".to_string(),
+            tipo: "entrada".to_string(),
+            icone: Some("icon.png".to_string()),
+            cor: Some("#FFFFFF".to_string()),
+            eh_padrao: false,
+            eh_ativa: true,
+            criado_em: now,
+            atualizado_em: now,
+        };
+        diesel::insert_into(categorias)
+            .values(&new_cat)
+            .on_conflict(crate::schema::categorias::id)
+            .do_nothing()
+            .execute(conn)
+            .expect("Erro ao inserir categoria");
+    }
+    use super::*;
+    use crate::db::establish_connection;
+    use chrono::Utc;
+    use crate::models::usuario::NewUsuario;
+    use crate::schema::usuarios::dsl::*;
+    use axum_extra::extract::cookie::Cookie;
+    use jsonwebtoken::{encode, Header, EncodingKey};
+    use serde::Serialize;
+
+    fn clean_db() {
+        std::env::set_var("ENVIRONMENT", "tests");
+        let conn = &mut establish_connection();
+        diesel::delete(crate::schema::transacoes::dsl::transacoes).execute(conn).ok();
+        diesel::delete(crate::schema::usuarios::dsl::usuarios).execute(conn).ok();
+    }
+
+    // Removido: create_fake_user
+
+    fn fake_payload() -> CreateTransacaoPayload {
+        let now = Utc::now().naive_utc();
+        CreateTransacaoPayload {
+            id_categoria: "cat1".to_string(),
+            valor: 123,
+            tipo: "entrada".to_string(),
+            descricao: Some("Transação de teste".to_string()),
+            data: Some(now),
+        }
+    }
+
+    #[derive(Serialize, serde::Deserialize)]
+    struct Claims {
+        sub: String,
+        email: String,
+        exp: usize,
+    }
+
+    #[tokio::test]
+    async fn test_create_get_and_delete_transacao() {
+        std::env::set_var("ENVIRONMENT", "tests");
+        clean_db();
+        let db_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| "SEM DATABASE_URL".to_string());
+        println!("[TESTE] DATABASE_URL em uso: {}", db_url);
+        let conn = &mut establish_connection();
+
+        // Cria usuário diretamente
+        let now = chrono::Utc::now().naive_utc();
+        let user_id = "user_transacao_test".to_string();
+        let new_user = NewUsuario {
+            id: user_id.clone(),
+            nome_usuario: "user_transacao_test".to_string(),
+            email: "transacao@teste.com".to_string(),
+            senha: "senha123".to_string(),
+            nome_completo: "Transacao Teste".to_string(),
+            telefone: "11999999999".to_string(),
+            veiculo: "Carro".to_string(),
+            criado_em: now,
+            atualizado_em: now,
+            ultima_tentativa_redefinicao: now,
+            address: "Rua Teste".to_string(),
+            address_number: "123".to_string(),
+            complement: "Apto 1".to_string(),
+            postal_code: "01234567".to_string(),
+            province: "Centro".to_string(),
+            city: "São Paulo".to_string(),
+            cpfcnpj: "12345678900".to_string(),
+        };
+        diesel::insert_into(crate::schema::usuarios::dsl::usuarios)
+            .values(&new_user)
+            .on_conflict(crate::schema::usuarios::dsl::id)
+            .do_nothing()
+            .execute(conn)
+            .expect("Erro ao inserir usuário");
+        // Assert usuário criado
+        let usuario_existe = crate::schema::usuarios::dsl::usuarios
+            .filter(crate::schema::usuarios::dsl::id.eq(&user_id))
+            .first::<crate::models::usuario::Usuario>(conn)
+            .is_ok();
+        assert!(usuario_existe, "Usuário não foi criado corretamente");
+
+        // Cria categoria diretamente
+        let categoria_id = "cat1".to_string();
+        let new_cat = NewCategoria {
+            id: categoria_id.clone(),
+            id_usuario: Some(user_id.clone()),
+            nome: "Categoria Teste".to_string(),
+            tipo: "entrada".to_string(),
+            icone: Some("icon.png".to_string()),
+            cor: Some("#FFFFFF".to_string()),
+            eh_padrao: false,
+            eh_ativa: true,
+            criado_em: now,
+            atualizado_em: now,
+        };
+        diesel::insert_into(crate::schema::categorias::dsl::categorias)
+            .values(&new_cat)
+            .on_conflict(crate::schema::categorias::dsl::id)
+            .do_nothing()
+            .execute(conn)
+            .expect("Erro ao inserir categoria");
+        // Assert categoria criada
+        let categoria_existe = crate::schema::categorias::dsl::categorias
+            .filter(crate::schema::categorias::dsl::id.eq(&categoria_id))
+            .first::<crate::models::categoria::Categoria>(conn)
+            .is_ok();
+        assert!(categoria_existe, "Categoria não foi criada corretamente");
+
+        // Cria transação
+        let payload = fake_payload();
+        let nova_transacao = crate::models::NewTransacao {
+            id: ulid::Ulid::new().to_string(),
+            id_usuario: user_id.clone(),
+            id_categoria: categoria_id.clone(),
+            valor: payload.valor,
+            tipo: payload.tipo.clone(),
+            descricao: payload.descricao.clone(),
+            data: payload.data.unwrap_or(now),
+            origem: None,
+            id_externo: None,
+            plataforma: None,
+            observacoes: None,
+            tags: None,
+            criado_em: now,
+            atualizado_em: now,
+        };
+        diesel::insert_into(crate::schema::transacoes::dsl::transacoes)
+            .values(&nova_transacao)
+            .execute(conn)
+            .expect("Erro ao inserir transação");
+        let transacao_id = nova_transacao.id.clone();
+        // Assert transação criada
+        let found = crate::schema::transacoes::dsl::transacoes
+            .filter(crate::schema::transacoes::dsl::id.eq(&transacao_id))
+            .first::<crate::models::Transacao>(conn);
+        assert!(found.is_ok(), "Transação não encontrada após inserção");
+
+        // Deleta transação diretamente
+        let deleted = diesel::delete(crate::schema::transacoes::dsl::transacoes
+            .filter(crate::schema::transacoes::dsl::id.eq(&transacao_id))
+            .filter(crate::schema::transacoes::dsl::id_usuario.eq(&user_id)))
+            .execute(conn)
+            .unwrap_or(0);
+        assert!(deleted > 0, "Falha ao deletar transação: usuário do teste = {}", user_id);
+
+        // Assert transação removida
+        let found2 = crate::schema::transacoes::dsl::transacoes
+            .filter(crate::schema::transacoes::dsl::id.eq(&transacao_id))
+            .first::<crate::models::Transacao>(conn);
+        assert!(found2.is_err(), "Transação ainda encontrada após deleção");
+    }
 }
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct UpdateTransacaoPayload {
     pub valor: Option<i32>,
     pub tipo: Option<String>,
@@ -67,14 +245,6 @@ pub async fn delete_transacao_handler(Path(id_param): Path<String>) -> Json<bool
     Json(count > 0)
 }
 
-use axum::{Json, extract::Path};
-use axum_extra::extract::cookie::CookieJar;
-use jsonwebtoken::{decode, DecodingKey, Validation};
-use serde::{Serialize, Deserialize};
-use diesel::prelude::*;
-use crate::db;
-use crate::schema::transacoes::dsl::*;
-use crate::models::Transacao;
 
 #[derive(Deserialize)]
 pub struct CreateTransacaoPayload {
@@ -99,14 +269,14 @@ pub struct TransacaoResponse {
 
 pub async fn create_transacao_handler(jar: CookieJar, Json(payload): Json<CreateTransacaoPayload>) -> Json<TransacaoResponse> {
     let conn = &mut db::establish_connection();
-    let now = chrono::Utc::now().naive_utc();
+    let now: NaiveDateTime = chrono::Utc::now().naive_utc();
     let token = jar.get("auth_token").map(|c| c.value().to_string()).unwrap_or_default();
     let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "secret".to_string());
     let claims = decode::<Claims>(token.as_str(), &DecodingKey::from_secret(secret.as_ref()), &Validation::default())
         .map(|token_data| token_data.claims)
         .unwrap_or_else(|_| Claims { sub: "".to_string(), email: "".to_string(), exp: 0 });
     let user_id = claims.sub.clone();
-    let nova_data = payload.data.unwrap_or(now);
+    let nova_data: NaiveDateTime = payload.data.unwrap_or(now);
     let nova_transacao = crate::models::NewTransacao {
         id: ulid::Ulid::new().to_string(),
         id_usuario: user_id.clone(),
@@ -120,8 +290,8 @@ pub async fn create_transacao_handler(jar: CookieJar, Json(payload): Json<Create
         plataforma: None,
         observacoes: None,
         tags: None,
-        criado_em: now,
-        atualizado_em: now,
+    criado_em: now,
+    atualizado_em: now,
     };
     diesel::insert_into(transacoes)
         .values(&nova_transacao)
@@ -155,7 +325,7 @@ pub async fn get_transacao_handler(Path(id_param): Path<String>) -> Json<Option<
 }
 
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize)]
 pub struct TransacaoFiltro {
     pub page: Option<usize>,
     pub page_size: Option<usize>,
@@ -174,6 +344,7 @@ pub struct PaginatedTransacoes {
     pub items: Vec<TransacaoResponse>,
 }
 
+#[axum::debug_handler]
 pub async fn list_transacoes_handler(
     jar: CookieJar,
     Json(filtro): Json<TransacaoFiltro>,

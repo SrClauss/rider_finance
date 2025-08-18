@@ -13,12 +13,21 @@ type GoalModalProps = {
 
 export default function GoalModal(props: GoalModalProps) {
   const { open, onClose, onSaved, goal } = props;
-  const [form, setForm] = useState<GoalPayload>({
+  const [form, setForm] = useState<any>({
     titulo: "",
     descricao: "",
-    valor_meta: 0,
+    tipo: "faturamento",
+    categoria: "geral",
+    valor_alvo: 0,
     valor_atual: 0,
-    data_limite: ""
+    unidade: "",
+    data_inicio: new Date().toISOString().slice(0, 10),
+    data_fim: "",
+    eh_ativa: true,
+    eh_concluida: false,
+    lembrete_ativo: false,
+    criado_em: "",
+    atualizado_em: ""
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,20 +37,43 @@ export default function GoalModal(props: GoalModalProps) {
       setForm({
         titulo: goal.titulo || "",
         descricao: goal.descricao || "",
-        valor_meta: goal.valor_meta || 0,
+        tipo: goal.tipo || "faturamento",
+        categoria: goal.categoria || "geral",
+        valor_alvo: goal.valor_alvo || 0,
         valor_atual: goal.valor_atual || 0,
-        data_limite: goal.data_limite ? goal.data_limite.slice(0, 10) : ""
+        unidade: goal.unidade || "",
+        data_inicio: goal.data_inicio ? goal.data_inicio.slice(0, 10) : new Date().toISOString().slice(0, 10),
+        data_fim: goal.data_fim ? goal.data_fim.slice(0, 10) : "",
+        eh_ativa: goal.eh_ativa ?? true,
+        eh_concluida: goal.eh_concluida ?? false,
+        criado_em: goal.criado_em || "",
+        atualizado_em: goal.atualizado_em || ""
       });
     } else if (open) {
-  setForm({ titulo: "", descricao: "", valor_meta: 0, valor_atual: 0, data_limite: "" });
+      setForm({
+        titulo: "",
+        descricao: "",
+        tipo: "faturamento",
+        categoria: "geral",
+        valor_alvo: 0,
+        valor_atual: 0,
+        unidade: "",
+        data_inicio: new Date().toISOString().slice(0, 10),
+        data_fim: "",
+        eh_ativa: true,
+        eh_concluida: false,
+        lembrete_ativo: false,
+        criado_em: "",
+        atualizado_em: ""
+      });
     }
   }, [open, goal]);
 
   const handleChange = (e: any) => {
     const { name, value } = e.target;
-    setForm((prev) => ({
+    setForm((prev: any) => ({
       ...prev,
-      [name]: name === "valor_meta" || name === "valor_atual" ? Number(value) : value
+      [name]: name === "valor_alvo" || name === "valor_atual" ? Number(value) : value
     }));
   };
 
@@ -51,22 +83,21 @@ export default function GoalModal(props: GoalModalProps) {
     try {
       // Monta payload compatível com o backend Rust
       const now = new Date();
-      const data_inicio = now.toISOString().slice(0, 19); // formato yyyy-mm-ddThh:mm:ss
+      const data_inicio = form.data_inicio ? form.data_inicio + "T00:00:00" : now.toISOString().slice(0, 19);
       const payload = {
         titulo: form.titulo,
         descricao: form.descricao || null,
-        tipo: "financeira", // valor fixo ou pode virar campo no futuro
-        categoria: "geral", // valor fixo ou pode virar campo no futuro
-        valor_alvo: form.valor_meta,
+        tipo: form.tipo,
+        categoria: form.categoria,
+        valor_alvo: form.valor_alvo,
         valor_atual: form.valor_atual,
-        unidade: null,
+        unidade: form.unidade || null,
         data_inicio: data_inicio,
-        data_fim: form.data_limite ? form.data_limite + "T00:00:00" : null,
-        eh_ativa: true,
-        eh_concluida: false,
-        concluida_em: null,
-        lembrete_ativo: false,
-        frequencia_lembrete: null
+        data_fim: form.data_fim ? form.data_fim + "T00:00:00" : null,
+        eh_ativa: form.eh_ativa,
+        eh_concluida: form.eh_concluida,
+        concluida_em: form.concluida_em || null,
+        concluida_com: form.concluida_com ?? null
       };
       if (goal && goal.id) {
         await axios.put(`/api/meta/${goal.id}`, payload);
@@ -103,9 +134,9 @@ export default function GoalModal(props: GoalModalProps) {
           />
           <TextField
             label="Valor da Meta"
-            name="valor_meta"
+            name="valor_alvo"
             type="number"
-            value={form.valor_meta}
+            value={form.valor_alvo}
             onChange={handleChange}
             fullWidth
             required
@@ -119,10 +150,23 @@ export default function GoalModal(props: GoalModalProps) {
             fullWidth
           />
           <TextField
+            select
+            label="Tipo"
+            name="tipo"
+            value={form.tipo}
+            onChange={handleChange}
+            fullWidth
+            margin="normal"
+          >
+            <MenuItem value="faturamento">Faturamento (Entrada)</MenuItem>
+            <MenuItem value="economia">Economia (Saída)</MenuItem>
+            <MenuItem value="lucro">Lucro (Entrada - Saída)</MenuItem>
+          </TextField>
+          <TextField
             label="Data Limite"
-            name="data_limite"
+            name="data_fim"
             type="date"
-            value={form.data_limite}
+            value={form.data_fim}
             onChange={handleChange}
             fullWidth
             InputLabelProps={{ shrink: true }}

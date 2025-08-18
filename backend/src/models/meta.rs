@@ -53,10 +53,9 @@ mod tests {
             eh_ativa: true,
             eh_concluida: false,
             concluida_em: None,
-            lembrete_ativo: false,
-            frequencia_lembrete: None,
             criado_em: now,
             atualizado_em: now,
+            concluida_com: None,
         };
         diesel::insert_into(metas)
             .values(&nova)
@@ -99,10 +98,9 @@ pub struct Meta {
     pub eh_ativa: bool,
     pub eh_concluida: bool,
     pub concluida_em: Option<NaiveDateTime>,
-    pub lembrete_ativo: bool,
-    pub frequencia_lembrete: Option<String>,
     pub criado_em: NaiveDateTime,
     pub atualizado_em: NaiveDateTime,
+    pub concluida_com: Option<i32>,
 }
 
 #[derive(Debug, Insertable)]
@@ -122,8 +120,7 @@ pub struct NewMeta {
     pub eh_ativa: bool,
     pub eh_concluida: bool,
     pub concluida_em: Option<NaiveDateTime>,
-    pub lembrete_ativo: bool,
-    pub frequencia_lembrete: Option<String>,
     pub criado_em: NaiveDateTime,
     pub atualizado_em: NaiveDateTime,
+    pub concluida_com: Option<i32>,
 }
