@@ -21,7 +21,7 @@ export default function GoalModal(props: GoalModalProps) {
     valor_alvo: 0,
     valor_atual: 0,
     unidade: "",
-    data_inicio: new Date().toISOString().slice(0, 10),
+  data_inicio: new Date().toISOString().slice(0, 16),
     data_fim: "",
     eh_ativa: true,
     eh_concluida: false,
@@ -42,7 +42,7 @@ export default function GoalModal(props: GoalModalProps) {
         valor_alvo: goal.valor_alvo || 0,
         valor_atual: goal.valor_atual || 0,
         unidade: goal.unidade || "",
-        data_inicio: goal.data_inicio ? goal.data_inicio.slice(0, 10) : new Date().toISOString().slice(0, 10),
+  data_inicio: goal.data_inicio ? goal.data_inicio.slice(0, 16) : new Date().toISOString().slice(0, 16),
         data_fim: goal.data_fim ? goal.data_fim.slice(0, 10) : "",
         eh_ativa: goal.eh_ativa ?? true,
         eh_concluida: goal.eh_concluida ?? false,
@@ -58,7 +58,7 @@ export default function GoalModal(props: GoalModalProps) {
         valor_alvo: 0,
         valor_atual: 0,
         unidade: "",
-        data_inicio: new Date().toISOString().slice(0, 10),
+  data_inicio: new Date().toISOString().slice(0, 16),
         data_fim: "",
         eh_ativa: true,
         eh_concluida: false,
@@ -82,8 +82,6 @@ export default function GoalModal(props: GoalModalProps) {
     setError(null);
     try {
       // Monta payload compatível com o backend Rust
-      const now = new Date();
-      const data_inicio = form.data_inicio ? form.data_inicio + "T00:00:00" : now.toISOString().slice(0, 19);
       const payload = {
         titulo: form.titulo,
         descricao: form.descricao || null,
@@ -92,8 +90,8 @@ export default function GoalModal(props: GoalModalProps) {
         valor_alvo: form.valor_alvo,
         valor_atual: form.valor_atual,
         unidade: form.unidade || null,
-        data_inicio: data_inicio,
-        data_fim: form.data_fim ? form.data_fim + "T00:00:00" : null,
+        data_inicio: form.data_inicio ? new Date(form.data_inicio).toISOString().slice(0, 19) : null,
+        data_fim: form.data_fim ? new Date(form.data_fim).toISOString().slice(0, 19) : null,
         eh_ativa: form.eh_ativa,
         eh_concluida: form.eh_concluida,
         concluida_em: form.concluida_em || null,
@@ -141,14 +139,27 @@ export default function GoalModal(props: GoalModalProps) {
             fullWidth
             required
           />
-          <TextField
-            label="Valor Atual"
-            name="valor_atual"
-            type="number"
-            value={form.valor_atual}
-            onChange={handleChange}
-            fullWidth
-          />
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <TextField
+              label="Data de Início"
+              name="data_inicio"
+              type="datetime-local"
+              value={form.data_inicio}
+              onChange={handleChange}
+              fullWidth
+              InputLabelProps={{ shrink: true }}
+              required
+            />
+            <TextField
+              label="Data Limite"
+              name="data_fim"
+              type="datetime-local"
+              value={form.data_fim}
+              onChange={handleChange}
+              fullWidth
+              InputLabelProps={{ shrink: true }}
+            />
+          </Box>
           <TextField
             select
             label="Tipo"
@@ -162,15 +173,6 @@ export default function GoalModal(props: GoalModalProps) {
             <MenuItem value="economia">Economia (Saída)</MenuItem>
             <MenuItem value="lucro">Lucro (Entrada - Saída)</MenuItem>
           </TextField>
-          <TextField
-            label="Data Limite"
-            name="data_fim"
-            type="date"
-            value={form.data_fim}
-            onChange={handleChange}
-            fullWidth
-            InputLabelProps={{ shrink: true }}
-          />
           {error && <Alert severity="error">{error}</Alert>}
         </Box>
       </DialogContent>

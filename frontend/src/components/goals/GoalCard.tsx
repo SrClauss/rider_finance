@@ -1,83 +1,36 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Goal } from '@/interfaces/goal';
 import { GoalProgress } from '../../components/goals/GoalProgress';
 import { Card, CardContent, Typography, Box, Chip, Divider, IconButton, Tooltip } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import axios from 'axios';
-import { useEffect } from 'react';
+import { useMetasContext } from '../../context/MetasContext';
+
+
+import type { SxProps, Theme } from '@mui/material';
 
 interface GoalCardProps {
   goal: Goal;
   onEdit?: (goal: Goal) => void;
   onDelete?: (goal: Goal) => void;
+  sx?: SxProps<Theme>;
 }
 
-const GoalCard: React.FC<GoalCardProps> = ({ goal, onEdit, onDelete }) => {
+
+const GoalCard: React.FC<GoalCardProps> = ({ goal, onEdit, onDelete, sx }) => {
+  const { atualizarMeta } = useMetasContext();
+  // O estado local agora só serve para refletir mudanças rápidas, mas sempre sincronizado com o contexto
   const [localGoal, setLocalGoal] = React.useState(goal);
 
   useEffect(() => {
     setLocalGoal(goal);
   }, [goal]);
 
-  useEffect(() => {
-    if (!localGoal.eh_concluida && localGoal.eh_ativa) {
-      const now = new Date();
-      const dataFim = localGoal.data_fim ? new Date(localGoal.data_fim) : null;
-      const isExpired = dataFim && now > dataFim;
-      const isPositive = localGoal.tipo === 'faturamento' || localGoal.tipo === 'lucro';
-      const progress = localGoal.valor_alvo > 0 ? (localGoal.valor_atual / localGoal.valor_alvo) * 100 : 0;
-      const isCompleted = isPositive ? progress >= 100 : progress <= 0;
-
-      // Se meta foi atingida (concluída), faz update normalmente
-      if (isCompleted && !localGoal.eh_concluida) {
-        const payload: any = {
-          titulo: localGoal.titulo,
-          descricao: localGoal.descricao ?? null,
-          tipo: localGoal.tipo,
-          categoria: localGoal.categoria,
-          valor_alvo: localGoal.valor_alvo,
-          valor_atual: localGoal.valor_atual,
-          unidade: localGoal.unidade ?? null,
-          data_inicio: localGoal.data_inicio ? localGoal.data_inicio.slice(0, 19) : null,
-          data_fim: localGoal.data_fim ? localGoal.data_fim.slice(0, 19) : null,
-          eh_ativa: localGoal.eh_ativa,
-          eh_concluida: true,
-          concluida_em: localGoal.concluida_em ?? null,
-          concluida_com: localGoal.valor_atual
-        };
-        axios.put(`/api/meta/${localGoal.id}`, payload).then(() => {
-          setLocalGoal(prev => ({ ...prev, eh_concluida: true, concluida_com: localGoal.valor_atual }));
-        });
-      }
-
-      // Se meta expirou (fim do prazo), faz update normalmente
-      if (isExpired && localGoal.eh_ativa) {
-        const payload2: any = {
-          titulo: localGoal.titulo,
-          descricao: localGoal.descricao ?? null,
-          tipo: localGoal.tipo,
-          categoria: localGoal.categoria,
-          valor_alvo: localGoal.valor_alvo,
-          valor_atual: localGoal.valor_atual,
-          unidade: localGoal.unidade ?? null,
-          data_inicio: localGoal.data_inicio ? localGoal.data_inicio.slice(0, 19) : null,
-          data_fim: localGoal.data_fim ? localGoal.data_fim.slice(0, 19) : null,
-          eh_ativa: false,
-          eh_concluida: localGoal.eh_concluida,
-          concluida_em: localGoal.concluida_em ?? null,
-          concluida_com: localGoal.valor_atual
-        };
-        axios.put(`/api/meta/${localGoal.id}`, payload2).then(() => {
-          setLocalGoal(prev => ({ ...prev, eh_ativa: false, concluida_com: localGoal.valor_atual }));
-        });
-      }
-    }
-  }, [localGoal]);
+  // Exemplo: se quiser atualizar meta por ação local, use atualizarMeta(metaAtualizada)
 
   // Sempre renderiza o layout completo, GoalProgress decide o que mostrar
   return (
-    <Card elevation={3} sx={{ borderRadius: 3, mb: 3, bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', minHeight: 220, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+    <Card elevation={3} sx={{ borderRadius: 3, mb: 3, bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', minHeight: 220, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', ...(sx || {}) }}>
       <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', p: 3 }}>
         <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
           <Typography variant="h6" fontWeight={700} color="primary.main">
@@ -121,7 +74,7 @@ const GoalCard: React.FC<GoalCardProps> = ({ goal, onEdit, onDelete }) => {
             {localGoal.data_fim ? ` até ${new Date(localGoal.data_fim).toLocaleDateString('pt-BR')}` : ''}
           </Typography>
         </Box>
-        <GoalProgress meta={localGoal} isActive={localGoal.eh_ativa} />
+  <GoalProgress meta={localGoal} isActive={localGoal.eh_ativa} />
       </CardContent>
     </Card>
   );

@@ -15,142 +15,145 @@ import type { Transaction } from "@/interfaces/Transaction";
 import axios from "axios";
 import dayjs from "dayjs";
 import { CategoriaProvider, useCategoriaContext, carregarCategorias } from "@/context/CategoriaContext";
+import { useMetasContext } from "@/context/MetasContext";
+import { AcaoTransacao } from "@/utils/atualizarTransacoesContexto";
+
 
 export default function TransactionsPage() {
-  // Controle de deleção
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [selectedDeleteId, setSelectedDeleteId] = useState<string | null>(null);
-  // Controle de edição
-  const [editTx, setEditTx] = useState<Transaction | null>(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [categoriaModalOpen, setCategoriaModalOpen] = useState(false);
-  const [page, setPage] = useState(1);
-  const [pageSize] = useState(10);
-  const [total, setTotal] = useState(0);
-  // Filtros
-  const [idCategoria, setIdCategoria] = useState("");
-  const [descricao, setDescricao] = useState("");
-  const [tipo, setTipo] = useState("");
-  const [dataInicio, setDataInicio] = useState("");
-  const [dataFim, setDataFim] = useState("");
-
-  const limparFiltros = () => {
-    setIdCategoria("");
-    setDescricao("");
-    setTipo("");
-    setDataInicio("");
-    setDataFim("");
-  };
-
-  const { categorias, setCategorias } = useCategoriaContext();
-  // Função chamada ao clicar em deletar
-  const handleDeleteClick = (id: string) => {
-    setSelectedDeleteId(id);
-    setDeleteModalOpen(true);
-  };
-
-  // Confirma a deleção
-  const handleConfirmDelete = async () => {
-    if (!selectedDeleteId) return;
-    setLoading(true);
-    setError(null);
-    try {
-      await axios.delete(`/api/transacao/${selectedDeleteId}`);
-      setDeleteModalOpen(false);
-      setSelectedDeleteId(null);
-      await fetchTransacoes();
-    } catch (e: any) {
-      setError(e?.response?.data?.message || "Erro ao deletar transação");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Função chamada ao clicar em editar
-  const handleEditClick = (tx: Transaction) => {
-    setEditTx(tx);
-    setModalOpen(true);
-  };
-
-  // Ao fechar modal de transação, limpa edição
-  const handleCloseTransactionModal = () => {
-    setModalOpen(false);
-    setEditTx(null);
-  };
-
-  // Ao salvar edição
-  const handleTransactionEdited = async () => {
-    setModalOpen(false);
-    setEditTx(null);
-    await fetchTransacoes();
-  };
-  // Atualiza categorias após criar nova categoria
-  const handleCategoriaCreated = async () => {
-    setCategoriaModalOpen(false);
-    const novas = await carregarCategorias();
-    setCategorias(novas);
-  };
-  // Carrega categorias ao entrar na página, se ainda não estiverem carregadas
-  useEffect(() => {
-    if (!categorias || categorias.length === 0) {
-      carregarCategorias().then(setCategorias).catch(() => {});
-    }
-  }, []);
-
-  const fetchTransacoes = async (overridePage?: number) => {
-    setLoading(true);
-    setError(null);
-    const filtros: any = {
-      page: overridePage ?? page,
-      page_size: pageSize,
-    };
-    if (idCategoria) filtros.id_categoria = idCategoria;
-    if (descricao) filtros.descricao = descricao;
-    if (tipo) filtros.tipo = tipo;
-    if (dataInicio) filtros.data_inicio = dayjs(dataInicio).format("YYYY-MM-DDTHH:mm:ss");
-    if (dataFim) filtros.data_fim = dayjs(dataFim).format("YYYY-MM-DDTHH:mm:ss");
-    try {
-      const res = await axios.post("/api/transacoes", filtros, { withCredentials: true });
-      setTransactions(Array.isArray(res.data?.items) ? res.data.items : []);
-      setTotal(typeof res.data?.total === 'number' ? res.data.total : 0);
-    } catch {
-      setError("Erro ao buscar transações");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchTransacoes();
-  }, [page, pageSize, idCategoria, descricao, tipo, dataInicio, dataFim]);
-
-  const handleAdd = () => setModalOpen(true);
-  const handleCloseModal = () => setModalOpen(false);
-  const handleTransactionCreated = async (newTx: Omit<Transaction, "id" | "id_usuario">) => {
-    setLoading(true);
-    setError(null);
-    try {
-      await axios.post<Transaction>("/api/transacao", newTx, { withCredentials: true });
-      setModalOpen(false);
-      setPage(1);
-      await fetchTransacoes(1);
-    } catch (e: any) {
-      setError(e?.response?.data?.message || "Erro ao criar transação");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <CategoriaProvider>
+      <LoggedLayout>
+        <TransactionsPageInner />
+      </LoggedLayout>
+    </CategoriaProvider>
+  );
+}
 
-    <LoggedLayout>
+  function TransactionsPageInner() {
+  const { dispatchTransacao } = useMetasContext(); // Apenas para atualizar metas
+    // Controle de deleção
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [selectedDeleteId, setSelectedDeleteId] = useState<string | null>(null);
+    // Controle de edição
+    const [editTx, setEditTx] = useState<Transaction | null>(null);
+    const [drawerOpen, setDrawerOpen] = useState(false);
+  const [transactions, setTransactions] = useState<Transaction[]>([]); // Fonte de verdade para renderização
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [modalOpen, setModalOpen] = useState(false);
+    const [categoriaModalOpen, setCategoriaModalOpen] = useState(false);
+    const [page, setPage] = useState(1);
+    const [pageSize] = useState(10);
+    const [total, setTotal] = useState(0);
+    // Filtros
+    const [idCategoria, setIdCategoria] = useState("");
+    const [descricao, setDescricao] = useState("");
+    const [tipo, setTipo] = useState("");
+    const [dataInicio, setDataInicio] = useState("");
+    const [dataFim, setDataFim] = useState("");
 
+    const limparFiltros = () => {
+      setIdCategoria("");
+      setDescricao("");
+      setTipo("");
+      setDataInicio("");
+      setDataFim("");
+    };
 
+    const { categorias, setCategorias } = useCategoriaContext();
+    // Função chamada ao clicar em deletar
+    const handleDeleteClick = (id: string) => {
+      setSelectedDeleteId(id);
+      setDeleteModalOpen(true);
+    };
+
+    // Confirma a deleção
+    const handleConfirmDelete = async () => {
+      if (!selectedDeleteId) return;
+      setLoading(true);
+      setError(null);
+      try {
+        await axios.delete(`/api/transacao/${selectedDeleteId}`);
+        setDeleteModalOpen(false);
+        setSelectedDeleteId(null);
+        await fetchTransacoes();
+        // Atualiza contexto global após exclusão
+        dispatchTransacao({ id: selectedDeleteId } as any, 'delete');
+      } catch (e: any) {
+        setError(e?.response?.data?.message || "Erro ao deletar transação");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    // Função chamada ao clicar em editar
+    const handleEditClick = (tx: Transaction) => {
+      setEditTx(tx);
+      setModalOpen(true);
+    };
+
+    // Ao fechar modal de transação, limpa edição
+    const handleCloseTransactionModal = () => {
+      setModalOpen(false);
+      setEditTx(null);
+    };
+
+    // Ao salvar edição
+    const handleTransactionEdited = async () => {
+      setModalOpen(false);
+      setEditTx(null);
+      await fetchTransacoes();
+    };
+    // Atualiza categorias após criar nova categoria
+    const handleCategoriaCreated = async () => {
+      setCategoriaModalOpen(false);
+      const novas = await carregarCategorias();
+      setCategorias(novas);
+    };
+    // Carrega categorias ao entrar na página, se ainda não estiverem carregadas
+    useEffect(() => {
+      if (!categorias || categorias.length === 0) {
+        carregarCategorias().then(setCategorias).catch(() => {});
+      }
+    }, []);
+
+    const fetchTransacoes = async (overridePage?: number) => {
+      setLoading(true);
+      setError(null);
+      const filtros: any = {
+        page: overridePage ?? page,
+        page_size: pageSize,
+      };
+      if (idCategoria) filtros.id_categoria = idCategoria;
+      if (descricao) filtros.descricao = descricao;
+      if (tipo) filtros.tipo = tipo;
+      if (dataInicio) filtros.data_inicio = dayjs(dataInicio).format("YYYY-MM-DDTHH:mm:ss");
+      if (dataFim) filtros.data_fim = dayjs(dataFim).format("YYYY-MM-DDTHH:mm:ss");
+      try {
+        const res = await axios.post("/api/transacoes", filtros, { withCredentials: true });
+        setTransactions(Array.isArray(res.data?.items) ? res.data.items : []);
+        setTotal(typeof res.data?.total === 'number' ? res.data.total : 0);
+      } catch {
+        setError("Erro ao buscar transações");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    useEffect(() => {
+      fetchTransacoes();
+    }, [page, pageSize, idCategoria, descricao, tipo, dataInicio, dataFim]);
+
+    const handleAdd = () => setModalOpen(true);
+    const handleCloseModal = () => setModalOpen(false);
+    const handleTransactionCreated = async () => {
+      setModalOpen(false);
+      setEditTx(null);
+      setPage(1);
+      await fetchTransacoes(1);
+    };
+
+    return (
       <Box sx={{ maxWidth: 700, mx: "auto", p: { xs: 2, md: 4 } }}>
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
           <Stack direction="row" alignItems="center" spacing={1}>
@@ -236,7 +239,6 @@ export default function TransactionsPage() {
               InputLabelProps={{ shrink: true }}
               sx={{ mb: 2 }}
             />
-            <Box sx={{ flexGrow: 1 }} />
             <Stack direction="row" spacing={2}>
               <Button variant="contained" color="primary" onClick={() => setDrawerOpen(false)} fullWidth>
                 Aplicar Filtros
@@ -273,23 +275,22 @@ export default function TransactionsPage() {
             </Box>
           </>
         )}
-  <TransactionModal
-    open={modalOpen}
-    onClose={handleCloseTransactionModal}
-    onCreated={handleTransactionCreated}
-    onEdited={handleTransactionEdited}
-    transaction={editTx}
-  />
-  <ConfirmDeleteModal
-    open={deleteModalOpen}
-    onClose={() => setDeleteModalOpen(false)}
-    onConfirm={handleConfirmDelete}
-    title="Confirmar exclusão"
-    description="Tem certeza que deseja deletar esta transação? Esta ação não pode ser desfeita."
-  />
-  <CategoriaModal open={categoriaModalOpen} onClose={() => setCategoriaModalOpen(false)} onCreated={handleCategoriaCreated} />
+        <TransactionModal
+          open={modalOpen}
+          onClose={handleCloseTransactionModal}
+          onCreated={handleTransactionCreated}
+          onEdited={handleTransactionEdited}
+          transaction={editTx}
+        />
+        <ConfirmDeleteModal
+          open={deleteModalOpen}
+          onClose={() => setDeleteModalOpen(false)}
+          onConfirm={handleConfirmDelete}
+          title="Confirmar exclusão"
+          description="Tem certeza que deseja deletar esta transação? Esta ação não pode ser desfeita."
+        />
+        <CategoriaModal open={categoriaModalOpen} onClose={() => setCategoriaModalOpen(false)} onCreated={handleCategoriaCreated} />
       </Box>
-    </LoggedLayout>
-    </CategoriaProvider>
-  );
-}
+    );
+  }
+  

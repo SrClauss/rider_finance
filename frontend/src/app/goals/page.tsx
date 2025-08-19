@@ -94,6 +94,18 @@ export default function GoalsPage() {
     setModalOpen(false);
     setEditGoal(null);
     await fetchGoals();
+    // Atualiza contexto global de metas e transações
+    try {
+      const res = await axios.get('/api/metas/ativas-com-transacoes');
+      if (res.data) {
+        // Atualiza contexto global se o provider estiver disponível
+        if (window && window.dispatchEvent) {
+          window.dispatchEvent(new CustomEvent('metas:refresh', { detail: res.data }));
+        }
+      }
+    } catch (e) {
+      // Silencioso
+    }
   };
 
   return (
@@ -122,13 +134,27 @@ export default function GoalsPage() {
         ) : goals.length === 0 ? (
           <Typography color="#aaa" sx={{ mt: 4, textAlign: "center" }}>Nenhuma meta cadastrada.</Typography>
         ) : (
-          <Box sx={{ display: "grid", gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: '1fr',
+                sm: '1fr',
+                md: '1fr',
+                lg: '1fr',
+                xl: '1fr',
+              },
+              gap: 3,
+              justifyItems: 'center',
+            }}
+          >
             {goals.map(goal => (
               <GoalCard
                 key={goal.id}
                 goal={goal}
                 onEdit={handleEdit}
                 onDelete={g => handleDeleteClick(g.id)}
+                sx={{ width: '100%', maxWidth: 900 }}
               />
             ))}
           </Box>

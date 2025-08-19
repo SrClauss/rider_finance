@@ -22,6 +22,7 @@ import FlagIcon from "@mui/icons-material/Flag";
 import LogoutIcon from "@mui/icons-material/Logout";
 import { useRouter } from "next/navigation";
 import { ThemeProvider } from "@/theme/ThemeProvider"; // Adjust the import path as necessary
+import { MetasProvider } from "../context/MetasContext";
 
 const drawerWidth = 240;
 
@@ -60,11 +61,7 @@ export default function LoggedLayout({ children }: LoggedLayoutProps) {
 
   const drawer = (
     <div>
-      <Toolbar>
-        <Typography variant="h6" noWrap component="div">
-          Rider Finance
-        </Typography>
-      </Toolbar>
+      <Toolbar />
       <Divider />
       <List>
         <ListItem key="Dashboard" disablePadding>
@@ -99,7 +96,7 @@ export default function LoggedLayout({ children }: LoggedLayoutProps) {
             <ListItemText primary="Perfil" />
           </ListItemButton>
         </ListItem>
-        <ListItem key="Sair" disablePadding>
+        <ListItem key="Logout" disablePadding>
           <ListItemButton onClick={handleLogout}>
             <ListItemIcon>
               <LogoutIcon />
@@ -113,36 +110,31 @@ export default function LoggedLayout({ children }: LoggedLayoutProps) {
 
   return (
     <ThemeProvider>
-      <Box sx={{ display: "flex" }}>
-        <CssBaseline />
-        <AppBar
-          position="fixed"
-          sx={{
-            width: { sm: `calc(100% - ${drawerWidth}px)` },
-            ml: { sm: `${drawerWidth}px` },
-            bgcolor: "#181c24"
-          }}
-        >
-          <Toolbar>
-            <IconButton
-              color="inherit"
-              aria-label="open drawer"
-              edge="start"
-              onClick={handleDrawerToggle}
-              sx={{ mr: 2, display: { sm: "none" } }}
-            >
-              <MenuIcon />
-            </IconButton>
-            <Typography variant="h6" noWrap component="div">
-              Rider Finance
-            </Typography>
-          </Toolbar>
-        </AppBar>
-        <Box
-          component="nav"
-          sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
-          aria-label="mailbox folders"
-        >
+      <MetasProvider>
+        <Box sx={{ display: "flex" }}>
+          <CssBaseline />
+          <AppBar
+            position="fixed"
+            sx={{
+              width: { sm: `calc(100% - ${drawerWidth}px)` },
+              ml: { sm: `${drawerWidth}px` },
+            }}
+          >
+            <Toolbar>
+              <IconButton
+                color="inherit"
+                aria-label="open drawer"
+                edge="start"
+                onClick={handleDrawerToggle}
+                sx={{ mr: 2, display: { sm: "none" } }}
+              >
+                <MenuIcon />
+              </IconButton>
+              <Typography variant="h6" noWrap component="div">
+                Rider Finance
+              </Typography>
+            </Toolbar>
+          </AppBar>
           {/* Drawer para mobile */}
           <Drawer
             variant="temporary"
@@ -167,27 +159,30 @@ export default function LoggedLayout({ children }: LoggedLayoutProps) {
           >
             {drawer}
           </Drawer>
-        </Box>
-        <Box
-          component="main"
-          sx={{
-            flexGrow: 1,
-            p: 0,
-            width: { sm: `calc(100% - ${drawerWidth}px)` },
-            bgcolor: "#181c24",
-            color: "#f5f5f5",
-            minHeight: "100vh"
-          }}
-        >
-          <Toolbar />
-          <Box>
-            {children}
+          <Box
+            component="main"
+            sx={{
+              flexGrow: 1,
+              p: 3,
+              width: { sm: `calc(100% - ${drawerWidth}px)` },
+              bgcolor: "#181c24",
+              color: "#f5f5f5",
+              minHeight: "100vh",
+              pl: { sm: `${drawerWidth}px` }, // Garante espaço para a sidebar
+              boxSizing: 'border-box',
+              transition: 'padding-left 0.2s',
+            }}
+          >
+            <Toolbar />
+            <Box>
+              {children}
+            </Box>
+            <Box component="footer" sx={{ mt: 4, textAlign: "center", color: "#888" }}>
+              <small>© {new Date().getFullYear()} Rider Finance</small>
+            </Box>
           </Box>
-          <Box component="footer" sx={{ mt: 4, textAlign: "center", color: "#888" }}>
-            <small>© {new Date().getFullYear()} Rider Finance</small>
-          </Box>
         </Box>
-      </Box>
+      </MetasProvider>
     </ThemeProvider>
   );
 }

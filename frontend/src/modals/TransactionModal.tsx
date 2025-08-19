@@ -5,6 +5,8 @@ import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, M
 import { useState } from "react";
 
 import type { Transaction } from "@/interfaces/Transaction";
+import { useMetasContext } from "@/context/MetasContext";
+import { AcaoTransacao } from "@/utils/atualizarTransacoesContexto";
 import { CategoriaProvider, useCategoriaContext } from "@/context/CategoriaContext";
 
 
@@ -32,6 +34,7 @@ export default function TransactionModal({ open, onClose, onCreated, onEdited, t
 }
 
 function TransactionModalInner({ open, onClose, onCreated, onEdited, transaction }: Props) {
+  const { dispatchTransacao } = useMetasContext();
   // Função para obter data/hora local no formato 'YYYY-MM-DDTHH:mm'
   function getNowLocalISO() {
     const now = new Date();
@@ -126,6 +129,7 @@ function TransactionModalInner({ open, onClose, onCreated, onEdited, transaction
           throw new Error(msg);
         }
         const json: Transaction = await res.json();
+        dispatchTransacao(json as any, 'update');
         onEdited(json);
       } else {
         // Criação
@@ -144,6 +148,7 @@ function TransactionModalInner({ open, onClose, onCreated, onEdited, transaction
           throw new Error(msg);
         }
         const json: Transaction = await res.json();
+        dispatchTransacao(json as any, 'add');
         onCreated(json);
       }
     } catch (e: any) {
