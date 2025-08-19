@@ -17,12 +17,15 @@ use std::net::SocketAddr;
 async fn main() {
     use backend::services::dashboard::dashboard_stats_handler;
     use backend::services::transacao::{create_transacao_handler, get_transacao_handler, list_transacoes_handler, update_transacao_handler, delete_transacao_handler};
-    use backend::services::meta::{list_metas_a_cumprir_handler, list_metas_cumpridas_handler, create_meta_handler};
+    use backend::services::meta::{list_metas_a_cumprir_handler, list_metas_cumpridas_handler, create_meta_handler, delete_meta_handler};
     use backend::services::categoria::{create_categoria_handler, get_categoria_handler, delete_categoria_handler};
     use backend::services::assinatura::{create_assinatura_handler, get_assinatura_handler, list_assinaturas_handler, delete_assinatura_handler, asaas_webhook_handler, criar_checkout_handler};
     use backend::services::configuracao::{checkout_info_handler, usuario_completo_handler};
     use backend::services::auth::validate_token::validate_token_handler;
+    use backend::services::meta_metas_com_transacoes_handler::metas_ativas_com_transacoes_handler;
+
     let app = Router::new()
+    .route("/api/metas/ativas-com-transacoes", get(metas_ativas_com_transacoes_handler))
         .route("/api/register", post(register_user_handler))
     // .route("/api/register-pending", post(register_pending_user_handler))
         .route("/api/reset-password/{id}", post(reset_password_handler))
@@ -32,15 +35,16 @@ async fn main() {
         .route("/api/validate_token", get(validate_token_handler))
         .route("/api/dashboard/stats", get(dashboard_stats_handler))
         .route("/api/transacao", post(create_transacao_handler))
-    .route("/api/meta", post(create_meta_handler))
-    .route("/api/meta/{id}", put(backend::services::meta::update_meta_handler))
+        .route("/api/meta", post(create_meta_handler))
+        .route("/api/meta/{id}", put(backend::services::meta::update_meta_handler))
+        .route("/api/meta/{id}", delete(delete_meta_handler))
         .route("/api/transacao/{id}", get(get_transacao_handler))
-    .route("/api/transacao/{id}", put(update_transacao_handler))
+        .route("/api/transacao/{id}", put(update_transacao_handler))
         .route("/api/transacao/{id}", delete(delete_transacao_handler))
-    .route("/api/transacoes", post(list_transacoes_handler))
+        .route("/api/transacoes", post(list_transacoes_handler))
         .route("/api/captcha", get(generate_captcha_handler))
-    .route("/api/meta/a_cumprir/{id_usuario}", get(list_metas_a_cumprir_handler))
-    .route("/api/meta/a_cumprir", get(list_metas_a_cumprir_handler))
+        .route("/api/meta/a_cumprir/{id_usuario}", get(list_metas_a_cumprir_handler))
+        .route("/api/meta/a_cumprir", get(list_metas_a_cumprir_handler))
         .route("/api/meta/cumpridas/{id_usuario}", get(list_metas_cumpridas_handler))
         .route("/api/categoria", post(create_categoria_handler))
         .route("/api/categoria/{id}", get(get_categoria_handler))
