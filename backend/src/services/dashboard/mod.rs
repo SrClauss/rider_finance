@@ -76,8 +76,6 @@ mod tests {
             tipo: "entrada".to_string(),
             icone: None,
             cor: None,
-            eh_padrao: false,
-            eh_ativa: true,
             criado_em: now,
             atualizado_em: now,
         };
@@ -89,8 +87,6 @@ mod tests {
             tipo: "saida".to_string(),
             icone: None,
             cor: None,
-            eh_padrao: false,
-            eh_ativa: true,
             criado_em: now,
             atualizado_em: now,
         };

@@ -47,8 +47,6 @@ mod tests {
             tipo: "receita".to_string(),
             icone: Some("icon.png".to_string()),
             cor: Some("#fff".to_string()),
-            eh_padrao: false,
-            eh_ativa: true,
             criado_em: now,
             atualizado_em: now,
         };

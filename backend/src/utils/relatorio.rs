@@ -10,7 +10,7 @@ use crate::models::configuracao::Configuracao;
 fn categorias_map(conn: &mut diesel::PgConnection, usuario_id: &str) -> HashMap<String, String> {
     use crate::schema::categorias::dsl::*;
     let results: Vec<Categoria> = categorias
-        .filter(id_usuario.eq(usuario_id).or(eh_padrao.eq(true)))
+    .filter(id_usuario.eq(usuario_id))
         .load(conn)
         .unwrap_or_default();
     results.into_iter().map(|c| (c.id, c.nome)).collect()

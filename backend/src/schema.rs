@@ -20,10 +20,8 @@ diesel::table! {
         tipo -> Varchar,
         icone -> Nullable<Varchar>,
         cor -> Nullable<Varchar>,
-        eh_padrao -> Bool,
-        eh_ativa -> Bool,
-        criado_em -> Timestamp,
-        atualizado_em -> Timestamp,
+    criado_em -> Timestamp,
+    atualizado_em -> Timestamp,
     }
 }
 

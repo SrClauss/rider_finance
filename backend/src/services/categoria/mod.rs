@@ -91,8 +91,6 @@ mod tests {
             tipo: "entrada".to_string(),
             icone: Some("icon".to_string()),
             cor: Some("#fff".to_string()),
-            eh_padrao: false,
-            eh_ativa: true,
             criado_em: now,
             atualizado_em: now,
         };
@@ -115,8 +113,6 @@ mod tests {
             tipo: "entrada".to_string(),
             icone: None,
             cor: None,
-            eh_padrao: false,
-            eh_ativa: true,
         };
         let Json(resp1) = create_categoria_handler(Json(payload1)).await;
         let payload2 = CreateCategoriaPayload {
@@ -125,8 +121,6 @@ mod tests {
             tipo: "saida".to_string(),
             icone: None,
             cor: None,
-            eh_padrao: false,
-            eh_ativa: true,
         };
         let Json(_resp2) = create_categoria_handler(Json(payload2)).await;
     // Lista usando handler autenticado (simulando cookie)
@@ -150,8 +144,6 @@ pub struct CreateCategoriaPayload {
     pub tipo: String,
     pub icone: Option<String>,
     pub cor: Option<String>,
-    pub eh_padrao: bool,
-    pub eh_ativa: bool,
 }
 
 #[derive(Serialize)]
@@ -162,8 +154,6 @@ pub struct CategoriaResponse {
     pub tipo: String,
     pub icone: Option<String>,
     pub cor: Option<String>,
-    pub eh_padrao: bool,
-    pub eh_ativa: bool,
     pub criado_em: NaiveDateTime,
     pub atualizado_em: NaiveDateTime,
 }
@@ -180,7 +170,7 @@ pub async fn list_categorias_autenticado_handler(jar: CookieJar) -> Json<Vec<Cat
     }
     let conn = &mut db::establish_connection();
     let results = categorias
-        .filter(id_usuario.eq(usuario_id_val.clone()).or(eh_padrao.eq(true)))
+        .filter(id_usuario.eq(usuario_id_val.clone()))
         .order(nome.asc())
         .load::<Categoria>(conn)
         .unwrap_or_default();
@@ -191,8 +181,6 @@ pub async fn list_categorias_autenticado_handler(jar: CookieJar) -> Json<Vec<Cat
         tipo: c.tipo,
         icone: c.icone,
         cor: c.cor,
-        eh_padrao: c.eh_padrao,
-        eh_ativa: c.eh_ativa,
         criado_em: c.criado_em,
         atualizado_em: c.atualizado_em,
     }).collect())
@@ -208,8 +196,6 @@ pub async fn create_categoria_handler(Json(payload): Json<CreateCategoriaPayload
         tipo: payload.tipo,
         icone: payload.icone,
         cor: payload.cor,
-        eh_padrao: payload.eh_padrao,
-        eh_ativa: payload.eh_ativa,
         criado_em: now,
         atualizado_em: now,
     };
@@ -224,8 +210,6 @@ pub async fn create_categoria_handler(Json(payload): Json<CreateCategoriaPayload
         tipo: nova_categoria.tipo,
         icone: nova_categoria.icone,
         cor: nova_categoria.cor,
-        eh_padrao: nova_categoria.eh_padrao,
-        eh_ativa: nova_categoria.eh_ativa,
         criado_em: nova_categoria.criado_em,
         atualizado_em: nova_categoria.atualizado_em,
     })
@@ -241,8 +225,6 @@ pub async fn get_categoria_handler(Path(id_param): Path<String>) -> Json<Option<
             tipo: c.tipo,
             icone: c.icone,
             cor: c.cor,
-            eh_padrao: c.eh_padrao,
-            eh_ativa: c.eh_ativa,
             criado_em: c.criado_em,
             atualizado_em: c.atualizado_em,
         })),

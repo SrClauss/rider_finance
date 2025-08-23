@@ -1,67 +1,101 @@
-// ...existing code...
+import * as fs from 'fs';
+import * as path from 'path';
 import * as vscode from 'vscode';
 
 
 export function activate(context: vscode.ExtensionContext) {
+  const configPath = path.join(vscode.workspace.rootPath || '', 'dev-help-config.json');
+  // mapa global dentro do activate para armazenar closeCommand por terminal
+  const closeCommandMap: Record<string, string | undefined> = {};
+  // mapa de terminais criados por config name
+  const createdTerminalsMap: Record<string, vscode.Terminal | undefined> = {};
+  // mapa de pids dos terminais criados
+  const createdTerminalPids: Record<string, number | undefined> = {};
+  // última configuração carregada
+  let loadedConfig: any = null;
+
   let disposable = vscode.commands.registerCommand('dev-helper.startDevServices', () => {
-    const workspaceFolders = vscode.workspace.workspaceFolders;
-    if (!workspaceFolders) {
-      vscode.window.showErrorMessage('Nenhuma pasta aberta no workspace!');
+    if (!fs.existsSync(configPath)) {
+      vscode.window.showErrorMessage('Arquivo dev-help-config.json não encontrado no diretório raiz do workspace!');
       return;
     }
-    const rootPath = workspaceFolders[0].uri.fsPath;
 
-    // Se não houver terminais abertos, abre a aba de terminal
-    if (vscode.window.terminals.length === 0) {
-      vscode.commands.executeCommand('workbench.action.terminal.toggleTerminal');
+    let config;
+    try {
+      const configContent = fs.readFileSync(configPath, 'utf-8');
+      config = JSON.parse(configContent);
+      loadedConfig = config;
+    } catch (error) {
+      vscode.window.showErrorMessage('Erro ao ler ou parsear o arquivo dev-help-config.json!');
+      return;
     }
 
-    // Backend
-    const backendPath = `${rootPath}/backend`;
-    const backendTerminal = vscode.window.createTerminal({
-      name: '🐍 Backend (Rust FastAPI)',
-      cwd: backendPath
-    });
-    backendTerminal.sendText('cargo run -vv');
+    if (!Array.isArray(config.terminals)) {
+      vscode.window.showErrorMessage('Configuração inválida: "terminals" deve ser uma lista no dev-help-config.json!');
+      return;
+    }
 
-    // Frontend
-    const frontendPath = `${rootPath}/frontend`;
-    const frontendTerminal = vscode.window.createTerminal({
-      name: '⚛️ Frontend (Next.js)',
-      cwd: frontendPath
-    });
-    frontendTerminal.sendText('npm run dev -- --verbose');
+  config.terminals.forEach((terminalConfig: any) => {
+      const { name, promptName, command, cwd, closeCommand } = terminalConfig;
+      if (!name || !command || !cwd) {
+        vscode.window.showErrorMessage(`Configuração inválida para terminal: ${JSON.stringify(terminalConfig)}`);
+        return;
+      }
 
-    // Nginx
-    const nginxPath = `${rootPath}/nginx`;
-    const nginxTerminal = vscode.window.createTerminal({
-      name: '🌐 Nginx (Proxy)',
-      cwd: nginxPath
+      const terminal = vscode.window.createTerminal({
+        name: promptName || name,
+        cwd: path.join(vscode.workspace.rootPath || '', cwd),
+      });
+      terminal.sendText(command);
+      // tenta obter o pid do terminal para gravar
+      terminal.processId.then(pid => {
+        createdTerminalPids[name] = pid;
+        // também indexa pelo label caso precise
+        if (terminal.name) { createdTerminalPids[terminal.name] = pid; }
+      }, () => {});
+      // guarda closeCommand para uso no kill (indexado pelo config name e pelo terminal.name)
+      closeCommandMap[name] = closeCommand;
+      createdTerminalsMap[name] = terminal;
+      // também armazena por terminal label caso precise
+      closeCommandMap[terminal.name] = closeCommand;
     });
-    nginxTerminal.sendText('.\\nginx.exe -g "error_log logs/error.log debug;"');
   });
-
-  context.subscriptions.push(disposable);
+    context.subscriptions.push(disposable);
 
   let killDisposable = vscode.commands.registerCommand('dev-helper.killAllTerminals', () => {
-    // Identificadores dos terminais criados pela extensão
-    const terminalNames = [
-      '🐍 Backend (Rust FastAPI)',
-      '⚛️ Frontend (Next.js)',
-      '🌐 Nginx (Proxy)'
-    ];
-    vscode.window.terminals.forEach(terminal => {
-      if (terminalNames.includes(terminal.name)) {
-        // Envia comando de kill para o terminal específico
-        terminal.sendText('exit'); // Tenta encerrar o processo gentilmente
-        // Para nginx, força kill
-        if (terminal.name === '🌐 Nginx (Proxy)') {
-          terminal.sendText('taskkill /IM nginx.exe /F');
+    if (loadedConfig && Array.isArray(loadedConfig.terminals)) {
+      // cria um terminal killer para executar todos os closeCommands e deixá-lo aberto
+      const killer = vscode.window.createTerminal({ name: 'dev-helper-killer', cwd: vscode.workspace.rootPath || undefined });
+      loadedConfig.terminals.forEach((tc: any) => {
+        const closeCmd = tc.closeCommand || closeCommandMap[tc.name];
+        if (closeCmd) {
+          killer.sendText(closeCmd);
         }
-      }
-    });
-    vscode.window.showInformationMessage('Comandos para encerrar processos dos terminais da extensão enviados!');
+      });
+
+      // envia exit e fecha (dispose) todos os terminais criados pela extensão
+      loadedConfig.terminals.forEach((tc: any) => {
+        const created = createdTerminalsMap[tc.name];
+        if (created) {
+          try { created.sendText('exit'); } catch (e) {}
+          try { created.dispose(); } catch (e) {}
+        }
+      });
+
+      // mostra informação com os PIDs registrados
+      const pidLines = Object.keys(createdTerminalPids).map(k => `${k}: ${createdTerminalPids[k]}`);
+      vscode.window.showInformationMessage('Dev Helper: comandos de encerramento enviados. Terminais criados (pids): ' + pidLines.join('; '));
+    } else {
+      // fallback: envia exit e fecha todos os terminais abertos
+      vscode.window.terminals.forEach(terminal => {
+        try { terminal.sendText('exit'); } catch (e) {}
+        try { terminal.dispose(); } catch (e) {}
+      });
+    }
+
+    vscode.window.showInformationMessage('Comandos para encerrar processos dos terminais enviados (closeCommand executado pelo killer)!');
   });
+
   context.subscriptions.push(killDisposable);
 }
 

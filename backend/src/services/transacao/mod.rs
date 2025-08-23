@@ -177,8 +177,7 @@ mod tests {
             tipo: "entrada".to_string(),
             icone: Some("icon.png".to_string()),
             cor: Some("#FFFFFF".to_string()),
-            eh_padrao: false,
-            eh_ativa: true,
+            
             criado_em: now,
             atualizado_em: now,
         };

@@ -39,13 +39,11 @@ mod tests {
 
         let nova = NewCategoria {
             id: ulid::Ulid::new().to_string(),
-                id_usuario: Some(usuario_id_val.clone()),
+            id_usuario: Some(usuario_id_val.clone()),
             nome: "Categoria Teste".to_string(),
             tipo: "receita".to_string(),
             icone: Some("icon.png".to_string()),
             cor: Some("#fff".to_string()),
-            eh_padrao: false,
-            eh_ativa: true,
             criado_em: now,
             atualizado_em: now,
         };
@@ -84,8 +82,6 @@ pub struct Categoria {
     pub tipo: String,
     pub icone: Option<String>,
     pub cor: Option<String>,
-    pub eh_padrao: bool,
-    pub eh_ativa: bool,
     pub criado_em: NaiveDateTime,
     pub atualizado_em: NaiveDateTime,
 }
@@ -99,8 +95,6 @@ pub struct NewCategoria {
     pub tipo: String,
     pub icone: Option<String>,
     pub cor: Option<String>,
-    pub eh_padrao: bool,
-    pub eh_ativa: bool,
     pub criado_em: NaiveDateTime,
     pub atualizado_em: NaiveDateTime,
 }
@@ -115,8 +109,6 @@ impl NewCategoria {
             tipo,
             icone: None,
             cor: None,
-            eh_padrao: false,
-            eh_ativa: true,
             criado_em: now,
             atualizado_em: now,
         }
