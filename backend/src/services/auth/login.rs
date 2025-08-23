@@ -98,8 +98,8 @@ pub async fn login_handler(Json(payload): Json<LoginPayload>) -> impl IntoRespon
                     let resp = serde_json::json!({
                         "message": format!("Erro de login: {}", e)
                     });
-            let headers = HeaderMap::new();
-            (StatusCode::UNAUTHORIZED, headers, Json(resp))
+                    let headers = HeaderMap::new();
+                    (StatusCode::UNAUTHORIZED, headers, Json(resp))
                 },
             }
         }
@@ -107,8 +107,8 @@ pub async fn login_handler(Json(payload): Json<LoginPayload>) -> impl IntoRespon
             let resp = serde_json::json!({
                 "message": "Erro de login: usuário não encontrado"
             });
-        let headers = HeaderMap::new();
-        (StatusCode::UNAUTHORIZED, headers, Json(resp))
+            let headers = HeaderMap::new();
+            (StatusCode::UNAUTHORIZED, headers, Json(resp))
         },
     }
 }

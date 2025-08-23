@@ -125,11 +125,41 @@ pub async fn register_user_handler(Json(payload): Json<RegisterPayload>) -> Json
         payload.cpfcnpj.clone(),
     );
     match crate::services::auth::register::register_user(usuario) {
-        Ok(user_id) => Json(RegisterResponse {
-            status: "ok".to_string(),
-            id: Some(user_id),
-            mensagem: None,
-        }),
+        Ok(user_id) => {
+            // --- INÍCIO: Cópia de configurações padrão para o novo usuário ---
+            use diesel::prelude::*;
+            use crate::schema::configuracoes::dsl as cfg_dsl;
+            use crate::models::configuracao::NewConfiguracao;
+            use chrono::Utc;
+            let conn = &mut db::establish_connection();
+            // Busca todas as configurações padrão (id_usuario == None)
+            let padroes: Vec<crate::models::configuracao::Configuracao> = cfg_dsl::configuracoes
+                .filter(cfg_dsl::id_usuario.is_null())
+                .load(conn)
+                .unwrap_or_default();
+            let now = Utc::now().naive_utc();
+            let novas: Vec<NewConfiguracao> = padroes.into_iter().map(|cfg| NewConfiguracao {
+                id: ulid::Ulid::new().to_string(),
+                id_usuario: Some(user_id.clone()),
+                chave: cfg.chave,
+                valor: cfg.valor,
+                categoria: cfg.categoria,
+                descricao: cfg.descricao,
+                tipo_dado: cfg.tipo_dado,
+                eh_publica: cfg.eh_publica,
+                criado_em: now,
+                atualizado_em: now,
+            }).collect();
+            let _ = diesel::insert_into(cfg_dsl::configuracoes)
+                .values(&novas)
+                .execute(conn);
+            // --- FIM: Cópia de configurações padrão ---
+            Json(RegisterResponse {
+                status: "ok".to_string(),
+                id: Some(user_id),
+                mensagem: None,
+            })
+        },
         Err(e) => Json(RegisterResponse {
             status: "erro".to_string(),
             id: None,

@@ -4,9 +4,8 @@ mod tests {
     use crate::db::establish_connection;
     use chrono::Utc;
     use crate::models::usuario::NewUsuario;
-    use crate::schema::usuarios::dsl::*;
-    use axum_extra::extract::cookie::Cookie;
-    use jsonwebtoken::{encode, Header, EncodingKey};
+
+
     use serde::Serialize;
 
     fn clean_db() {
@@ -87,17 +86,6 @@ mod tests {
         let user_id = "user_meta_test".to_string();
         create_fake_user(conn, &user_id);
         // Gera JWT válido para o cookie
-        let user_email = "meta@teste.com".to_string();
-        let expiration = chrono::Utc::now().timestamp() as usize + 60 * 60 * 24;
-        let claims = Claims {
-            sub: user_id.clone(),
-            email: user_email,
-            exp: expiration,
-        };
-        let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "secret".to_string());
-        let token = encode(&Header::default(), &claims, &EncodingKey::from_secret(secret.as_ref())).unwrap();
-        let jar = CookieJar::new().add(Cookie::new("auth_token", token));
-        // Cria meta diretamente via Diesel usando a mesma conexão
         let payload = fake_payload();
         let now = chrono::Utc::now().naive_utc();
         let nova_meta = crate::models::NewMeta {
@@ -154,6 +142,9 @@ pub struct CreateMetaPayload {
     pub concluida_em: Option<NaiveDateTime>,
     pub concluida_com: Option<i32>,
 }
+
+mod metas_com_transacoes;
+pub use metas_com_transacoes::*;
 use axum::{Json, extract::Path};
 use diesel::AsChangeset;
 use axum_extra::extract::cookie::CookieJar;

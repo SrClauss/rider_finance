@@ -107,11 +107,6 @@ mod tests {
                 descricao: Some("Teste entrada".to_string()),
                 tipo: "entrada".to_string(),
                 data,
-                origem: None,
-                id_externo: None,
-                plataforma: None,
-                observacoes: None,
-                tags: None,
                 criado_em: data,
                 atualizado_em: data,
             };
@@ -128,11 +123,6 @@ mod tests {
                 descricao: Some("Teste saida".to_string()),
                 tipo: "saida".to_string(),
                 data,
-                origem: None,
-                id_externo: None,
-                plataforma: None,
-                observacoes: None,
-                tags: None,
                 criado_em: data,
                 atualizado_em: data,
             };

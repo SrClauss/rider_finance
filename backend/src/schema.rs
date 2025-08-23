@@ -4,25 +4,11 @@ diesel::table! {
     assinaturas (id) {
         id -> Varchar,
         id_usuario -> Varchar,
-        status -> Varchar,
-        asaas_subscription_id -> Nullable<Varchar>,
+        asaas_subscription_id -> Varchar,
         periodo_inicio -> Timestamp,
         periodo_fim -> Timestamp,
-        cancelada_em -> Nullable<Timestamp>,
         criado_em -> Timestamp,
         atualizado_em -> Timestamp,
-        billing_type -> Nullable<Varchar>,
-        charge_type -> Nullable<Varchar>,
-        webhook_event_id -> Nullable<Varchar>,
-        checkout_id -> Nullable<Varchar>,
-        checkout_status -> Nullable<Varchar>,
-        checkout_date_created -> Nullable<Timestamp>,
-        checkout_event_type -> Nullable<Varchar>,
-    valor -> Nullable<Integer>,
-        descricao -> Nullable<Varchar>,
-        nome_cliente -> Nullable<Varchar>,
-        email_cliente -> Nullable<Varchar>,
-        cpf_cnpj_cliente -> Nullable<Varchar>,
     }
 }
 
@@ -108,11 +94,6 @@ diesel::table! {
         descricao -> Nullable<Varchar>,
         tipo -> Varchar,
         data -> Timestamp,
-        origem -> Nullable<Varchar>,
-        id_externo -> Nullable<Varchar>,
-        plataforma -> Nullable<Varchar>,
-        observacoes -> Nullable<Varchar>,
-        tags -> Nullable<Varchar>,
         criado_em -> Timestamp,
         atualizado_em -> Timestamp,
     }

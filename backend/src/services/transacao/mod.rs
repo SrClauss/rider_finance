@@ -1,8 +1,80 @@
+use axum::{response::{Response}, http::{StatusCode, header}};
+use crate::utils::relatorio::{gerar_pdf, gerar_xlsx};
+// Adicione as dependências no Cargo.toml:
+// printpdf = "0.6" (para PDF)
+// umya-spreadsheet = "1.0" (para XLSX)
+
+#[derive(Deserialize)]
+pub struct RelatorioTransacoesRequest {
+    pub tipo_arquivo: String, // "pdf" ou "xlsx"
+    pub filtros: TransacaoFiltro,
+}
+
+
+#[axum::debug_handler]
+pub async fn relatorio_transacoes_handler(
+    jar: CookieJar,
+    Json(req): Json<RelatorioTransacoesRequest>,
+) -> Response {
+    use crate::schema::transacoes::dsl::*;
+    let conn = &mut db::establish_connection();
+    let token = jar.get("auth_token").map(|c| c.value().to_string()).unwrap_or_default();
+    let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "secret".to_string());
+    let claims = decode::<Claims>(token.as_str(), &DecodingKey::from_secret(secret.as_ref()), &Validation::default())
+        .map(|token_data| token_data.claims)
+        .unwrap_or_else(|_| Claims { sub: "".to_string(), email: "".to_string(), exp: 0 });
+    let user_id = claims.sub.clone();
+
+    // Monta query base
+    let mut query = transacoes.filter(id_usuario.eq(&user_id)).into_boxed();
+    let filtro = req.filtros;
+    if let Some(cat) = filtro.id_categoria.clone() {
+        query = query.filter(id_categoria.eq(cat));
+    }
+    if let Some(desc) = filtro.descricao.clone() {
+        if !desc.trim().is_empty() {
+            query = query.filter(descricao.ilike(format!("%{}%", desc)));
+        }
+    }
+    if let Some(tipo_f) = filtro.tipo.clone() {
+        query = query.filter(tipo.eq(tipo_f));
+    }
+    if let (Some(dt_ini), Some(dt_fim)) = (filtro.data_inicio, filtro.data_fim) {
+        query = query.filter(data.ge(dt_ini).and(data.le(dt_fim)));
+    } else if let Some(dt_ini) = filtro.data_inicio {
+        query = query.filter(data.ge(dt_ini));
+    } else if let Some(dt_fim) = filtro.data_fim {
+        query = query.filter(data.le(dt_fim));
+    }
+
+    let results = query.order(data.desc()).load::<Transacao>(conn).unwrap_or_default();
+   
+    match req.tipo_arquivo.as_str() {
+        "pdf" => {
+            let pdf_bytes = gerar_pdf(&results, &user_id, conn);
+            Response::builder()
+                .status(StatusCode::OK)
+                .header(header::CONTENT_TYPE, "application/pdf")
+                .header(header::CONTENT_DISPOSITION, "attachment; filename=relatorio.pdf")
+                .body(pdf_bytes.into())
+                .unwrap()
+        },
+        "xlsx" => {
+            let xlsx_bytes = gerar_xlsx(&results, &user_id, conn);
+            Response::builder()
+                .status(StatusCode::OK)
+                .header(header::CONTENT_TYPE, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                .header(header::CONTENT_DISPOSITION, "attachment; filename=relatorio.xlsx")
+                .body(xlsx_bytes.into())
+                .unwrap()
+        },
+        _ => Response::builder().status(StatusCode::BAD_REQUEST).body("Tipo de arquivo inválido".into()).unwrap(),
+    }
+}
 use chrono::NaiveDateTime;
 
 use axum::{Json, extract::Path};
 use axum_extra::extract::cookie::CookieJar;
-
 use serde::{Serialize, Deserialize};
 use diesel::prelude::*;
 use diesel::AsChangeset;
@@ -21,37 +93,10 @@ pub struct Claims {
 #[cfg(test)]
 mod tests {
     use crate::models::categoria::NewCategoria;
-    use crate::schema::categorias::dsl::*;
-
-    fn create_fake_categoria(conn: &mut diesel::PgConnection, user_id: &str, categoria_id: &str) {
-        let now = Utc::now().naive_utc();
-        let new_cat = NewCategoria {
-            id: categoria_id.to_string(),
-            id_usuario: Some(user_id.to_string()),
-            nome: "Categoria Teste".to_string(),
-            tipo: "entrada".to_string(),
-            icone: Some("icon.png".to_string()),
-            cor: Some("#FFFFFF".to_string()),
-            eh_padrao: false,
-            eh_ativa: true,
-            criado_em: now,
-            atualizado_em: now,
-        };
-        diesel::insert_into(categorias)
-            .values(&new_cat)
-            .on_conflict(crate::schema::categorias::id)
-            .do_nothing()
-            .execute(conn)
-            .expect("Erro ao inserir categoria");
-    }
     use super::*;
     use crate::db::establish_connection;
     use chrono::Utc;
     use crate::models::usuario::NewUsuario;
-    use crate::schema::usuarios::dsl::*;
-    use axum_extra::extract::cookie::Cookie;
-    use jsonwebtoken::{encode, Header, EncodingKey};
-    use serde::Serialize;
 
     fn clean_db() {
         std::env::set_var("ENVIRONMENT", "tests");
@@ -160,11 +205,6 @@ mod tests {
             tipo: payload.tipo.clone(),
             descricao: payload.descricao.clone(),
             data: payload.data.unwrap_or(now),
-            origem: None,
-            id_externo: None,
-            plataforma: None,
-            observacoes: None,
-            tags: None,
             criado_em: now,
             atualizado_em: now,
         };
@@ -285,13 +325,8 @@ pub async fn create_transacao_handler(jar: CookieJar, Json(payload): Json<Create
         tipo: payload.tipo,
         descricao: payload.descricao,
         data: nova_data,
-        origem: None,
-        id_externo: None,
-        plataforma: None,
-        observacoes: None,
-        tags: None,
-    criado_em: now,
-    atualizado_em: now,
+        criado_em: now,
+        atualizado_em: now,
     };
     diesel::insert_into(transacoes)
         .values(&nova_transacao)

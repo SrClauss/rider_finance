@@ -160,53 +160,25 @@ use serde::{Serialize, Deserialize};
 use chrono::NaiveDateTime;
 use crate::db;
 use crate::schema::assinaturas::dsl::*;
-use crate::models::{Assinatura, NewAssinatura};
+use crate::models::assinatura::{Assinatura, NewAssinatura};
 
 #[derive(Deserialize)]
 pub struct CreateAssinaturaPayload {
     pub id_usuario: String,
-    pub status: String,
-    pub asaas_subscription_id: Option<String>,
+    pub asaas_subscription_id: String,
     pub periodo_inicio: NaiveDateTime,
     pub periodo_fim: NaiveDateTime,
-    pub cancelada_em: Option<NaiveDateTime>,
-    pub billing_type: Option<String>,
-    pub charge_type: Option<String>,
-    pub webhook_event_id: Option<String>,
-    pub checkout_id: Option<String>,
-    pub checkout_status: Option<String>,
-    pub checkout_date_created: Option<NaiveDateTime>,
-    pub checkout_event_type: Option<String>,
-        pub valor: Option<i32>,
-    pub descricao: Option<String>,
-    pub nome_cliente: Option<String>,
-    pub email_cliente: Option<String>,
-    pub cpf_cnpj_cliente: Option<String>,
 }
 
 #[derive(Serialize)]
 pub struct AssinaturaResponse {
     pub id: String,
     pub id_usuario: String,
-    pub status: String,
-    pub asaas_subscription_id: Option<String>,
+    pub asaas_subscription_id: String,
     pub periodo_inicio: NaiveDateTime,
     pub periodo_fim: NaiveDateTime,
-    pub cancelada_em: Option<NaiveDateTime>,
     pub criado_em: NaiveDateTime,
     pub atualizado_em: NaiveDateTime,
-    pub billing_type: Option<String>,
-    pub charge_type: Option<String>,
-    pub webhook_event_id: Option<String>,
-    pub checkout_id: Option<String>,
-    pub checkout_status: Option<String>,
-    pub checkout_date_created: Option<NaiveDateTime>,
-    pub checkout_event_type: Option<String>,
-        pub valor: Option<i32>,
-    pub descricao: Option<String>,
-    pub nome_cliente: Option<String>,
-    pub email_cliente: Option<String>,
-    pub cpf_cnpj_cliente: Option<String>,
 }
 
 pub async fn create_assinatura_handler(Json(payload): Json<CreateAssinaturaPayload>) -> Json<AssinaturaResponse> {
@@ -215,25 +187,11 @@ pub async fn create_assinatura_handler(Json(payload): Json<CreateAssinaturaPaylo
     let nova_assinatura = NewAssinatura {
         id: ulid::Ulid::new().to_string(),
         id_usuario: payload.id_usuario,
-        status: payload.status,
         asaas_subscription_id: payload.asaas_subscription_id,
         periodo_inicio: payload.periodo_inicio,
         periodo_fim: payload.periodo_fim,
-        cancelada_em: payload.cancelada_em,
         criado_em: now,
         atualizado_em: now,
-        billing_type: payload.billing_type,
-        charge_type: payload.charge_type,
-        webhook_event_id: payload.webhook_event_id,
-        checkout_id: payload.checkout_id,
-        checkout_status: payload.checkout_status,
-        checkout_date_created: payload.checkout_date_created,
-        checkout_event_type: payload.checkout_event_type,
-        valor: payload.valor.map(|v| v as i32),
-        descricao: payload.descricao,
-        nome_cliente: payload.nome_cliente,
-        email_cliente: payload.email_cliente,
-        cpf_cnpj_cliente: payload.cpf_cnpj_cliente,
     };
     diesel::insert_into(assinaturas)
         .values(&nova_assinatura)
@@ -242,25 +200,11 @@ pub async fn create_assinatura_handler(Json(payload): Json<CreateAssinaturaPaylo
     Json(AssinaturaResponse {
         id: nova_assinatura.id,
         id_usuario: nova_assinatura.id_usuario,
-        status: nova_assinatura.status,
         asaas_subscription_id: nova_assinatura.asaas_subscription_id,
         periodo_inicio: nova_assinatura.periodo_inicio,
         periodo_fim: nova_assinatura.periodo_fim,
-        cancelada_em: nova_assinatura.cancelada_em,
         criado_em: nova_assinatura.criado_em,
         atualizado_em: nova_assinatura.atualizado_em,
-        billing_type: nova_assinatura.billing_type,
-        charge_type: nova_assinatura.charge_type,
-        webhook_event_id: nova_assinatura.webhook_event_id,
-        checkout_id: nova_assinatura.checkout_id,
-        checkout_status: nova_assinatura.checkout_status,
-        checkout_date_created: nova_assinatura.checkout_date_created,
-        checkout_event_type: nova_assinatura.checkout_event_type,
-        valor: nova_assinatura.valor,
-        descricao: nova_assinatura.descricao,
-        nome_cliente: nova_assinatura.nome_cliente,
-        email_cliente: nova_assinatura.email_cliente,
-        cpf_cnpj_cliente: nova_assinatura.cpf_cnpj_cliente,
     })
 }
 
@@ -270,25 +214,11 @@ pub async fn get_assinatura_handler(Path(id_param): Path<String>) -> Json<Option
         Ok(a) => Json(Some(AssinaturaResponse {
             id: a.id,
             id_usuario: a.id_usuario,
-            status: a.status,
             asaas_subscription_id: a.asaas_subscription_id,
             periodo_inicio: a.periodo_inicio,
             periodo_fim: a.periodo_fim,
-            cancelada_em: a.cancelada_em,
             criado_em: a.criado_em,
             atualizado_em: a.atualizado_em,
-            billing_type: a.billing_type,
-            charge_type: a.charge_type,
-            webhook_event_id: a.webhook_event_id,
-            checkout_id: a.checkout_id,
-            checkout_status: a.checkout_status,
-            checkout_date_created: a.checkout_date_created,
-            checkout_event_type: a.checkout_event_type,
-            valor: a.valor,
-            descricao: a.descricao,
-            nome_cliente: a.nome_cliente,
-            email_cliente: a.email_cliente,
-            cpf_cnpj_cliente: a.cpf_cnpj_cliente,
         })),
         Err(_) => Json(None),
     }
@@ -304,25 +234,11 @@ pub async fn list_assinaturas_handler(Path(id_usuario_param): Path<String>) -> J
     Json(results.into_iter().map(|a| AssinaturaResponse {
         id: a.id,
         id_usuario: a.id_usuario,
-        status: a.status,
         asaas_subscription_id: a.asaas_subscription_id,
         periodo_inicio: a.periodo_inicio,
         periodo_fim: a.periodo_fim,
-        cancelada_em: a.cancelada_em,
         criado_em: a.criado_em,
         atualizado_em: a.atualizado_em,
-        billing_type: a.billing_type,
-        charge_type: a.charge_type,
-        webhook_event_id: a.webhook_event_id,
-        checkout_id: a.checkout_id,
-        checkout_status: a.checkout_status,
-        checkout_date_created: a.checkout_date_created,
-        checkout_event_type: a.checkout_event_type,
-        valor: a.valor,
-        descricao: a.descricao,
-        nome_cliente: a.nome_cliente,
-        email_cliente: a.email_cliente,
-        cpf_cnpj_cliente: a.cpf_cnpj_cliente,
     }).collect())
 }
 
@@ -368,25 +284,11 @@ pub async fn get_assinatura_by_usuario_handler(Path(id_usuario_param): Path<Stri
     Json(results.into_iter().map(|a| AssinaturaResponse {
         id: a.id,
         id_usuario: a.id_usuario,
-        status: a.status,
         asaas_subscription_id: a.asaas_subscription_id,
         periodo_inicio: a.periodo_inicio,
         periodo_fim: a.periodo_fim,
-        cancelada_em: a.cancelada_em,
         criado_em: a.criado_em,
         atualizado_em: a.atualizado_em,
-        billing_type: a.billing_type,
-        charge_type: a.charge_type,
-        webhook_event_id: a.webhook_event_id,
-        checkout_id: a.checkout_id,
-        checkout_status: a.checkout_status,
-        checkout_date_created: a.checkout_date_created,
-        checkout_event_type: a.checkout_event_type,
-        valor: a.valor,
-        descricao: a.descricao,
-        nome_cliente: a.nome_cliente,
-        email_cliente: a.email_cliente,
-        cpf_cnpj_cliente: a.cpf_cnpj_cliente,
     }).collect())
 }
 

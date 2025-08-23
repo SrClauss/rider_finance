@@ -1,3 +1,7 @@
+#[derive(serde::Deserialize)]
+pub struct UpdateValor {
+    pub valor: Option<String>,
+}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -258,6 +262,58 @@ pub async fn delete_configuracao_handler(
         .map_err(|e| e.to_string())
 }
 
+
+
+use axum::http::StatusCode;
+
+
+
+#[axum::debug_handler]
+pub async fn update_configuracao_axum(
+    Path(id_valor): Path<String>,
+    Json(payload): Json<UpdateValor>,
+) -> Result<Json<Configuracao>, (StatusCode, String)> {
+    let conn = &mut establish_connection();
+    // Só atualiza o valor
+    let now = Utc::now().naive_utc();
+    use crate::models::configuracao::ConfiguracaoChangeset;
+    let changeset = ConfiguracaoChangeset {
+        valor: payload.valor,
+        categoria: None,
+        descricao: None,
+        tipo_dado: None,
+        eh_publica: None,
+        atualizado_em: Some(now),
+    };
+    diesel::update(configuracoes.filter(crate::schema::configuracoes::id.eq(id_valor)))
+        .set(&changeset)
+        .get_result(conn)
+        .map(Json)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
+}
+
+pub fn update_configuracao_handler_inner(
+    id_valor: String,
+    payload: NewConfiguracao,
+    conn: &mut PgConnection,
+) -> Result<Json<Configuracao>, String> {
+    let now = Utc::now().naive_utc();
+    use crate::models::configuracao::ConfiguracaoChangeset;
+    let changeset = ConfiguracaoChangeset {
+        valor: payload.valor,
+        categoria: payload.categoria,
+        descricao: payload.descricao,
+        tipo_dado: payload.tipo_dado,
+        eh_publica: Some(payload.eh_publica),
+        atualizado_em: Some(now),
+    };
+    diesel::update(configuracoes.filter(crate::schema::configuracoes::id.eq(id_valor)))
+        .set(&changeset)
+        .get_result(conn)
+        .map(Json)
+        .map_err(|e| e.to_string())
+}
+
 // Função para inserir configurações padrão no banco, incluindo valor_assinatura
 pub fn seed_configuracoes_padrao(conn: &mut diesel::PgConnection) {
 
@@ -297,6 +353,19 @@ pub fn seed_configuracoes_padrao(conn: &mut diesel::PgConnection) {
             categoria: Some("dashboard".to_string()),
             descricao: Some("Percentual de extremos a excluir no cálculo da média".to_string()),
             tipo_dado: Some("int".to_string()),
+            eh_publica: false,
+            criado_em: now,
+            atualizado_em: now,
+        },
+        // Adiciona a configuração padrão de máscara de moeda
+        NewConfiguracao {
+            id: Ulid::new().to_string(),
+            id_usuario: None,
+            chave: "mask_moeda".to_string(),
+            valor: Some("R$ #.##0,00".to_string()),
+            categoria: Some("visual".to_string()),
+            descricao: Some("Máscara de moeda padrão para exibição de valores monetários".to_string()),
+            tipo_dado: Some("string".to_string()),
             eh_publica: false,
             criado_em: now,
             atualizado_em: now,
@@ -467,3 +536,4 @@ pub fn seed_configuracoes_padrao(conn: &mut diesel::PgConnection) {
         });
     }
 }
+

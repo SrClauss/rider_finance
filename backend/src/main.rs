@@ -22,9 +22,11 @@ async fn main() {
     use backend::services::assinatura::{create_assinatura_handler, get_assinatura_handler, list_assinaturas_handler, delete_assinatura_handler, asaas_webhook_handler, criar_checkout_handler};
     use backend::services::configuracao::{checkout_info_handler, usuario_completo_handler};
     use backend::services::auth::validate_token::validate_token_handler;
-    use backend::services::meta_metas_com_transacoes_handler::metas_ativas_com_transacoes_handler;
+    use backend::services::auth::get_me::get_me_handler;
+    use backend::services::meta::metas_ativas_com_transacoes_handler;
 
     let app = Router::new()
+    .route("/api/relatorio/transacoes", post(backend::services::transacao::relatorio_transacoes_handler))
     .route("/api/metas/ativas-com-transacoes", get(metas_ativas_com_transacoes_handler))
         .route("/api/register", post(register_user_handler))
     // .route("/api/register-pending", post(register_pending_user_handler))
@@ -48,7 +50,9 @@ async fn main() {
         .route("/api/meta/cumpridas/{id_usuario}", get(list_metas_cumpridas_handler))
         .route("/api/categoria", post(create_categoria_handler))
         .route("/api/categoria/{id}", get(get_categoria_handler))
-        .route("/api/categoria/{id}", delete(delete_categoria_handler))
+    .route("/api/categoria/{id}", delete(delete_categoria_handler))
+    // Atualizar configuração do usuário (tema, etc)
+    .route("/api/configuracao/{id}", put(backend::services::configuracao::update_configuracao_axum))
     // rota removida: /api/categorias/{id_usuario}
         .route("/api/assinatura", post(create_assinatura_handler))
         .route("/api/assinatura/{id}", get(get_assinatura_handler))
@@ -62,7 +66,7 @@ async fn main() {
         .route("/api/webhook/asaas", post(asaas_webhook_handler))
         .route("/api/assinatura/byuserid/{id_usuario}", get(get_assinatura_by_usuario_handler))
         .route("/api/categorias", get(backend::services::categoria::list_categorias_autenticado_handler))
-
+    .route("/api/me", get(get_me_handler))
         .merge(routes());
  
     // Seed automático de configurações iniciais no main

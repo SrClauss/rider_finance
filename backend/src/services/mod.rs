@@ -4,10 +4,10 @@ pub mod transacao;
 pub mod captcha;
 pub mod meta;
 pub mod categoria;
-pub mod meta_metas_com_transacoes;
 pub mod configuracao;
 pub mod webhook;
 pub mod seed;
 pub mod assinatura;
-pub mod relatorio;
-pub mod meta_metas_com_transacoes_handler;
+
+
+

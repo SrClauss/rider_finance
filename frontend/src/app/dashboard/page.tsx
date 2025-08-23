@@ -43,7 +43,7 @@ export default function Page() {
 
   return (
     <LoggedLayout>
-      <Box sx={{ padding: 5 }}>
+  <Box sx={{ padding: 5 }}>
         {/* MOBILE: Swipers por categoria */}
         {/* CARDS RESPONSIVOS */}
         {isMobile ? (
@@ -53,7 +53,12 @@ export default function Page() {
               <Swiper
                 spaceBetween={45}
                 slidesPerView={1}
-                style={{ width: "100%", flexDirection: "column", justifyContent: "center", paddingRight:"10%" }}
+                style={{
+                  width: "100%",
+                  flexDirection: "column",
+                  justifyContent: "center",
+                  paddingRight: "10%",
+                }}
               >
                 <SwiperSlide>
                   <Box sx={{ width: "100%" }}>
@@ -98,7 +103,12 @@ export default function Page() {
               <Swiper
                 spaceBetween={45}
                 slidesPerView={1}
-                style={{ width: "100%", flexDirection: "column", justifyContent: "center", paddingRight:"10%" }}
+                style={{
+                  width: "100%",
+                  flexDirection: "column",
+                  justifyContent: "center",
+                  paddingRight: "10%",
+                }}
               >
                 <SwiperSlide>
                   <Box sx={{ width: "100%" }}>
@@ -143,7 +153,12 @@ export default function Page() {
               <Swiper
                 spaceBetween={45}
                 slidesPerView={1}
-                style={{ width: "100%", flexDirection: "column", justifyContent: "center", paddingRight:"10%" }}
+                style={{
+                  width: "100%",
+                  flexDirection: "column",
+                  justifyContent: "center",
+                  paddingRight: "10%",
+                }}
               >
                 <SwiperSlide>
                   <Box sx={{ width: "100%" }}>
@@ -188,7 +203,12 @@ export default function Page() {
               <Swiper
                 spaceBetween={45}
                 slidesPerView={1}
-                style={{ width: "100%", flexDirection: "column", justifyContent: "center", paddingRight:"10%" }}
+                style={{
+                  width: "100%",
+                  flexDirection: "column",
+                  justifyContent: "center",
+                  paddingRight: "10%",
+                }}
               >
                 <SwiperSlide>
                   <Box sx={{ width: "100%" }}>
@@ -233,7 +253,12 @@ export default function Page() {
               <Swiper
                 spaceBetween={45}
                 slidesPerView={1}
-                style={{ width: "100%", flexDirection: "column", justifyContent: "center", paddingRight:"10%" }}
+                style={{
+                  width: "100%",
+                  flexDirection: "column",
+                  justifyContent: "center",
+                  paddingRight: "10%",
+                }}
               >
                 <SwiperSlide>
                   <Box sx={{ width: "100%" }}>
@@ -273,17 +298,22 @@ export default function Page() {
                 </SwiperSlide>
               </Swiper>
             </Box>
-            <Box sx={{maxWidth: 400, mx: "auto", mb: 3, width: "100%" }}>
+            <Box sx={{ maxWidth: 400, mx: "auto", mb: 3, width: "100%" }}>
               <Swiper
                 spaceBetween={45}
                 slidesPerView={1}
-                style={{ width: "100%", flexDirection: "column", justifyContent: "center", paddingRight:"10%" }}
+                style={{
+                  width: "100%",
+                  flexDirection: "column",
+                  justifyContent: "center",
+                  paddingRight: "10%",
+                }}
               >
                 <SwiperSlide>
                   <Box sx={{ width: "100%" }}>
                     <DashboardSimpleCard
                       label="Meta Diária"
-                      value={data?.meta_diaria ?? '-'}
+                      value={data?.meta_diaria ?? "-"}
                       color="#388e3c"
                       mod="currency"
                     />
@@ -293,7 +323,7 @@ export default function Page() {
                   <Box sx={{ width: "100%" }}>
                     <DashboardSimpleCard
                       label="Meta Semanal"
-                      value={data?.meta_semanal ?? '-'}
+                      value={data?.meta_semanal ?? "-"}
                       color="#1976d2"
                       mod="currency"
                     />
@@ -303,7 +333,7 @@ export default function Page() {
                   <Box sx={{ width: "100%" }}>
                     <DashboardSimpleCard
                       label="Eficiência"
-                      value={data?.eficiencia ?? '-'}
+                      value={data?.eficiencia ?? "-"}
                       color="#00bcd4"
                       mod="percent"
                     />
@@ -311,7 +341,6 @@ export default function Page() {
                 </SwiperSlide>
               </Swiper>
             </Box>
-           
           </Box>
         ) : (
           <Box

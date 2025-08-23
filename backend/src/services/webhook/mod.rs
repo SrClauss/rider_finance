@@ -93,57 +93,43 @@ pub mod webhook {
         }
         let usuario = usuario_encontrado.unwrap();
         let hoje = Utc::now().naive_utc();
-        match assinaturas.filter(id_usuario.eq(&usuario.id)).order(periodo_fim.desc()).first::<crate::models::Assinatura>(conn) {
-            Ok(mut assinatura) => {
-                // Se vencida
-                if assinatura.periodo_fim < hoje {
-                    assinatura.periodo_inicio = hoje;
-                    assinatura.periodo_fim = hoje + Duration::days(30);
-                } else {
-                    assinatura.periodo_fim = assinatura.periodo_fim + Duration::days(30);
-                }
-                assinatura.atualizado_em = hoje;
-                if let Err(e) = diesel::update(assinaturas.filter(assinatura_id.eq(&assinatura.id)))
-                    .set((periodo_inicio.eq(assinatura.periodo_inicio), periodo_fim.eq(assinatura.periodo_fim), assinatura_atualizado_em.eq(assinatura.atualizado_em)))
-                    .execute(conn) {
-                    return (StatusCode::INTERNAL_SERVER_ERROR, Json(format!("Erro ao atualizar assinatura: {:?}", e))).into_response();
-                }
+    match assinaturas.filter(id_usuario.eq(&usuario.id)).order(periodo_fim.desc()).first::<crate::models::assinatura::Assinatura>(conn) {
+        Ok(mut assinatura) => {
+            // Se vencida
+            if assinatura.periodo_fim < hoje {
+                assinatura.periodo_inicio = hoje;
+                assinatura.periodo_fim = hoje + Duration::days(30);
+            } else {
+                assinatura.periodo_fim = assinatura.periodo_fim + Duration::days(30);
             }
-            Err(diesel::result::Error::NotFound) => {
-                // Cria nova assinatura
-                let nova = crate::models::NewAssinatura {
-                    id: ulid::Ulid::new().to_string(),
-                    id_usuario: usuario.id.clone(),
-                    status: "ativa".to_string(),
-                    asaas_subscription_id: None,
-                    periodo_inicio: hoje,
-                    periodo_fim: hoje + Duration::days(30),
-                    cancelada_em: None,
-                    criado_em: hoje,
-                    atualizado_em: hoje,
-                    billing_type: None,
-                    charge_type: None,
-                    webhook_event_id: None,
-                    checkout_id: None,
-                    checkout_status: None,
-                    checkout_date_created: None,
-                    valor: None,
-                    checkout_event_type: None,
-                    descricao: None,
-                    nome_cliente: None,
-                    email_cliente: None,
-                    cpf_cnpj_cliente: None,
-                };
-                if let Err(e) = diesel::insert_into(assinaturas)
-                    .values(&nova)
-                    .execute(conn) {
-                    return (StatusCode::INTERNAL_SERVER_ERROR, Json(format!("Erro ao criar assinatura: {:?}", e))).into_response();
-                }
-            }
-            Err(e) => {
-                return (StatusCode::INTERNAL_SERVER_ERROR, Json(format!("Erro ao buscar assinatura: {:?}", e))).into_response();
+            assinatura.atualizado_em = hoje;
+            if let Err(e) = diesel::update(assinaturas.filter(assinatura_id.eq(&assinatura.id)))
+                .set((periodo_inicio.eq(assinatura.periodo_inicio), periodo_fim.eq(assinatura.periodo_fim), assinatura_atualizado_em.eq(assinatura.atualizado_em)))
+                .execute(conn) {
+                return (StatusCode::INTERNAL_SERVER_ERROR, Json(format!("Erro ao atualizar assinatura: {:?}", e))).into_response();
             }
         }
+        Err(diesel::result::Error::NotFound) => {
+            // Cria nova assinatura
+            let nova = crate::models::assinatura::NewAssinatura {
+                id: ulid::Ulid::new().to_string(),
+                id_usuario: usuario.id.clone(),
+                asaas_subscription_id: "webhook_seed".to_string(), // ou extraia do payload se disponível
+                periodo_inicio: hoje,
+                periodo_fim: hoje + Duration::days(30),
+                criado_em: hoje,
+                atualizado_em: hoje,
+            };
+            if let Err(e) = diesel::insert_into(assinaturas)
+                .values(&nova)
+                .execute(conn) {
+                return (StatusCode::INTERNAL_SERVER_ERROR, Json(format!("Erro ao criar assinatura: {:?}", e))).into_response();
+            }
+        }
+        Err(e) => {
+            return (StatusCode::INTERNAL_SERVER_ERROR, Json(format!("Erro ao buscar assinatura: {:?}", e))).into_response();
+        }
+    }
     (StatusCode::OK, Json("Assinatura processada com sucesso".to_string())).into_response()
     }
 
