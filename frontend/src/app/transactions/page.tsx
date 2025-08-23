@@ -2,6 +2,7 @@
 
 
 import { useEffect, useState } from "react";
+import useFormReducer from "@/lib/useFormReducer";
 import { Box, Typography, Button, CircularProgress, Alert, Pagination, TextField, MenuItem, Drawer, IconButton, Stack } from "@mui/material";
 import FilterListIcon from "@mui/icons-material/FilterList";
 import AddIcon from "@mui/icons-material/Add";
@@ -46,18 +47,16 @@ export default function TransactionsPage() {
     const [pageSize] = useState(10);
     const [total, setTotal] = useState(0);
     // Filtros
-    const [idCategoria, setIdCategoria] = useState("");
-    const [descricao, setDescricao] = useState("");
-    const [tipo, setTipo] = useState("");
-    const [dataInicio, setDataInicio] = useState("");
-    const [dataFim, setDataFim] = useState("");
+    const { state: filtros, setField: setFiltro, setState: setFiltros, reset: resetFiltros } = useFormReducer({
+      idCategoria: "",
+      descricao: "",
+      tipo: "",
+      dataInicio: "",
+      dataFim: "",
+    });
 
     const limparFiltros = () => {
-      setIdCategoria("");
-      setDescricao("");
-      setTipo("");
-      setDataInicio("");
-      setDataFim("");
+      resetFiltros();
     };
 
     const { categorias, setCategorias } = useCategoriaContext();
@@ -124,11 +123,11 @@ export default function TransactionsPage() {
         page: overridePage ?? page,
         page_size: pageSize,
       };
-      if (idCategoria) filtros.id_categoria = idCategoria;
-      if (descricao) filtros.descricao = descricao;
-      if (tipo) filtros.tipo = tipo;
-      if (dataInicio) filtros.data_inicio = dayjs(dataInicio).format("YYYY-MM-DDTHH:mm:ss");
-      if (dataFim) filtros.data_fim = dayjs(dataFim).format("YYYY-MM-DDTHH:mm:ss");
+  if (filtros.idCategoria) filtros.id_categoria = filtros.idCategoria;
+  if (filtros.descricao) filtros.descricao = filtros.descricao;
+  if (filtros.tipo) filtros.tipo = filtros.tipo;
+  if (filtros.dataInicio) filtros.data_inicio = dayjs(filtros.dataInicio).format("YYYY-MM-DDTHH:mm:ss");
+  if (filtros.dataFim) filtros.data_fim = dayjs(filtros.dataFim).format("YYYY-MM-DDTHH:mm:ss");
       try {
         const res = await axios.post("/api/transacoes", filtros, { withCredentials: true });
         setTransactions(Array.isArray(res.data?.items) ? res.data.items : []);
@@ -142,7 +141,7 @@ export default function TransactionsPage() {
 
     useEffect(() => {
       fetchTransacoes();
-    }, [page, pageSize, idCategoria, descricao, tipo, dataInicio, dataFim]);
+  }, [page, pageSize, filtros.idCategoria, filtros.descricao, filtros.tipo, filtros.dataInicio, filtros.dataFim]);
 
     const handleAdd = () => setModalOpen(true);
     const handleCloseModal = () => setModalOpen(false);
@@ -182,8 +181,8 @@ export default function TransactionsPage() {
             </Typography>
             <TextField
               label="Categoria"
-              value={idCategoria}
-              onChange={e => setIdCategoria(e.target.value)}
+              value={filtros.idCategoria}
+              onChange={e => setFiltro('idCategoria', e.target.value)}
               size="small"
               select
               sx={{ mb: 2 }}
@@ -204,15 +203,15 @@ export default function TransactionsPage() {
             </Button>
             <TextField
               label="Descrição"
-              value={descricao}
-              onChange={e => setDescricao(e.target.value)}
+              value={filtros.descricao}
+              onChange={e => setFiltro('descricao', e.target.value)}
               size="small"
               sx={{ mb: 2 }}
             />
             <TextField
               label="Tipo"
-              value={tipo}
-              onChange={e => setTipo(e.target.value)}
+              value={filtros.tipo}
+              onChange={e => setFiltro('tipo', e.target.value)}
               select
               size="small"
               sx={{ mb: 2 }}
@@ -224,8 +223,8 @@ export default function TransactionsPage() {
             <TextField
               label="Data início"
               type="date"
-              value={dataInicio}
-              onChange={e => setDataInicio(e.target.value)}
+              value={filtros.dataInicio}
+              onChange={e => setFiltro('dataInicio', e.target.value)}
               size="small"
               InputLabelProps={{ shrink: true }}
               sx={{ mb: 2 }}
@@ -233,8 +232,8 @@ export default function TransactionsPage() {
             <TextField
               label="Data fim"
               type="date"
-              value={dataFim}
-              onChange={e => setDataFim(e.target.value)}
+              value={filtros.dataFim}
+              onChange={e => setFiltro('dataFim', e.target.value)}
               size="small"
               InputLabelProps={{ shrink: true }}
               sx={{ mb: 2 }}

@@ -8,6 +8,7 @@ pub mod configuracao;
 pub mod webhook;
 pub mod seed;
 pub mod assinatura;
+pub mod usuario;
 
 
 

@@ -9,7 +9,7 @@ import {
   Avatar,
 } from "@mui/material";
 import { DirectionsCar } from "@mui/icons-material";
-import ThemeProvider from "../../context/ThemeProvider";
+import { ThemeProvider } from "@/theme/ThemeProvider";
 import React, { useReducer, useEffect } from "react";
 import axios from "axios";
 

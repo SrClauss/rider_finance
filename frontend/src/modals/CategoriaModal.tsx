@@ -1,5 +1,7 @@
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, MenuItem, Box, CircularProgress, Alert } from "@mui/material";
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
+import axios from "axios";
+import useFormReducer from "@/lib/useFormReducer";
 import type { Categoria } from "@/interfaces/Categoria";
 
 interface Props {
@@ -8,42 +10,46 @@ interface Props {
   onCreated: (cat: Categoria) => void;
 }
 
+// Form initial state
+const initialState = {
+  nome: '',
+  tipo: 'entrada' as 'entrada' | 'saida',
+  icone: '',
+  cor: '#1976d2',
+};
+
 export default function CategoriaModal({ open, onClose, onCreated }: Props) {
-  const [form, setForm] = useState({
-    nome: "",
-    tipo: "entrada",
-    icone: "",
-    cor: "#1976d2"
-  });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { state, setField, reset, setLoading, setError } = useFormReducer(initialState);
 
   useEffect(() => {
-    if (!open) {
-      setForm({ nome: "", tipo: "entrada", icone: "", cor: "#1976d2" });
-      setError(null);
-    }
-  }, [open]);
+    if (!open) reset();
+  }, [open, reset]);
 
   const handleChange = (e: any) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setField(name, value);
   };
 
   const handleSubmit = async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/categorias", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(form)
-      });
-      if (!res.ok) throw new Error("Erro ao criar categoria");
-      const json: Categoria = await res.json();
-      onCreated(json);
+      const payload = {
+        nome: state.nome,
+        tipo: state.tipo,
+        icone: state.icone,
+        cor: state.cor,
+      };
+      try {
+        const res = await axios.post('/api/categorias', payload, { withCredentials: true });
+        const json: Categoria = res.data;
+        onCreated(json);
+        reset();
+      } catch (err: any) {
+        throw new Error(err?.response?.data?.message || 'Erro ao criar categoria');
+      }
     } catch (e: any) {
-      setError(e.message || "Erro ao criar categoria");
+      setError(e.message || 'Erro ao criar categoria');
     } finally {
       setLoading(false);
     }
@@ -53,11 +59,11 @@ export default function CategoriaModal({ open, onClose, onCreated }: Props) {
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
       <DialogTitle>Nova Categoria</DialogTitle>
       <DialogContent>
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
           <TextField
             label="Nome"
             name="nome"
-            value={form.nome}
+            value={state.nome}
             onChange={handleChange}
             fullWidth
             required
@@ -66,7 +72,7 @@ export default function CategoriaModal({ open, onClose, onCreated }: Props) {
             label="Tipo"
             name="tipo"
             select
-            value={form.tipo}
+            value={state.tipo}
             onChange={handleChange}
             fullWidth
           >
@@ -76,7 +82,7 @@ export default function CategoriaModal({ open, onClose, onCreated }: Props) {
           <TextField
             label="Ícone"
             name="icone"
-            value={form.icone}
+            value={state.icone}
             onChange={handleChange}
             fullWidth
             helperText="Ex: fa-solid fa-car"
@@ -85,18 +91,18 @@ export default function CategoriaModal({ open, onClose, onCreated }: Props) {
             label="Cor"
             name="cor"
             type="color"
-            value={form.cor}
+            value={state.cor}
             onChange={handleChange}
             fullWidth
             InputLabelProps={{ shrink: true }}
           />
-          {error && <Alert severity="error">{error}</Alert>}
+          {state.error && <Alert severity="error">{state.error}</Alert>}
         </Box>
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} color="inherit">Cancelar</Button>
-        <Button onClick={handleSubmit} variant="contained" color="primary" disabled={loading}>
-          {loading ? <CircularProgress size={20} /> : "Salvar"}
+        <Button onClick={handleSubmit} variant="contained" color="primary" disabled={state.loading}>
+          {state.loading ? <CircularProgress size={20} /> : 'Salvar'}
         </Button>
       </DialogActions>
     </Dialog>

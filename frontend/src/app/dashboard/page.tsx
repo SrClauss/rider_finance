@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
+import axios from "axios";
 import DashboardCardData from "@/components/dashboard/DashboardCardData";
 import { DashboardResponse } from "@/interfaces/DashboardResponse";
 import LoggedLayout from "@/layouts/LoggedLayout";
@@ -25,16 +26,9 @@ export default function Page() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/dashboard/stats", { credentials: "include" })
-      .then(async (res) => {
-        if (res.ok) {
-          const json = await res.json();
-          setData(json);
-        } else {
-          setError("Erro ao buscar dados do dashboard");
-        }
-      })
-      .catch(() => setError("Erro ao buscar dados do dashboard"))
+    axios.get('/api/dashboard/stats', { withCredentials: true })
+      .then((res) => setData(res.data))
+      .catch(() => setError('Erro ao buscar dados do dashboard'))
       .finally(() => setLoading(false));
   }, []);
 

@@ -185,6 +185,78 @@ fn media_movel(data: &[i32], window: usize) -> Option<i32> {
     Some(sum / window as i32)
 }
 
+// Calcula a média removendo uma porcentagem dos extremos (maiores e menores)
+fn media_excluindo_extremos(values: &[i32], percentual_extremos: usize) -> i32 {
+    if values.is_empty() {
+        return 0;
+    }
+    let mut v = values.to_vec();
+    v.sort();
+    let len = v.len();
+    let excluir = (len * percentual_extremos / 100).min(len / 2);
+    let v_filtrado = if excluir > 0 && len > 2 * excluir {
+        v[excluir..len - excluir].to_vec()
+    } else {
+        v
+    };
+    if v_filtrado.is_empty() {
+        0
+    } else {
+        v_filtrado.iter().sum::<i32>() / v_filtrado.len() as i32
+    }
+}
+
+#[cfg(test)]
+mod unit_tests {
+    use super::*;
+
+    #[test]
+    fn test_regressao_linear_simple() {
+        let xs = [1.0, 2.0, 3.0, 4.0];
+        let ys = [2.0, 4.0, 6.0, 8.0];
+        let (a, b) = regressao_linear(&xs, &ys).expect("deveria calcular regressão");
+        assert!((a - 2.0).abs() < 1e-6, "a esperado 2.0, got {}", a);
+        assert!((b - 0.0).abs() < 1e-6, "b esperado 0.0, got {}", b);
+    }
+
+    #[test]
+    fn test_regressao_linear_constant() {
+        let xs = [1.0, 2.0, 3.0];
+        let ys = [5.0, 5.0, 5.0];
+        let (a, b) = regressao_linear(&xs, &ys).expect("deveria calcular regressão");
+        assert!(a.abs() < 1e-6, "a esperado ~0, got {}", a);
+        assert!((b - 5.0).abs() < 1e-6, "b esperado 5.0, got {}", b);
+    }
+
+    #[test]
+    fn test_media_movel_basic() {
+        let data = [1, 2, 3, 4, 5];
+        assert_eq!(media_movel(&data, 3), Some((3 + 4 + 5) / 3));
+        assert_eq!(media_movel(&data, 5), Some((1 + 2 + 3 + 4 + 5) / 5));
+        assert_eq!(media_movel(&data, 6), None);
+        assert_eq!(media_movel(&[], 1), None);
+    }
+
+    #[test]
+    fn test_media_excluindo_extremos_empty() {
+        let v: [i32; 0] = [];
+        assert_eq!(media_excluindo_extremos(&v, 10), 0);
+    }
+
+    #[test]
+    fn test_media_excluindo_extremos_no_exclusion() {
+        let v = [10, 20, 30, 40];
+        assert_eq!(media_excluindo_extremos(&v, 0), (10 + 20 + 30 + 40) / 4);
+    }
+
+    #[test]
+    fn test_media_excluindo_extremos_with_exclusion() {
+        let v = [1, 100, 100, 100, 100, 200];
+        // 6 elementos, 25% -> excluir 1 de cada extremidade -> [100,100,100,100] -> média 100
+        assert_eq!(media_excluindo_extremos(&v, 25), 100);
+    }
+}
+
 
 
 use axum::{Json};
@@ -490,20 +562,7 @@ pub async fn dashboard_stats_handler(
         media_movel(&ganhos_30dias, 30).unwrap_or(0)
     } else {
         // Cálculo por média, excluindo extremos se configurado
-        let mut v = ganhos_valores.clone();
-        v.sort();
-        let len = v.len();
-        let excluir = (len * projecao_percentual_extremos / 100).min(len / 2);
-        let v_filtrado = if excluir > 0 && len > 2 * excluir {
-            v[excluir..len-excluir].to_vec()
-        } else {
-            v
-        };
-        if v_filtrado.is_empty() {
-            0
-        } else {
-            v_filtrado.iter().sum::<i32>() / v_filtrado.len() as i32
-        }
+        media_excluindo_extremos(&ganhos_valores, projecao_percentual_extremos)
     };
     let gastos: i32 = gastos_query.select(diesel::dsl::sum(transacao_dsl::valor)).first::<Option<i64>>(conn).unwrap_or(Some(0)).unwrap_or(0) as i32;
     let _lucro = ganhos - gastos;

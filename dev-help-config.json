@@ -4,26 +4,30 @@
       "name": "backend",
       "promptName": "🐍 Axum Backend",
       "command": "cargo run -vv",
-      "cwd": "backend"
+      "cwd": "backend",
+      "keepOpen": false
     },
     {
       "name": "frontend",
       "promptName": "⚛️ Next.js Frontend",
       "command": "npm run dev",
-      "cwd": "frontend"
+      "cwd": "frontend",
+      "keepOpen": false
     },
     {
       "name": "nginx",
       "promptName": "🌐 Nginx (Proxy)",
       "command": ".\\nginx.exe -g \"error_log logs/error.log debug;\"",
       "cwd": "nginx",
-      "closeCommand": "taskkill /IM nginx.exe /F"
+      "closeCommand": "taskkill /IM nginx.exe /F",
+      "keepOpen": false
     },
     {
       "name": "context7",
       "promptName": "⚙️ Context7 Server",
       "command": "npm start",
-      "cwd": "context7"
+      "cwd": "context7",
+      "keepOpen": true
     }
   ]
 }

@@ -1,6 +1,7 @@
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, Box, MenuItem, CircularProgress, Alert } from "@mui/material";
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import axios from "axios";
+import useFormReducer from "@/lib/useFormReducer";
 
 import { Goal, GoalPayload } from "@/interfaces/goal";
 
@@ -13,7 +14,7 @@ type GoalModalProps = {
 
 export default function GoalModal(props: GoalModalProps) {
   const { open, onClose, onSaved, goal } = props;
-  const [form, setForm] = useState<any>({
+  const { state: form, setField, setState, reset, setLoading, setError } = useFormReducer<any>({
     titulo: "",
     descricao: "",
     tipo: "faturamento",
@@ -21,7 +22,7 @@ export default function GoalModal(props: GoalModalProps) {
     valor_alvo: 0,
     valor_atual: 0,
     unidade: "",
-  data_inicio: new Date().toISOString().slice(0, 16),
+    data_inicio: new Date().toISOString().slice(0, 16),
     data_fim: "",
     eh_ativa: true,
     eh_concluida: false,
@@ -29,12 +30,10 @@ export default function GoalModal(props: GoalModalProps) {
     criado_em: "",
     atualizado_em: ""
   });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open && goal) {
-      setForm({
+      setState({
         titulo: goal.titulo || "",
         descricao: goal.descricao || "",
         tipo: goal.tipo || "faturamento",
@@ -42,7 +41,7 @@ export default function GoalModal(props: GoalModalProps) {
         valor_alvo: goal.valor_alvo || 0,
         valor_atual: goal.valor_atual || 0,
         unidade: goal.unidade || "",
-  data_inicio: goal.data_inicio ? goal.data_inicio.slice(0, 16) : new Date().toISOString().slice(0, 16),
+        data_inicio: goal.data_inicio ? goal.data_inicio.slice(0, 16) : new Date().toISOString().slice(0, 16),
         data_fim: goal.data_fim ? goal.data_fim.slice(0, 10) : "",
         eh_ativa: goal.eh_ativa ?? true,
         eh_concluida: goal.eh_concluida ?? false,
@@ -50,36 +49,19 @@ export default function GoalModal(props: GoalModalProps) {
         atualizado_em: goal.atualizado_em || ""
       });
     } else if (open) {
-      setForm({
-        titulo: "",
-        descricao: "",
-        tipo: "faturamento",
-        categoria: "geral",
-        valor_alvo: 0,
-        valor_atual: 0,
-        unidade: "",
-  data_inicio: new Date().toISOString().slice(0, 16),
-        data_fim: "",
-        eh_ativa: true,
-        eh_concluida: false,
-        lembrete_ativo: false,
-        criado_em: "",
-        atualizado_em: ""
-      });
+      reset();
     }
   }, [open, goal]);
 
   const handleChange = (e: any) => {
     const { name, value } = e.target;
-    setForm((prev: any) => ({
-      ...prev,
-      [name]: name === "valor_alvo" || name === "valor_atual" ? Number(value) : value
-    }));
+    const val = name === "valor_alvo" || name === "valor_atual" ? Number(value) : value;
+    setField(name, val);
   };
 
   const handleSubmit = async () => {
-    setLoading(true);
-    setError(null);
+  setLoading(true);
+  setError(null);
     try {
       // Monta payload compatível com o backend Rust
       const payload = {
@@ -173,13 +155,13 @@ export default function GoalModal(props: GoalModalProps) {
             <MenuItem value="economia">Economia (Saída)</MenuItem>
             <MenuItem value="lucro">Lucro (Entrada - Saída)</MenuItem>
           </TextField>
-          {error && <Alert severity="error">{error}</Alert>}
+          {form.error && <Alert severity="error">{form.error}</Alert>}
         </Box>
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} color="inherit">Cancelar</Button>
-        <Button onClick={handleSubmit} variant="contained" color="primary" disabled={loading}>
-          {loading ? <CircularProgress size={20} /> : "Salvar"}
+        <Button onClick={handleSubmit} variant="contained" color="primary" disabled={form.loading}>
+          {form.loading ? <CircularProgress size={20} /> : "Salvar"}
         </Button>
       </DialogActions>
     </Dialog>

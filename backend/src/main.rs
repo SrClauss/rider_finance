@@ -1,4 +1,4 @@
-use axum::{Router, routing::{post, get, put, delete}};
+use axum::{Router, routing::{post, get, put, delete, patch}};
 use backend::services::assinatura::get_assinatura_by_usuario_handler;
 use backend::services::auth::logout::logout_handler;
 use backend::services::auth::login::login_handler;
@@ -67,6 +67,7 @@ async fn main() {
         .route("/api/assinatura/byuserid/{id_usuario}", get(get_assinatura_by_usuario_handler))
         .route("/api/categorias", get(backend::services::categoria::list_categorias_autenticado_handler))
     .route("/api/me", get(get_me_handler))
+        .route("/api/me", patch(backend::services::usuario::update_me_handler))
         .merge(routes());
  
     // Seed automático de configurações iniciais no main

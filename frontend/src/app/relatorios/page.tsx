@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import axios from "axios";
 import { Box, Button, Card, CardContent, MenuItem, TextField, Typography, Stack } from "@mui/material";
 import LoggedLayout from "@/layouts/LoggedLayout";
 import { RelatorioTransacoesRequest, TransacaoFiltro } from "@/interfaces/RelatorioTransacoesRequest";
@@ -45,14 +46,8 @@ export default function RelatoriosPage() {
       },
     };
     try {
-      const res = await fetch("http://localhost/api/relatorio/transacoes", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(req),
-      });
-      if (!res.ok) throw new Error("Erro ao gerar relatório");
-      const blob = await res.blob();
+  const res = await axios.post("http://localhost/api/relatorio/transacoes", req, { withCredentials: true, responseType: 'blob' });
+  const blob = res.data as Blob;
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;

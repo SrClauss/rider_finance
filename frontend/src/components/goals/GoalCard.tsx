@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import useFormReducer from '@/lib/useFormReducer';
 import { Goal } from '@/interfaces/goal';
 import { GoalProgress } from '../../components/goals/GoalProgress';
 import { Card, CardContent, Typography, Box, Chip, Divider, IconButton, Tooltip } from '@mui/material';
@@ -19,11 +20,11 @@ interface GoalCardProps {
 
 const GoalCard: React.FC<GoalCardProps> = ({ goal, onEdit, onDelete, sx }) => {
   const { atualizarMeta } = useMetasContext();
-  // O estado local agora só serve para refletir mudanças rápidas, mas sempre sincronizado com o contexto
-  const [localGoal, setLocalGoal] = React.useState(goal);
+  // Use useFormReducer for a consistent local state shape
+  const { state: localGoal, setState: setLocalGoal } = useFormReducer<Goal>(goal as any);
 
   useEffect(() => {
-    setLocalGoal(goal);
+    setLocalGoal(goal as any);
   }, [goal]);
 
   // Exemplo: se quiser atualizar meta por ação local, use atualizarMeta(metaAtualizada)

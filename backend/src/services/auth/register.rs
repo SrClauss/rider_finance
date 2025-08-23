@@ -132,9 +132,15 @@ pub async fn register_user_handler(Json(payload): Json<RegisterPayload>) -> Json
             use crate::models::configuracao::NewConfiguracao;
             use chrono::Utc;
             let conn = &mut db::establish_connection();
-            // Busca todas as configurações padrão (id_usuario == None)
+            // Busca apenas as configurações padrão que devem ser copiadas para o novo usuário
+            // Permitimos apenas um conjunto restrito de chaves por segurança/consistência.
+            let allowed = vec![
+                "projecao_metodo",
+                "projecao_percentual_extremos",
+                "mask_moeda",
+            ];
             let padroes: Vec<crate::models::configuracao::Configuracao> = cfg_dsl::configuracoes
-                .filter(cfg_dsl::id_usuario.is_null())
+                .filter(cfg_dsl::id_usuario.is_null().and(cfg_dsl::chave.eq_any(&allowed)))
                 .load(conn)
                 .unwrap_or_default();
             let now = Utc::now().naive_utc();

@@ -1,8 +1,9 @@
 import { useEffect } from "react";
+import axios from "axios";
 import { carregarCategorias } from "@/context/CategoriaContext";
 
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, MenuItem, Box, CircularProgress, Alert } from "@mui/material";
-import { useState } from "react";
+import useFormReducer from "@/lib/useFormReducer";
 
 import type { Transaction } from "@/interfaces/Transaction";
 import { useMetasContext } from "@/context/MetasContext";
@@ -42,18 +43,18 @@ function TransactionModalInner({ open, onClose, onCreated, onEdited, transaction
     const localISO = new Date(now.getTime() - tzOffset).toISOString().slice(0, 16);
     return localISO;
   }
-  const [form, setForm] = useState({
+  const { state: form, setField, setState, reset, setLoading, setError } = useFormReducer({
     valor: "",
     tipo: "entrada",
     descricao: "",
     id_categoria: "",
-    data: getNowLocalISO()
+    data: getNowLocalISO(),
   });
 
   // Preencher formulário ao abrir para edição
   useEffect(() => {
     if (open && transaction) {
-      setForm({
+      setState({
         valor: transaction.valor.toString(),
         tipo: transaction.tipo,
         descricao: transaction.descricao || "",
@@ -61,18 +62,11 @@ function TransactionModalInner({ open, onClose, onCreated, onEdited, transaction
         data: transaction.data ? transaction.data.slice(0, 16) : getNowLocalISO(),
       });
     } else if (open && !transaction) {
-      setForm({
-        valor: "",
-        tipo: "entrada",
-        descricao: "",
-        id_categoria: "",
-        data: getNowLocalISO()
-      });
+      reset();
     }
   }, [open, transaction]);
   const { categorias, setCategorias } = useCategoriaContext();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // loading/error are managed by the reducer via setLoading/setError; form.loading / form.error available if needed
 
   // Carregar categorias ao abrir o modal se necessário
   useEffect(() => {
@@ -82,7 +76,7 @@ function TransactionModalInner({ open, onClose, onCreated, onEdited, transaction
   }, [open]);
 
   const handleChange = (e: any) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    setField(e.target.name, e.target.value);
   };
 
   const handleSubmit = async () => {
@@ -114,42 +108,30 @@ function TransactionModalInner({ open, onClose, onCreated, onEdited, transaction
       }
       if (transaction && onEdited) {
         // Edição
-        const res = await fetch(`/api/transacao/${transaction.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ ...payload, id: transaction.id })
-        });
-        if (!res.ok) {
-          let msg = "Erro ao editar transação";
-          try {
-            const err = await res.json();
-            if (err && err.message) msg = err.message;
-          } catch {}
+        try {
+          const res = await axios.put(`/api/transacao/${transaction.id}`, { ...payload, id: transaction.id }, { withCredentials: true });
+          const json: Transaction = res.data;
+          dispatchTransacao(json as any, 'update');
+          onEdited(json);
+        } catch (err: any) {
+          let msg = 'Erro ao editar transação';
+          const data = err?.response?.data;
+          if (data && data.message) msg = data.message;
           throw new Error(msg);
         }
-        const json: Transaction = await res.json();
-        dispatchTransacao(json as any, 'update');
-        onEdited(json);
       } else {
         // Criação
-        const res = await fetch("/api/transacao", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify(payload)
-        });
-        if (!res.ok) {
-          let msg = "Erro ao criar transação";
-          try {
-            const err = await res.json();
-            if (err && err.message) msg = err.message;
-          } catch {}
+        try {
+          const res = await axios.post('/api/transacao', payload, { withCredentials: true });
+          const json: Transaction = res.data;
+          dispatchTransacao(json as any, 'add');
+          onCreated(json);
+        } catch (err: any) {
+          let msg = 'Erro ao criar transação';
+          const data = err?.response?.data;
+          if (data && data.message) msg = data.message;
           throw new Error(msg);
         }
-        const json: Transaction = await res.json();
-        dispatchTransacao(json as any, 'add');
-        onCreated(json);
       }
     } catch (e: any) {
       setError(e.message || (transaction ? "Erro ao editar transação" : "Erro ao criar transação"));
@@ -216,13 +198,13 @@ function TransactionModalInner({ open, onClose, onCreated, onEdited, transaction
             fullWidth
             InputLabelProps={{ shrink: true }}
           />
-          {error && <Alert severity="error">{error}</Alert>}
+          {form.error && <Alert severity="error">{form.error}</Alert>}
         </Box>
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} color="inherit">Cancelar</Button>
-        <Button onClick={handleSubmit} variant="contained" color="primary" disabled={loading}>
-          {loading ? <CircularProgress size={20} /> : "Salvar"}
+        <Button onClick={handleSubmit} variant="contained" color="primary" disabled={form.loading}>
+          {form.loading ? <CircularProgress size={20} /> : "Salvar"}
         </Button>
       </DialogActions>
     </Dialog>
