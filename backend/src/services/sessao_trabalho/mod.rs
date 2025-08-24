@@ -156,3 +156,108 @@ pub async fn deletar_sessao_handler(Path(id_param): Path<String>) -> Json<bool> 
     let count = diesel::delete(sessoes_trabalho.filter(id.eq(id_param))).execute(conn).unwrap_or(0);
     Json(count > 0)
 }
+
+// Novo: iniciar sessão (cria sessão ativa com fim = None)
+pub async fn iniciar_sessao_handler(Json(payload): Json<NovaSessaoPayload>) -> Json<SessaoTrabalho> {
+    let conn = &mut db::establish_connection();
+    let now = chrono::Utc::now().naive_utc();
+    let nova = crate::models::sessao_trabalho::NewSessaoTrabalho {
+        id: ulid::Ulid::new().to_string(),
+        id_usuario: payload.id_usuario,
+        inicio: payload.inicio,
+        fim: None,
+        total_minutos: None,
+        local_inicio: payload.local_inicio,
+        local_fim: None,
+        total_corridas: 0,
+        total_ganhos: 0,
+        total_gastos: 0,
+        plataforma: payload.plataforma,
+        observacoes: payload.observacoes,
+        clima: payload.clima,
+        eh_ativa: true,
+        criado_em: now,
+        atualizado_em: now,
+    };
+    diesel::insert_into(sessoes_trabalho)
+        .values(&nova)
+        .execute(conn)
+        .unwrap();
+    let sessao = sessoes_trabalho
+        .order(criado_em.desc())
+        .first::<crate::models::SessaoTrabalho>(conn)
+        .unwrap();
+    Json(sessao)
+}
+
+// Novo: encerrar sessão (calcula totals a partir das transacoes do usuario entre inicio..fim)
+#[derive(serde::Deserialize)]
+pub struct EncerrarPayload {
+    pub id_sessao: String,
+    pub fim: chrono::NaiveDateTime,
+    pub local_fim: Option<String>,
+    pub observacoes: Option<String>,
+}
+
+pub async fn encerrar_sessao_handler(Json(payload): Json<EncerrarPayload>) -> Json<Option<SessaoTrabalho>> {
+    let conn = &mut db::establish_connection();
+    // Busca sessao
+    match sessoes_trabalho.filter(id.eq(&payload.id_sessao)).first::<crate::models::SessaoTrabalho>(conn) {
+        Ok(s) => {
+            // calcula totals: transacoes tipo 'entrada' entre s.inicio .. payload.fim
+            use crate::schema::transacoes::dsl as t_dsl;
+            let entradas: Vec<crate::models::transacao::Transacao> = t_dsl::transacoes
+                .filter(t_dsl::id_usuario.eq(&s.id_usuario).and(t_dsl::tipo.eq("receita")).and(t_dsl::data.ge(s.inicio)).and(t_dsl::data.le(payload.fim)))
+                .load(conn)
+                .unwrap_or_default();
+            let total_ganhos_sum: i32 = entradas.iter().map(|tr| tr.valor).sum();
+            let total_corridas_count: i32 = entradas.len() as i32;
+            let total_gastos_sum = 0; // manter 0 por enquanto
+            // Atualiza sessao
+            let _updated = diesel::update(sessoes_trabalho.filter(id.eq(&payload.id_sessao)))
+                .set((fim.eq(Some(payload.fim)), total_ganhos.eq(total_ganhos_sum), total_corridas.eq(total_corridas_count), total_gastos.eq(total_gastos_sum), local_fim.eq(payload.local_fim.clone()), observacoes.eq(payload.observacoes.clone()), eh_ativa.eq(false), atualizado_em.eq(chrono::Utc::now().naive_utc())))
+                .execute(conn)
+                .ok();
+            // Retorna sessao atualizada
+            let sessao = sessoes_trabalho.filter(id.eq(&payload.id_sessao)).first::<crate::models::SessaoTrabalho>(conn).ok();
+            Json(sessao)
+        },
+        Err(_) => Json(None),
+    }
+}
+
+// Novo: obter sessao com transacoes (inclui categoria.nome e icone)
+#[derive(serde::Serialize)]
+pub struct SessaoComTransacoes {
+    pub sessao: crate::models::SessaoTrabalho,
+    pub transacoes: Vec<serde_json::Value>,
+}
+
+pub async fn get_sessao_com_transacoes_handler(Path(id_param): Path<String>) -> Json<Option<SessaoComTransacoes>> {
+    let conn = &mut db::establish_connection();
+    if let Ok(s) = sessoes_trabalho.filter(id.eq(id_param.clone())).first::<crate::models::SessaoTrabalho>(conn) {
+        use crate::schema::transacoes::dsl as t_dsl;
+        use crate::schema::categorias::dsl as c_dsl;
+        let fim_dt = s.fim.unwrap_or(chrono::Utc::now().naive_utc());
+        let trans: Vec<crate::models::transacao::Transacao> = t_dsl::transacoes
+            .filter(t_dsl::id_usuario.eq(&s.id_usuario).and(t_dsl::data.ge(s.inicio)).and(t_dsl::data.le(fim_dt)))
+            .load(conn)
+            .unwrap_or_default();
+        // Para cada transacao, buscar categoria e montar objeto simples
+        let mut items: Vec<serde_json::Value> = Vec::new();
+        for tr in trans.into_iter() {
+            let cat = c_dsl::categorias.filter(c_dsl::id.eq(&tr.id_categoria)).first::<crate::models::categoria::Categoria>(conn).ok();
+            let obj = serde_json::json!({
+                "id": tr.id,
+                "valor": tr.valor,
+                "descricao": tr.descricao,
+                "data": tr.data,
+                "categoria": cat.map(|c| serde_json::json!({"id": c.id, "nome": c.nome, "icone": c.icone}))
+            });
+            items.push(obj);
+        }
+        Json(Some(SessaoComTransacoes { sessao: s, transacoes: items }))
+    } else {
+        Json(None)
+    }
+}

@@ -178,6 +178,61 @@ pub async fn register_user_handler(Json(payload): Json<RegisterPayload>) -> Json
                     .values(&to_insert)
                     .execute(conn);
             }
+            // --- INÍCIO: Inserção idempotente de categorias padrão para novo usuário ---
+            use crate::schema::categorias::dsl as cat_dsl;
+            use crate::models::NewCategoria as NewCat;
+            // Só insere se o usuário não tiver categorias
+            let existing_cats: Vec<crate::models::categoria::Categoria> = cat_dsl::categorias
+                .filter(cat_dsl::id_usuario.eq(Some(user_id.clone())))
+                .load(conn)
+                .unwrap_or_default();
+            if existing_cats.is_empty() {
+                let now_cat = now; // já definido acima
+                let defaults: Vec<NewCat> = vec![
+                    NewCat {
+                        id: ulid::Ulid::new().to_string(),
+                        id_usuario: Some(user_id.clone()),
+                        nome: "Corrida Uber".to_string(),
+                        tipo: "entrada".to_string(),
+                        icone: Some("fab fa-uber".to_string()),
+                        cor: Some("#000000".to_string()),
+                        criado_em: now_cat,
+                        atualizado_em: now_cat,
+                    },
+                    NewCat {
+                        id: ulid::Ulid::new().to_string(),
+                        id_usuario: Some(user_id.clone()),
+                        nome: "Corrida 99".to_string(),
+                        tipo: "entrada".to_string(),
+                        icone: Some("fas fa-car-side".to_string()),
+                        cor: Some("#111111".to_string()),
+                        criado_em: now_cat,
+                        atualizado_em: now_cat,
+                    },
+                    NewCat {
+                        id: ulid::Ulid::new().to_string(),
+                        id_usuario: Some(user_id.clone()),
+                        nome: "Abastecimento".to_string(),
+                        tipo: "saida".to_string(),
+                        icone: Some("fas fa-gas-pump".to_string()),
+                        cor: Some("#FF9800".to_string()),
+                        criado_em: now_cat,
+                        atualizado_em: now_cat,
+                    },
+                    NewCat {
+                        id: ulid::Ulid::new().to_string(),
+                        id_usuario: Some(user_id.clone()),
+                        nome: "Alimentação".to_string(),
+                        tipo: "saida".to_string(),
+                        icone: Some("fas fa-utensils".to_string()),
+                        cor: Some("#FF5722".to_string()),
+                        criado_em: now_cat,
+                        atualizado_em: now_cat,
+                    },
+                ];
+                let _ = diesel::insert_into(cat_dsl::categorias).values(&defaults).execute(conn);
+            }
+            // --- FIM: Inserção de categorias padrão ---
             // --- FIM: Cópia de configurações padrão ---
             Json(RegisterResponse {
                 status: "ok".to_string(),

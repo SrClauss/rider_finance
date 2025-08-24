@@ -88,29 +88,45 @@ pub async fn seed_movimentacao_robusta() {
     let resp = register_user_handler(Json(payload)).await;
     let resp_inner = resp.0; // RegisterResponse
     let id_user: String = resp_inner.id.expect("Falha ao criar usuário seed");
-    // Cria categorias de entrada e saída usando o módulo categoria
+    // Cria categorias padrão para o usuário seed: Corrida Uber, Corrida 99, Abastecimento, Alimentação
     use crate::services::categoria::{CreateCategoriaPayload, create_categoria_handler};
-    let payload_entrada = CreateCategoriaPayload {
+    let payload_uber = CreateCategoriaPayload {
         id_usuario: Some(id_user.clone()),
-        nome: "Ganhos Seed".to_string(),
+        nome: "Corrida Uber".to_string(),
         tipo: "entrada".to_string(),
-        icone: Some("money".to_string()),
-        cor: Some("#4CAF50".to_string()),
-        
+        icone: Some("fab fa-uber".to_string()),
+        cor: Some("#000000".to_string()),
     };
-    let response_entrada = create_categoria_handler(axum::Json(payload_entrada)).await;
-    let id_categoria_entrada = response_entrada.id.clone();
+    let resp_uber = create_categoria_handler(axum::Json(payload_uber)).await;
+    let id_categoria_entrada = resp_uber.id.clone();
 
-    let payload_saida = CreateCategoriaPayload {
+    let payload_99 = CreateCategoriaPayload {
         id_usuario: Some(id_user.clone()),
-        nome: "Gastos Seed".to_string(),
-        tipo: "saida".to_string(),
-        icone: Some("credit-card".to_string()),
-        cor: Some("#FF4444".to_string()),
-        
+        nome: "Corrida 99".to_string(),
+        tipo: "entrada".to_string(),
+        icone: Some("fas fa-car-side".to_string()),
+        cor: Some("#111111".to_string()),
     };
-    let response_saida = create_categoria_handler(axum::Json(payload_saida)).await;
-    let id_categoria_saida = response_saida.id.clone();
+    let _ = create_categoria_handler(axum::Json(payload_99)).await;
+
+    let payload_abastecimento = CreateCategoriaPayload {
+        id_usuario: Some(id_user.clone()),
+        nome: "Abastecimento".to_string(),
+        tipo: "saida".to_string(),
+        icone: Some("fas fa-gas-pump".to_string()),
+        cor: Some("#FF9800".to_string()),
+    };
+    let resp_abaste = create_categoria_handler(axum::Json(payload_abastecimento)).await;
+    let id_categoria_saida = resp_abaste.id.clone();
+
+    let payload_alim = CreateCategoriaPayload {
+        id_usuario: Some(id_user.clone()),
+        nome: "Alimentação".to_string(),
+        tipo: "saida".to_string(),
+        icone: Some("fas fa-utensils".to_string()),
+        cor: Some("#FF5722".to_string()),
+    };
+    let _ = create_categoria_handler(axum::Json(payload_alim)).await;
     // Insere uma assinatura válida para o usuário seed
     {
         use crate::models::assinatura::NewAssinatura;

@@ -9,6 +9,7 @@ pub mod webhook;
 pub mod seed;
 pub mod assinatura;
 pub mod usuario;
+pub mod sessao_trabalho;
 
 
 

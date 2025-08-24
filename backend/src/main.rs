@@ -31,6 +31,10 @@ async fn main() {
         get_categoria_handler,
         delete_categoria_handler,
     };
+    use backend::services::sessao_trabalho::{
+        criar_sessao_handler, listar_sessoes_handler, deletar_sessao_handler,
+        iniciar_sessao_handler, encerrar_sessao_handler, get_sessao_com_transacoes_handler,
+    };
     use backend::services::configuracao::{ checkout_info_handler, usuario_completo_handler };
     use backend::services::auth::validate_token::validate_token_handler;
     use backend::services::auth::get_me::get_me_handler;
@@ -65,6 +69,12 @@ async fn main() {
         .route("/api/categoria", post(create_categoria_handler))
         .route("/api/categoria/{id}", get(get_categoria_handler))
         .route("/api/categoria/{id}", delete(delete_categoria_handler))
+    .route("/api/sessao", post(criar_sessao_handler))
+    .route("/api/sessao/list/{id_usuario}", get(listar_sessoes_handler))
+    .route("/api/sessao/{id}", delete(deletar_sessao_handler))
+    .route("/api/sessao/start", post(iniciar_sessao_handler))
+    .route("/api/sessao/stop", post(encerrar_sessao_handler))
+    .route("/api/sessao/com-transacoes/{id}", get(get_sessao_com_transacoes_handler))
         .route(
             "/api/configuracao/{id}",
             put(backend::services::configuracao::update_configuracao_axum)
