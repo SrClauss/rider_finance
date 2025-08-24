@@ -176,18 +176,24 @@ export default function RegisterPage() {
         nome_usuario: state.nome_usuario,
         email: state.email,
         senha: state.senha,
-        nome_completo: state.nome_completo || undefined,
-        telefone: state.telefone || undefined,
-  cpfcnpj: state.cpfcnpj || undefined,
-        address: state.address,
-        address_number: state.address_number,
-        complement: state.complement,
-        postal_code: state.postal_code,
-        province: state.province,
-        city: state.city,
+  // backend requires 'veiculo' (string)
+  veiculo: '',
+        // backend expects these fields as strings; send empty string if not provided
+        nome_completo: state.nome_completo || '',
+        telefone: state.telefone || '',
+        cpfcnpj: state.cpfcnpj || '',
+        address: state.address || '',
+        address_number: state.address_number || '',
+        complement: state.complement || '',
+        postal_code: state.postal_code || '',
+        province: state.province || '',
+        city: state.city || '',
         captcha_token: state.captchaToken,
         captcha_answer: state.captchaAnswer,
       };
+      // Log payload antes de enviar para facilitar debug (o usuário pediu)
+      // eslint-disable-next-line no-console
+      console.log('register payload ->', payload);
       const response = await axios.post<RegisterResponse>(
         '/api/register',
         payload,

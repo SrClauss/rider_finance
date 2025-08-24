@@ -27,8 +27,10 @@ import LoggedLayout from "@/layouts/LoggedLayout";
 import EditProfileModal from "@/modals/EditProfileModal";
 import { UsuarioMeResponse } from "@/interfaces/UsuarioMeResponse";
 import { Configuracao } from "@/interfaces/Configuracao";
+import { useRouter } from "next/navigation";
 
 export default function PerfilPage() {
+  const router = useRouter();
   const [usuario, setUsuario] = useState<UsuarioMeResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState("");
@@ -52,11 +54,11 @@ export default function PerfilPage() {
   const cfgs: Configuracao[] = res.data.configuracoes || [];
   const find = (k: string) => cfgs.find((c) => c.chave === k)?.valor;
   const pm = find("projecao_metodo");
-  if (pm) setProjecaoMetodo(pm);
+  if (pm) setProjecaoMetodo(validateProjecaoMetodo(pm));
   const ppe = find("projecao_percentual_extremos");
-  if (ppe) setProjecaoPercentualExtremos(parseInt(ppe, 10) || 10);
+  if (ppe) setProjecaoPercentualExtremos(validatePercentualExtremos(parseInt(ppe, 10)));
   const mm = find("mask_moeda");
-  if (mm) setMaskMoeda(mm);
+  if (mm) setMaskMoeda(normalizeMaskMoeda(mm));
       } catch (e) {
         if (!mounted) return;
         setErro("Erro ao carregar dados do perfil.");
@@ -69,6 +71,63 @@ export default function PerfilPage() {
       mounted = false;
     };
   }, []);
+
+  // --- helpers to validate/normalize configuration values ---
+  const allowedProjecaoMetodos = [
+    "mediana",
+    "media",
+    "media_movel_3",
+    "media_movel_7",
+    "media_movel_30",
+  ];
+
+  function validateProjecaoMetodo(v: string | undefined | null) {
+    if (!v) return "media_movel_3";
+    if (allowedProjecaoMetodos.includes(v)) return v;
+    // map some legacy or unexpected values
+    if (v.includes("media_movel")) return v; // keep if contains
+    if (v.includes("regressao")) return "media"; // fallback
+    return "media_movel_3";
+  }
+
+  function validatePercentualExtremos(n: number | undefined | null) {
+    const allowed = [5, 10, 15, 20, 25];
+    if (!n || !allowed.includes(n)) return 10;
+    return n;
+  }
+
+  function normalizeMaskMoeda(v: string | undefined | null) {
+    if (!v) return 'brl';
+    const s = String(v).toLowerCase();
+    if (s.includes('r$') || s.includes('brl') || s.includes('reais')) return 'brl';
+    if (s.includes('$') && !s.includes('r$')) return 'usd';
+    if (s.includes('€') || s.includes('eur')) return 'eur';
+    // some saved values might be format patterns like 'R$ #.##0,00'
+    if (s.match(/r\$|#.*0/)) return 'brl';
+    return 'brl';
+  }
+
+  function normalizeCurrencyValue(raw: any) {
+    if (raw == null) return '';
+    if (typeof raw === 'number') return raw.toFixed(2);
+    let s = String(raw).trim();
+    if (!s) return '';
+    // remove currency symbols and spaces
+    s = s.replace(/[^0-9,\.\-]/g, '');
+    // if contains both . and , assume . is thousand separator and , is decimal
+    if (s.indexOf('.') !== -1 && s.indexOf(',') !== -1) {
+      s = s.replace(/\./g, ''); // remove thousand sep
+      s = s.replace(/,/, '.'); // decimal
+    } else if (s.indexOf(',') !== -1 && s.indexOf('.') === -1) {
+      // only comma present => decimal
+      s = s.replace(/,/, '.');
+    } else {
+      // only dots or none: keep as is (dots might be decimal)
+    }
+    const n = parseFloat(s);
+    if (Number.isNaN(n)) return '';
+    return n.toFixed(2);
+  }
 
   const initials = usuario?.nome_completo
     ? usuario.nome_completo.split(" ").map((n) => n[0]).slice(0, 2).join("")
@@ -97,6 +156,60 @@ export default function PerfilPage() {
   setSnackMessage("Perfil atualizado com sucesso");
   setSnackOpen(true);
   }
+
+  // Reuso: inicia o fluxo de checkout utilizando fallback em /api/checkout-info quando necessário
+  async function startCheckout(payload: any) {
+    try {
+      // busca valor padrão do sistema caso não venha no payload
+      if (!payload.valor) {
+        try {
+          const cfg = await axios.get('/api/checkout-info');
+          payload.valor = cfg.data.valor || payload.valor || '';
+        } catch (e) {
+          // não fatal, apenas log
+          console.error('Falha ao buscar checkout-info:', e);
+        }
+      }
+      const res = await axios.post('/api/assinatura/checkout', payload);
+      const link = res.data?.link || res.data?.payment_url || res.data?.paymentUrl || res.data?.url;
+      if (link) {
+        window.location.href = link;
+      } else {
+        // if provider returned nested payment info, try common locations
+        const candidate = res.data?.payment?.url || res.data?.payment?.checkout_url || res.data?.data?.url;
+        if (candidate) {
+          window.location.href = candidate;
+          return;
+        }
+        // fallback: show a useful message and open raw response in new tab for manual action
+        console.error('Checkout retornou sem link:', res.data);
+        const msg = res.data?.mensagem || res.data?.message || 'Resposta de checkout sem link';
+        setSnackMessage(msg);
+        setSnackOpen(true);
+        try {
+          const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          window.open(url, '_blank');
+        } catch (e) {
+          // ignore
+        }
+      }
+    } catch (err: any) {
+      console.error('Erro ao iniciar checkout', err);
+      const msg = err?.response?.data?.mensagem || err?.response?.data?.message || err?.message || 'Erro ao iniciar checkout';
+      setSnackMessage(msg);
+      setSnackOpen(true);
+    }
+  }
+
+  const handleRenewSubscription = async () => {
+    if (!usuario) {
+      setErro('Usuário não encontrado. Por favor, recarregue a página.');
+      return;
+    }
+    // Redireciona para a página de renovação de checkout com id do usuário
+    router.push(`/renovacao-checkout?id_usuario=${usuario.id}`);
+  };
 
   return (
     <LoggedLayout>
@@ -189,13 +302,6 @@ export default function PerfilPage() {
                     </Box>
                   </Box>
                 </AccordionDetails>
-              </Accordion>
-
-              <Accordion sx={{ bgcolor: "transparent", color: "common.white", boxShadow: "none" }}>
-                <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ color: "common.white" }} />}>
-                  <Typography sx={{ fontSize: { xs: 14, sm: 15 } }}>Configurações</Typography>
-                </AccordionSummary>
-                <AccordionDetails sx={{ p: { xs: 1, sm: 2 } }}>{/* vazio - implementar depois */}</AccordionDetails>
               </Accordion>
 
               <Accordion sx={{ bgcolor: "transparent", color: "common.white", boxShadow: "none" }} expanded={editingConfigs} onChange={() => setEditingConfigs((s) => !s)}>
@@ -316,7 +422,57 @@ export default function PerfilPage() {
                 <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ color: "common.white" }} />}>
                   <Typography sx={{ fontSize: { xs: 14, sm: 15 } }}>Assinatura</Typography>
                 </AccordionSummary>
-                <AccordionDetails sx={{ p: { xs: 1, sm: 2 } }}>{/* vazio - implementar depois */}</AccordionDetails>
+                <AccordionDetails sx={{ p: { xs: 1, sm: 2 } }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    {usuario?.assinaturas && usuario.assinaturas.length > 0 ? (
+                      (() => {
+                        const a = usuario.assinaturas[0];
+                        const inicio = a.periodo_inicio ? new Date(a.periodo_inicio).toLocaleDateString() : '—';
+                        const fim = a.periodo_fim ? new Date(a.periodo_fim).toLocaleDateString() : '—';
+                        return (
+                          <>
+                            <Box>
+                              <Typography variant="subtitle2">Início da assinatura</Typography>
+                              <Typography variant="body2" sx={{ opacity: 0.85 }}>{inicio}</Typography>
+                            </Box>
+                            <Box>
+                              <Typography variant="subtitle2">Expira em</Typography>
+                              <Typography variant="body2" sx={{ opacity: 0.85 }}>{fim}</Typography>
+                            </Box>
+                            <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end', mt: 1 }}>
+                              <Button variant="outlined" color="inherit" size="small" onClick={handleRenewSubscription}>
+                                Renovar assinatura
+                              </Button>
+                            </Box>
+                          </>
+                        );
+                      })()
+                    ) : (
+                      <Box>
+                        <Typography variant="body2" sx={{ opacity: 0.85 }}>Nenhuma assinatura encontrada.</Typography>
+                        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+                          <Button variant="contained" onClick={async () => {
+                            const payload = {
+                              id_usuario: usuario!.id,
+                              valor: normalizeCurrencyValue((usuario as any).valor_assinatura || ''),
+                              nome: usuario!.nome_completo || usuario!.nome_usuario,
+                              cpf: usuario!.cpfcnpj || '',
+                              email: usuario!.email || '',
+                              telefone: usuario!.telefone || '',
+                              endereco: (usuario as any).address || '',
+                              numero: (usuario as any).address_number || '',
+                              complemento: (usuario as any).complement || '',
+                              cep: (usuario as any).postal_code || '',
+                              bairro: (usuario as any).province || '',
+                              cidade: (usuario as any).city || ''
+                            };
+                            await startCheckout(payload);
+                          }}>Assinar agora</Button>
+                        </Box>
+                      </Box>
+                    )}
+                  </Box>
+                </AccordionDetails>
               </Accordion>
 
               <Box sx={{ height: { xs: 28, sm: 16 } }} />

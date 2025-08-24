@@ -48,4 +48,6 @@ Thumbs.db
 
 # Cloudflare Tunnel
 /tunel/
-/context7/  
+/context7/
+
+/docs/

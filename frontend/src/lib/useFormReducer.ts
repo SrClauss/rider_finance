@@ -1,4 +1,4 @@
-import { useReducer } from 'react';
+import { useReducer, useCallback } from 'react';
 
 type InternalMeta = {
   loading?: boolean;
@@ -38,11 +38,11 @@ export default function useFormReducer<T extends Record<string, any>>(initialSta
   const reducer = createReducer<T>(initial);
   const [state, dispatch] = useReducer(reducer, initial);
 
-  const setField = (field: keyof T | string, value: any) => dispatch({ type: 'SET_FIELD', field, value });
-  const reset = () => dispatch({ type: 'RESET' });
-  const setLoading = (value: boolean) => dispatch({ type: 'SET_LOADING', value });
-  const setError = (value: string | null) => dispatch({ type: 'SET_ERROR', value });
-  const setState = (payload: Partial<T>) => dispatch({ type: 'SET_STATE', payload });
+  const setField = useCallback((field: keyof T | string, value: any) => dispatch({ type: 'SET_FIELD', field, value }), [dispatch]);
+  const reset = useCallback(() => dispatch({ type: 'RESET' }), [dispatch]);
+  const setLoading = useCallback((value: boolean) => dispatch({ type: 'SET_LOADING', value }), [dispatch]);
+  const setError = useCallback((value: string | null) => dispatch({ type: 'SET_ERROR', value }), [dispatch]);
+  const setState = useCallback((payload: Partial<T>) => dispatch({ type: 'SET_STATE', payload }), [dispatch]);
 
   return { state, dispatch, setField, reset, setLoading, setError, setState } as const;
 }

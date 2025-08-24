@@ -64,7 +64,7 @@ pub mod webhook {
 
         // --- Busca dados do cliente ---
         use crate::db;
-        use crate::schema::assinaturas::dsl::{assinaturas, id as assinatura_id, atualizado_em as assinatura_atualizado_em, periodo_inicio, periodo_fim, id_usuario};
+        use crate::schema::assinaturas::dsl::{assinaturas, id as assinatura_id, atualizado_em as assinatura_atualizado_em, periodo_fim, id_usuario};
         use crate::schema::usuarios::dsl::*;
         use diesel::prelude::*;
         use chrono::{Utc, Duration};
@@ -93,38 +93,54 @@ pub mod webhook {
         }
         let usuario = usuario_encontrado.unwrap();
         let hoje = Utc::now().naive_utc();
+    // Extrai id do webhook (será usado como asaas_subscription_id)
+    let webhook_id = payload.get("id").and_then(|v| v.as_str()).unwrap_or("webhook_seed").to_string();
+
     match assinaturas.filter(id_usuario.eq(&usuario.id)).order(periodo_fim.desc()).first::<crate::models::assinatura::Assinatura>(conn) {
-        Ok(mut assinatura) => {
-            // Se vencida
-            if assinatura.periodo_fim < hoje {
-                assinatura.periodo_inicio = hoje;
-                assinatura.periodo_fim = hoje + Duration::days(30);
-            } else {
-                assinatura.periodo_fim = assinatura.periodo_fim + Duration::days(30);
+        Ok(assinatura) => {
+            // Renova usando função centralizada
+            // Extrai quantity do payload (checkout.items[0].quantity) e usa como meses.
+            // Se não encontrar, usa 1 como fallback.
+            let meses_payload = payload.get("checkout")
+                .and_then(|c| c.get("items"))
+                .and_then(|it| it.as_array())
+                .and_then(|arr| arr.get(0))
+                .and_then(|item| item.get("quantity"))
+                .and_then(|q| q.as_i64())
+                .unwrap_or(1);
+
+            if let Err(e) = crate::services::assinatura::renovar_assinatura_por_usuario(usuario.id.clone(), meses_payload).await {
+                return (StatusCode::INTERNAL_SERVER_ERROR, Json(format!("Erro ao renovar assinatura: {}", e))).into_response();
             }
-            assinatura.atualizado_em = hoje;
+            // Atualiza o campo asaas_subscription_id para o id do webhook
+            use crate::schema::assinaturas::dsl::asaas_subscription_id;
             if let Err(e) = diesel::update(assinaturas.filter(assinatura_id.eq(&assinatura.id)))
-                .set((periodo_inicio.eq(assinatura.periodo_inicio), periodo_fim.eq(assinatura.periodo_fim), assinatura_atualizado_em.eq(assinatura.atualizado_em)))
+                .set((asaas_subscription_id.eq(webhook_id.clone()), assinatura_atualizado_em.eq(hoje)))
                 .execute(conn) {
-                return (StatusCode::INTERNAL_SERVER_ERROR, Json(format!("Erro ao atualizar assinatura: {:?}", e))).into_response();
+                return (StatusCode::INTERNAL_SERVER_ERROR, Json(format!("Erro ao atualizar asaas_subscription_id: {:?}", e))).into_response();
             }
         }
         Err(diesel::result::Error::NotFound) => {
-            // Cria nova assinatura
+            // Cria nova assinatura usando a função create_assinatura
+            let meses_payload = payload.get("checkout")
+                .and_then(|c| c.get("items"))
+                .and_then(|it| it.as_array())
+                .and_then(|arr| arr.get(0))
+                .and_then(|item| item.get("quantity"))
+                .and_then(|q| q.as_i64())
+                .unwrap_or(1);
+
             let nova = crate::models::assinatura::NewAssinatura {
                 id: ulid::Ulid::new().to_string(),
                 id_usuario: usuario.id.clone(),
-                asaas_subscription_id: "webhook_seed".to_string(), // ou extraia do payload se disponível
+                asaas_subscription_id: webhook_id.clone(),
                 periodo_inicio: hoje,
-                periodo_fim: hoje + Duration::days(30),
+                periodo_fim: hoje + Duration::days(30 * meses_payload),
                 criado_em: hoje,
                 atualizado_em: hoje,
             };
-            if let Err(e) = diesel::insert_into(assinaturas)
-                .values(&nova)
-                .execute(conn) {
-                return (StatusCode::INTERNAL_SERVER_ERROR, Json(format!("Erro ao criar assinatura: {:?}", e))).into_response();
-            }
+            // usamos a função pública do módulo de assinatura para criar (mantém lógica centralizada)
+            let _ = crate::services::assinatura::create_assinatura(axum::Json(nova)).await;
         }
         Err(e) => {
             return (StatusCode::INTERNAL_SERVER_ERROR, Json(format!("Erro ao buscar assinatura: {:?}", e))).into_response();

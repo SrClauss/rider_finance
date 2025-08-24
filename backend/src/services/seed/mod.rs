@@ -56,18 +56,34 @@ pub async fn seed_movimentacao_robusta() {
         email: "seed_user@teste.com".to_string(),
         senha: "senha123".to_string(),
     nome_completo: "Usuário Seed".to_string(),
-    telefone: "11999999999".to_string(),
+    // Telefone e CEP ajustados para formatos aceitos pela Asaas
+    telefone: "27998870163".to_string(),
     veiculo: "Carro".to_string(),
-        address: "Rua Seed".to_string(),
-        address_number: "123".to_string(),
-        complement: "Apto 1".to_string(),
-        postal_code: "01234567".to_string(),
-        province: "Centro".to_string(),
-        city: "São Paulo".to_string(),
+        address: "Rua Floriano Peixoto".to_string(),
+        address_number: "25".to_string(),
+        complement: "casa".to_string(),
+        postal_code: "69900100".to_string(),
+        province: "Papouco".to_string(),
+        city: "Rio Branco".to_string(),
     cpfcnpj: "12345678900".to_string(),
         captcha_token: None,
         captcha_answer: None,
     };
+    // Se já existir usuário seed (por email ou nome_usuario), reutiliza e atualiza campos
+    use crate::schema::usuarios::dsl::*;
+    let conn = &mut db::establish_connection();
+    let existing = usuarios
+        .filter(email.eq("seed_user@teste.com"))
+        .or_filter(nome_usuario.eq("seed_user"))
+        .first::<crate::models::usuario::Usuario>(conn)
+        .optional()
+        .expect("Erro ao buscar usuário seed");
+
+    // Se usuário seed já existir, não faz nada (idempotente e sem alterações)
+    if existing.is_some() {
+        return;
+    }
+
     // register_user_handler retorna Json<RegisterResponse>, extraímos o inner (.0)
     let resp = register_user_handler(Json(payload)).await;
     let resp_inner = resp.0; // RegisterResponse

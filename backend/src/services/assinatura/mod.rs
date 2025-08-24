@@ -1,294 +1,88 @@
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use axum::Json;
-    use std::env;
-    use mockito::{mock, Matcher};
-    use tokio;
-
-    #[tokio::test]
-    async fn test_criar_cliente_handler_mock() {
-        let _mock = mock("POST", "/")
-            .match_header("content-type", "application/json")
-            .match_header("access_token", Matcher::Any)
-            .with_status(200)
-            .with_body(r#"{"id":"123","paymentUrl":"https://mocked-payment-url.com"}"#)
-            .create();
-        env::set_var("END_POINT_ASSAS", &mockito::server_url());
-        env::set_var("ASAAS_API_KEY", "fake-key");
-        env::set_var("VALOR_ASSINATURA", "10.00");
-        let payload = CriarClientePayload { id_usuario: "user_test".to_string() };
-        let resp = criar_cliente_handler(Json(payload)).await;
-        let r = resp.0;
-        assert_eq!(r.status, "ok");
-        assert_eq!(r.id.unwrap(), "123");
-        assert_eq!(r.payment_url.unwrap(), "https://mocked-payment-url.com");
-    }
-
-    #[tokio::test]
-    async fn test_criar_checkout_handler_mock() {
-        let _mock = mock("POST", "/")
-            .match_header("content-type", "application/json")
-            .match_header("access_token", Matcher::Any)
-            .with_status(200)
-            .with_body(r#"{"id":"abc123","link":"https://mocked-link.com","paymentUrl":"https://mocked-payment-url.com"}"#)
-            .create();
-        env::set_var("END_POINT_ASSAS", &mockito::server_url());
-        env::set_var("ASAAS_API_KEY", "fake-key");
-        env::set_var("PIX_ENABLED", "false");
-        let payload = CriarCheckoutPayload {
-            id_usuario: "user_test".to_string(),
-            valor: "99.99".to_string(),
-            nome: "Teste".to_string(),
-            cpf: "12345678900".to_string(),
-            email: "teste@teste.com".to_string(),
-            telefone: "11999999999".to_string(),
-            endereco: "Rua Teste".to_string(),
-            numero: "123".to_string(),
-            complemento: "Apto 1".to_string(),
-            cep: "01234567".to_string(),
-            bairro: "Centro".to_string(),
-            cidade: "São Paulo".to_string(),
-        };
-        let resp = criar_checkout_handler(Json(payload)).await;
-        let r = resp.0;
-        assert_eq!(r.status, "ok");
-        assert_eq!(r.id.unwrap(), "abc123");
-        assert_eq!(r.link.unwrap(), "https://mocked-link.com");
-        assert_eq!(r.payment_url.unwrap(), "https://mocked-payment-url.com");
-    }
-
-    #[tokio::test]
-    async fn test_asaas_webhook_handler() {
-        let payload = AsaasWebhookPayload {
-            event: "PAYMENT_RECEIVED".to_string(),
-            payment: None,
-            subscription: None,
-            customer: None,
-        };
-        let resp = asaas_webhook_handler(Json(payload)).await;
-        assert_eq!(resp.0, "Pagamento recebido e processado");
-        let payload2 = AsaasWebhookPayload {
-            event: "SUBSCRIPTION_CREATED".to_string(),
-            payment: None,
-            subscription: None,
-            customer: None,
-        };
-        let resp2 = asaas_webhook_handler(Json(payload2)).await;
-        assert_eq!(resp2.0, "Assinatura criada");
-        let payload3 = AsaasWebhookPayload {
-            event: "OUTRO_EVENTO".to_string(),
-            payment: None,
-            subscription: None,
-            customer: None,
-        };
-        let resp3 = asaas_webhook_handler(Json(payload3)).await;
-        assert_eq!(resp3.0, "Evento não tratado: OUTRO_EVENTO");
-    }
-}
-pub mod asaas;
-mod checkout;
-
-// ...existing code...
-use crate::services::assinatura::asaas::criar_cliente_asaas;
-
-#[derive(Deserialize)]
-pub struct CriarClientePayload {
-    pub id_usuario: String,
-}
-
-pub async fn criar_cliente_handler(Json(payload): Json<CriarClientePayload>) -> Json<crate::services::assinatura::asaas::AsaasResponse> {
-    match criar_cliente_asaas(payload.id_usuario).await {
-        Ok(resp) => Json(resp),
-        Err(e) => Json(crate::services::assinatura::asaas::AsaasResponse {
-            status: "erro".to_string(),
-            id: None,
-            valor_assinatura: None,
-            payment_url: None,
-            mensagem: Some(e),
-        }),
-    }
-}
+pub mod checkout;
 use axum::Json;
-use crate::services::assinatura::checkout::{criar_checkout_asaas, CheckoutPayload, CheckoutResponse};
-
-#[derive(Deserialize)]
-pub struct CriarCheckoutPayload {
-    pub id_usuario: String,
-    pub valor: String,
-    pub nome: String,
-    pub cpf: String,
-    pub email: String,
-    pub telefone: String,
-    pub endereco: String,
-    pub numero: String,
-    pub complemento: String,
-    pub cep: String,
-    pub bairro: String,
-    pub cidade: String,
-}
-
-pub async fn criar_checkout_handler(Json(payload): Json<CriarCheckoutPayload>) -> Json<CheckoutResponse> {
-    let checkout_payload = CheckoutPayload {
-        id_usuario: payload.id_usuario,
-        valor: payload.valor,
-        nome: payload.nome,
-        cpf: payload.cpf,
-        email: payload.email,
-        telefone: payload.telefone,
-        endereco: payload.endereco,
-        numero: payload.numero,
-        complemento: payload.complemento,
-        cep: payload.cep,
-        bairro: payload.bairro,
-        cidade: payload.cidade,
-    };
-    match criar_checkout_asaas(checkout_payload).await {
-        Ok(resp) => Json(resp),
-        Err(e) => Json(CheckoutResponse {
-            status: "erro".to_string(),
-            link: None,
-            id: None,
-            payment_url: None,
-            mensagem: Some(e),
-        }),
-    }
-}
-use axum::{ extract::Path};
-use diesel::prelude::*;
-use serde::{Serialize, Deserialize};
-use chrono::NaiveDateTime;
-use crate::db;
-use crate::schema::assinaturas::dsl::*;
+use diesel::{ExpressionMethods, OptionalExtension, QueryDsl, RunQueryDsl};
 use crate::models::assinatura::{Assinatura, NewAssinatura};
+use crate::db;
+use crate::schema::assinaturas::dsl::{assinaturas, id as assinatura_id, periodo_inicio, periodo_fim, atualizado_em as assinatura_atualizado_em, id_usuario as assinatura_id_usuario};
+use chrono::{Utc, Duration};
 
-#[derive(Deserialize)]
-pub struct CreateAssinaturaPayload {
-    pub id_usuario: String,
-    pub asaas_subscription_id: String,
-    pub periodo_inicio: NaiveDateTime,
-    pub periodo_fim: NaiveDateTime,
-}
-
-#[derive(Serialize)]
-pub struct AssinaturaResponse {
-    pub id: String,
-    pub id_usuario: String,
-    pub asaas_subscription_id: String,
-    pub periodo_inicio: NaiveDateTime,
-    pub periodo_fim: NaiveDateTime,
-    pub criado_em: NaiveDateTime,
-    pub atualizado_em: NaiveDateTime,
-}
-
-pub async fn create_assinatura_handler(Json(payload): Json<CreateAssinaturaPayload>) -> Json<AssinaturaResponse> {
-    let conn = &mut db::establish_connection();
-    let now = chrono::Utc::now().naive_utc();
-    let nova_assinatura = NewAssinatura {
-        id: ulid::Ulid::new().to_string(),
-        id_usuario: payload.id_usuario,
-        asaas_subscription_id: payload.asaas_subscription_id,
+pub async fn create_assinatura(
+    payload: Json<NewAssinatura>,
+) -> Json<Assinatura> {
+    let mut conn = db::establish_connection();
+    let new_assinatura = NewAssinatura {
+        id: uuid::Uuid::new_v4().to_string(),
+        id_usuario: payload.id_usuario.clone(),
+        asaas_subscription_id: payload.asaas_subscription_id.clone(),
         periodo_inicio: payload.periodo_inicio,
         periodo_fim: payload.periodo_fim,
-        criado_em: now,
-        atualizado_em: now,
+        criado_em: payload.criado_em,
+        atualizado_em: payload.atualizado_em,
     };
-    diesel::insert_into(assinaturas)
-        .values(&nova_assinatura)
-        .execute(conn)
+    let inserted_assinatura: Assinatura = diesel::insert_into(crate::schema::assinaturas::dsl::assinaturas)
+        .values(&new_assinatura)
+        .get_result(&mut conn)
         .expect("Erro ao inserir assinatura");
-    Json(AssinaturaResponse {
-        id: nova_assinatura.id,
-        id_usuario: nova_assinatura.id_usuario,
-        asaas_subscription_id: nova_assinatura.asaas_subscription_id,
-        periodo_inicio: nova_assinatura.periodo_inicio,
-        periodo_fim: nova_assinatura.periodo_fim,
-        criado_em: nova_assinatura.criado_em,
-        atualizado_em: nova_assinatura.atualizado_em,
-    })
+    Json(inserted_assinatura)
 }
 
-pub async fn get_assinatura_handler(Path(id_param): Path<String>) -> Json<Option<AssinaturaResponse>> {
+
+pub async fn get_assinatura_by_usuario_handler(
+    Json(usuario_id_payload): Json<String>,
+) -> Json<Option<Assinatura>> {
+    let mut conn = db::establish_connection();
+    let result = crate::schema::assinaturas::dsl::assinaturas
+        .filter(crate::schema::assinaturas::dsl::id_usuario.eq(&usuario_id_payload))
+        .first::<Assinatura>(&mut conn)
+        .optional()
+        .expect("Erro ao buscar assinatura por usuário");
+    Json(result)
+}
+
+
+pub async fn create_assinatura_handler(
+    Json(payload): Json<NewAssinatura>,
+) -> Json<Assinatura> {
+    create_assinatura(axum::Json(payload)).await
+}
+
+/// Renova a assinatura do usuário adicionando `meses` * 30 dias ao `periodo_fim` da assinatura mais recente.
+/// `meses` deve ser >= 1. Retorna Ok(()) em sucesso ou Err(String) com mensagem de erro.
+pub async fn renovar_assinatura_por_usuario(id_usuario_param: String, meses: i64) -> Result<(), String> {
+    if meses < 1 {
+        return Err("meses deve ser >= 1".to_string());
+    }
+
+    // Operação de DB feita de forma síncrona, mas função é async para facilitar chamada interna
     let conn = &mut db::establish_connection();
-    match assinaturas.filter(id.eq(id_param)).first::<Assinatura>(conn) {
-        Ok(a) => Json(Some(AssinaturaResponse {
-            id: a.id,
-            id_usuario: a.id_usuario,
-            asaas_subscription_id: a.asaas_subscription_id,
-            periodo_inicio: a.periodo_inicio,
-            periodo_fim: a.periodo_fim,
-            criado_em: a.criado_em,
-            atualizado_em: a.atualizado_em,
-        })),
-        Err(_) => Json(None),
+    let hoje = Utc::now().naive_utc();
+    let delta = Duration::days(30 * meses);
+
+    match assinaturas
+        .filter(assinatura_id_usuario.eq(&id_usuario_param))
+        .order(periodo_fim.desc())
+        .first::<Assinatura>(conn)
+    {
+        Ok(mut a) => {
+            if a.periodo_fim < hoje {
+                a.periodo_inicio = hoje;
+                a.periodo_fim = hoje + delta;
+            } else {
+                a.periodo_fim = a.periodo_fim + delta;
+            }
+            a.atualizado_em = hoje;
+
+            diesel::update(assinaturas.filter(assinatura_id.eq(&a.id)))
+                .set((periodo_inicio.eq(a.periodo_inicio), periodo_fim.eq(a.periodo_fim), assinatura_atualizado_em.eq(a.atualizado_em)))
+                .execute(conn)
+                .map_err(|e| format!("Erro ao atualizar assinatura: {:?}", e))?;
+
+            Ok(())
+        }
+        Err(diesel::result::Error::NotFound) => Err(format!("Assinatura não encontrada para usuário: {}", id_usuario_param)),
+        Err(e) => Err(format!("Erro ao buscar assinatura: {:?}", e)),
     }
 }
 
-pub async fn list_assinaturas_handler(Path(id_usuario_param): Path<String>) -> Json<Vec<AssinaturaResponse>> {
-    let conn = &mut db::establish_connection();
-    let results = assinaturas
-        .filter(id_usuario.eq(id_usuario_param))
-        .order(periodo_inicio.desc())
-        .load::<Assinatura>(conn)
-        .unwrap_or_default();
-    Json(results.into_iter().map(|a| AssinaturaResponse {
-        id: a.id,
-        id_usuario: a.id_usuario,
-        asaas_subscription_id: a.asaas_subscription_id,
-        periodo_inicio: a.periodo_inicio,
-        periodo_fim: a.periodo_fim,
-        criado_em: a.criado_em,
-        atualizado_em: a.atualizado_em,
-    }).collect())
-}
 
-pub async fn delete_assinatura_handler(Path(id_param): Path<String>) -> Json<bool> {
-    let conn = &mut db::establish_connection();
-    let count = diesel::delete(assinaturas.filter(id.eq(id_param))).execute(conn).unwrap_or(0);
-    Json(count > 0)
-}
-
-#[derive(Deserialize, Debug)]
-pub struct AsaasWebhookPayload {
-    pub event: String,
-    pub payment: Option<serde_json::Value>,
-    pub subscription: Option<serde_json::Value>,
-    pub customer: Option<serde_json::Value>,
-    // Adicione outros campos conforme necessário
-}
-
-pub async fn asaas_webhook_handler(Json(payload): Json<AsaasWebhookPayload>) -> Json<String> {
-    // Exemplo: processar evento de pagamento
-    match payload.event.as_str() {
-        "PAYMENT_RECEIVED" => {
-            // Aqui você pode atualizar status da assinatura, gerar notificação, etc.
-            // Exemplo: buscar id_usuario pelo payment ou subscription e atualizar
-            // TODO: implementar lógica completa conforme doc Asaas
-            Json("Pagamento recebido e processado".to_string())
-        },
-        "SUBSCRIPTION_CREATED" => {
-            // Lógica para assinatura criada
-            Json("Assinatura criada".to_string())
-        },
-        _ => Json(format!("Evento não tratado: {}", payload.event)),
-    }
-}
-pub async fn get_assinatura_by_usuario_handler(Path(id_usuario_param): Path<String>) -> Json<Vec<AssinaturaResponse>> {
-    println!("Buscando assinaturas para usuário: {}", id_usuario_param);
-    let conn = &mut db::establish_connection();
-    let results = assinaturas
-        .filter(id_usuario.eq(id_usuario_param))
-        .order(periodo_inicio.desc())
-        .load::<Assinatura>(conn)
-        .unwrap_or_default();
-    Json(results.into_iter().map(|a| AssinaturaResponse {
-        id: a.id,
-        id_usuario: a.id_usuario,
-        asaas_subscription_id: a.asaas_subscription_id,
-        periodo_inicio: a.periodo_inicio,
-        periodo_fim: a.periodo_fim,
-        criado_em: a.criado_em,
-        atualizado_em: a.atualizado_em,
-    }).collect())
-}
 

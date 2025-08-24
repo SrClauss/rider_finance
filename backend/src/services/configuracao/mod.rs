@@ -222,6 +222,14 @@ pub async fn create_configuracao_handler(
         atualizado_em: now,
         ..payload
     };
+    // Prevent creating configuration with the reserved seed ULID or creating a global valor_assinatura
+    let reserved_ulid = std::env::var("SEED_VALOR_ASSINATURA_ULID").unwrap_or_else(|_| "01K3E3VRQ0FAXB6XMC94ZQ9GHA".to_string());
+    if new.id == reserved_ulid {
+        return Err("Criação proibida: id reservado para configuração de seed".to_string());
+    }
+    if new.chave == "valor_assinatura" && new.id_usuario.is_none() {
+        return Err("Criação proibida: já existe uma configuração global 'valor_assinatura' gerenciada pelo sistema".to_string());
+    }
     diesel::insert_into(configuracoes)
         .values(&new)
         .get_result(conn)
@@ -379,8 +387,10 @@ pub fn seed_configuracoes_padrao(conn: &mut diesel::PgConnection) {
         .filter(crate::schema::configuracoes::chave.eq("valor_assinatura"))
         .first::<Configuracao>(conn)
         .is_err() {
+        // Use fixed ULID from environment to make this config immutable by creation
+        let reserved_ulid = std::env::var("SEED_VALOR_ASSINATURA_ULID").unwrap_or_else(|_| "01K3E3VRQ0FAXB6XMC94ZQ9GHA".to_string());
         configs.push(NewConfiguracao {
-            id: Ulid::new().to_string(),
+            id: reserved_ulid,
             id_usuario: None,
             chave: "valor_assinatura".to_string(),
             valor: Some(valor_assinatura.clone()),

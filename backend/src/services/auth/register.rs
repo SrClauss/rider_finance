@@ -56,7 +56,7 @@ mod tests {
     }
 }
 use serde::Deserialize;
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct RegisterPayload {
     pub nome_usuario: String,
     pub email: String,
@@ -105,6 +105,8 @@ pub struct RegisterResponse {
 }
 
 pub async fn register_user_handler(Json(payload): Json<RegisterPayload>) -> Json<RegisterResponse> {
+    // Imprime payload recebido para debug conforme solicitado
+    println!("[register handler] payload received: {:?}", payload);
     let usuario = NewUsuario::new(
         None,
         payload.nome_usuario.clone(),
@@ -144,21 +146,38 @@ pub async fn register_user_handler(Json(payload): Json<RegisterPayload>) -> Json
                 .load(conn)
                 .unwrap_or_default();
             let now = Utc::now().naive_utc();
-            let novas: Vec<NewConfiguracao> = padroes.into_iter().map(|cfg| NewConfiguracao {
-                id: ulid::Ulid::new().to_string(),
-                id_usuario: Some(user_id.clone()),
-                chave: cfg.chave,
-                valor: cfg.valor,
-                categoria: cfg.categoria,
-                descricao: cfg.descricao,
-                tipo_dado: cfg.tipo_dado,
-                eh_publica: cfg.eh_publica,
-                criado_em: now,
-                atualizado_em: now,
-            }).collect();
-            let _ = diesel::insert_into(cfg_dsl::configuracoes)
-                .values(&novas)
-                .execute(conn);
+            // Para idempotência: verifique quais chaves já existem para o usuário e insira apenas as faltantes
+            let existing_for_user: Vec<crate::models::configuracao::Configuracao> = cfg_dsl::configuracoes
+                .filter(cfg_dsl::id_usuario.eq(Some(user_id.clone())).and(cfg_dsl::chave.eq_any(&allowed)))
+                .load(conn)
+                .unwrap_or_default();
+            let mut present_keys = std::collections::HashSet::new();
+            for e in existing_for_user.iter() { present_keys.insert(e.chave.clone()); }
+
+            let mut to_insert: Vec<NewConfiguracao> = Vec::new();
+            for cfg in padroes.into_iter() {
+                if present_keys.contains(&cfg.chave) {
+                    // já existe para o usuário: pular
+                    continue;
+                }
+                to_insert.push(NewConfiguracao {
+                    id: ulid::Ulid::new().to_string(),
+                    id_usuario: Some(user_id.clone()),
+                    chave: cfg.chave,
+                    valor: cfg.valor,
+                    categoria: cfg.categoria,
+                    descricao: cfg.descricao,
+                    tipo_dado: cfg.tipo_dado,
+                    eh_publica: cfg.eh_publica,
+                    criado_em: now,
+                    atualizado_em: now,
+                });
+            }
+            if !to_insert.is_empty() {
+                let _ = diesel::insert_into(cfg_dsl::configuracoes)
+                    .values(&to_insert)
+                    .execute(conn);
+            }
             // --- FIM: Cópia de configurações padrão ---
             Json(RegisterResponse {
                 status: "ok".to_string(),

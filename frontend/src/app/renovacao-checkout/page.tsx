@@ -1,18 +1,15 @@
 "use client";
 
-import { Box, Card, CardContent, Typography, Button, Divider, TextField } from '@mui/material';
-import { useRouter } from 'next/navigation';
-import NextLink from 'next/link';
 import React, { useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
 import axios from 'axios';
+import { Box, Card, CardContent, Typography, Button, Divider, TextField } from '@mui/material';
+import { useSearchParams } from 'next/navigation';
 import { ConfiguracoesSistema } from '../../interfaces/ConfiguracoesSistema';
 import {ThemeProvider} from '@/theme/ThemeProvider';
 import { UsuarioRegisterPayload } from '@/interfaces/UsuarioRegisterPayload';
 import AssinaturaModal from '@/modals/AssinaturaModal';
 
-export default function AssinaturaPage() {
-
+export default function RenovacaoCheckout() {
   const [isClient, setIsClient] = useState(false);
   const [valor, setValor] = useState('');
   const [loading, setLoading] = useState(true);
@@ -21,86 +18,67 @@ export default function AssinaturaPage() {
   const [assinatura, setAssinatura] = useState<any | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [diasRestantes, setDiasRestantes] = useState<number | null>(null);
-  const [meses, setMeses] = useState(1); // Novo estado para quantidade de meses
+  const [meses, setMeses] = useState(1);
+
   const searchParams = useSearchParams();
   const idUsuario = searchParams.get('id_usuario') || '';
 
   useEffect(() => {
     setIsClient(true);
-    if (!idUsuario) return;
-    axios.get<ConfiguracoesSistema>(`/api/checkout-info?id_usuario=${idUsuario}`)
-      .then(res => {
-        setValor(res.data.valor ?? '');
-        setLoading(false);
-      })
-      .catch(() => {
+    if (!idUsuario) {
+      // if no id provided, stop loading and show form in minimal mode
+      setLoading(false);
+      return;
+    }
+    (async () => {
+      try {
+        const cfgRes = await axios.get<ConfiguracoesSistema>(`/api/checkout-info?id_usuario=${idUsuario}`);
+        setValor(cfgRes.data.valor ?? '');
+      } catch (e) {
         setError('Erro ao buscar configurações do sistema');
-        setLoading(false);
-      });
-    axios.get(`/api/usuario/${idUsuario}`)
-      .then(res => {
+      }
+      try {
+        const userRes = await axios.get(`/api/usuario/${idUsuario}`);
         const usuarioData = {
-          id: res.data.id,
-          nome_usuario: res.data.nome_usuario,
-          email: res.data.email,
-          senha: res.data.senha,
-          nome_completo: res.data.nome_completo,
-          telefone: res.data.telefone,
-          veiculo: res.data.veiculo,
-          data_inicio_atividade: res.data.data_inicio_atividade,
-          eh_pago: res.data.eh_pago,
-          id_pagamento: res.data.id_pagamento,
-          metodo_pagamento: res.data.metodo_pagamento,
-          status_pagamento: res.data.status_pagamento,
-          tipo_assinatura: res.data.tipo_assinatura,
-          trial_termina_em: res.data.trial_termina_em,
-          criado_em: res.data.criado_em,
-          atualizado_em: res.data.atualizado_em,
-          ultima_tentativa_redefinicao: res.data.ultima_tentativa_redefinicao,
-          address: res.data.address,
-          address_number: res.data.address_number,
-          complement: res.data.complement,
-          postal_code: res.data.postal_code,
-          province: res.data.province,
-          city: res.data.city,
-          cpfcnpj: res.data.cpfcnpj,
-          captcha_token: res.data.captcha_token,
-          captcha_answer: res.data.captcha_answer
-        }
+          id: userRes.data.id,
+          nome_usuario: userRes.data.nome_usuario,
+          email: userRes.data.email,
+          senha: userRes.data.senha,
+          nome_completo: userRes.data.nome_completo,
+          telefone: userRes.data.telefone,
+          veiculo: userRes.data.veiculo,
+          data_inicio_atividade: userRes.data.data_inicio_atividade,
+          eh_pago: userRes.data.eh_pago,
+          id_pagamento: userRes.data.id_pagamento,
+          metodo_pagamento: userRes.data.metodo_pagamento,
+          status_pagamento: userRes.data.status_pagamento,
+          tipo_assinatura: userRes.data.tipo_assinatura,
+          trial_termina_em: userRes.data.trial_termina_em,
+          criado_em: userRes.data.criado_em,
+          atualizado_em: userRes.data.atualizado_em,
+          ultima_tentativa_redefinicao: userRes.data.ultima_tentativa_redefinicao,
+          address: userRes.data.address,
+          address_number: userRes.data.address_number,
+          complement: userRes.data.complement,
+          postal_code: userRes.data.postal_code,
+          province: userRes.data.province,
+          city: userRes.data.city,
+          cpfcnpj: userRes.data.cpfcnpj,
+          captcha_token: userRes.data.captcha_token,
+          captcha_answer: userRes.data.captcha_answer
+        };
         setUsuario(usuarioData);
-      })
-      .catch(() => {});
+      } catch (e) {
+        // ignore
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, [idUsuario]);
 
-  function sanitizePhone(raw?: string | null) {
-    if (!raw) return null;
-    const d = String(raw).replace(/\D/g, '');
-    if (d.length === 11 || d.length === 10) return '55' + d;
-    if (d.length === 13 && d.startsWith('55')) return d;
-    return null;
-  }
-
-  function sanitizeCep(raw?: string | null) {
-    if (!raw) return null;
-    const d = String(raw).replace(/\D/g, '');
-    if (d.length === 8) return d;
-    return null;
-  }
-
-  // update handleCheckout to use sanitized values
-  const handleCheckout = async () => {
+  const handleRenew = async () => {
     if (!usuario) {
       setError('Usuário não encontrado. Por favor, recarregue a página.');
-      return;
-    }
-    const phoneSan = sanitizePhone(usuario.telefone);
-    const cepSan = sanitizeCep(usuario.postal_code);
-    if (!phoneSan) {
-      setError('Telefone inválido. Informe DDD + número (ex: 11999999999)');
-      return;
-    }
-    if (!cepSan) {
-      setError('CEP inválido. Informe 8 dígitos (ex: 01234567)');
       return;
     }
     try {
@@ -111,25 +89,31 @@ export default function AssinaturaPage() {
         nome: usuario.nome_completo,
         cpf: usuario.cpfcnpj || '',
         email: usuario.email || '',
-        telefone: phoneSan,
+        telefone: usuario.telefone || '',
         endereco: usuario.address || '',
         numero: usuario.address_number || '',
         complemento: usuario.complement || '',
-        cep: cepSan,
+        cep: usuario.postal_code || '',
         bairro: usuario.province || '',
         cidade: usuario.city || ''
       });
-      const link = res.data.link;
+      const link = res.data?.link || res.data?.payment_url || res.data?.paymentUrl || res.data?.url;
       if (link) {
         window.location.href = link;
       } else {
-        setError('Erro ao criar checkout');
+        const msg = res.data?.mensagem || res.data?.message || 'Erro ao criar checkout (sem link)';
+        setError(msg);
+        console.error('Checkout sem link:', res.data);
+        alert(msg);
       }
-    } catch (err) {
-      setError('Erro ao criar checkout');
+    } catch (err: any) {
+      console.error('Erro ao criar checkout:', err);
+      const resp = err?.response?.data;
+      const msg = resp?.mensagem || resp?.message || (resp ? JSON.stringify(resp) : err.message || 'Erro ao criar checkout');
+      setError(msg);
+      alert(msg);
     }
   };
-
 
   if (!isClient) return null;
   if (loading) {
@@ -138,7 +122,7 @@ export default function AssinaturaPage() {
         <Card sx={{ maxWidth: 400, width: '100%', backgroundColor: 'background.paper', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
           <CardContent sx={{ p: 4 }}>
             <Typography variant="h5" fontWeight={700} gutterBottom textAlign="center">
-              Assinatura
+              Renovação
             </Typography>
             <Typography variant="body1" color="text.secondary" textAlign="center" sx={{ mb: 2 }}>
               Carregando...
@@ -155,14 +139,13 @@ export default function AssinaturaPage() {
         <Card sx={{ maxWidth: 500, width: '100%', bgcolor: 'cardGray', border: 1, borderColor: 'borderGray', boxShadow: '0 4px 24px rgba(0,0,0,0.5)', borderRadius: 4, p: 0 }}>
           <CardContent sx={{ p: 4 }}>
             <Typography variant="h4" fontWeight={700} gutterBottom textAlign="center" color="primary">
-              Assinatura Premium
+              Renovação de Assinatura
             </Typography>
             <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ mb: 2 }}>
-              Desbloqueie recursos exclusivos, relatórios avançados e suporte prioritário!
+              Que bom que você quer continuar conosco! Escolha quantos meses deseja renovar e prossiga para o pagamento.
             </Typography>
             <Divider sx={{ my: 2, bgcolor: 'borderGray' }} />
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-              
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <Typography variant="body2" color="text.secondary">Nome de usuário:</Typography>
                 <Typography variant="body1" fontWeight={600} color="primary">
@@ -194,7 +177,7 @@ export default function AssinaturaPage() {
             <Divider sx={{ my: 2, bgcolor: 'borderGray' }} />
             <Box sx={{ textAlign: 'center', mb: 2 }}>
               <Typography variant="body1" color="text.secondary" sx={{ mb: 1 }}>
-                Valor da assinatura:
+                Valor da renovação:
               </Typography>
               <Typography variant="h4" color="primary" textAlign="center" sx={{ mb: 2 }}>
                 {error ? error : `R$ ${valor}`}
@@ -202,15 +185,16 @@ export default function AssinaturaPage() {
             </Box>
             <Divider sx={{ my: 2, bgcolor: 'borderGray' }} />
             <Button
-              onClick={handleCheckout}
+              onClick={handleRenew}
               fullWidth
               variant="contained"
               size="large"
               sx={{ fontWeight: 700, height: 48, bgcolor: 'primary.main', color: 'primary.contrastText', boxShadow: 2 }}
               disabled={!idUsuario || !valor || !!error}
             >
-              {loading ? 'Processando...' : 'Ir para pagamento'}
+              {loading ? 'Processando...' : 'Prosseguir para pagamento'}
             </Button>
+
             <AssinaturaModal 
               open={modalOpen} 
               diasRestantes={diasRestantes} 
@@ -218,7 +202,6 @@ export default function AssinaturaPage() {
               onClose={() => setModalOpen(false)}
               onRenovar={async () => {
                 setModalOpen(false);
-                // Executa fluxo de renovação normalmente
                 if (!idUsuario || !valor || !!error) return;
                 if (!usuario || !usuario.nome_completo || usuario.nome_completo.trim().length < 2) {
                   setError('Preencha o nome completo para continuar');
@@ -228,6 +211,7 @@ export default function AssinaturaPage() {
                   const res = await axios.post('/api/assinatura/checkout', {
                     id_usuario: idUsuario,
                     valor,
+                    meses,
                     nome: usuario.nome_completo,
                     cpf: usuario.cpfcnpj || '',
                     email: usuario.email || '',
@@ -239,7 +223,7 @@ export default function AssinaturaPage() {
                     bairro: usuario.province || '',
                     cidade: usuario.city || ''
                   });
-                  const link = res.data.link;
+                  const link = res.data?.link || res.data?.payment_url || res.data?.paymentUrl || res.data?.url;
                   if (link) {
                     window.location.href = link;
                   } else {
@@ -250,6 +234,7 @@ export default function AssinaturaPage() {
                 }
               }}
             />
+
           </CardContent>
         </Card>
       </Box>
@@ -257,19 +242,13 @@ export default function AssinaturaPage() {
   );
 }
 
-
-
-
 function formatCpfCnpj(value?: string) {
   if (!value) return '';
   const onlyDigits = value.replace(/\D/g, '');
   if (onlyDigits.length === 11) {
-    // CPF: 000.000.000-00
     return onlyDigits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
   } else if (onlyDigits.length === 14) {
-    // CNPJ: 00.000.000/0000-00
     return onlyDigits.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
   }
   return value;
 }
-

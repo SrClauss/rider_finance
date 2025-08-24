@@ -32,6 +32,7 @@ mod tests {
             cep: "01234567".to_string(),
             bairro: "Centro".to_string(),
             cidade: "São Paulo".to_string(),
+            meses: 1,
         };
 
         let result = criar_checkout_asaas(payload).await;
@@ -48,6 +49,7 @@ use std::env;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use hyper::http::HeaderValue;
+use axum::{Json};
 
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -64,6 +66,7 @@ pub struct CheckoutPayload {
     pub cep: String,
     pub bairro: String,
     pub cidade: String,
+    pub meses: i64,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -106,7 +109,7 @@ pub async fn criar_checkout_asaas(payload: CheckoutPayload) -> Result<CheckoutRe
         "items": [{
             "name": "Assinatura Rider Finance",
             "description": "Acesso completo à plataforma",
-            "quantity": 1,
+            "quantity": payload.meses,
             "value": payload.valor
         }],
         "customerData": {
@@ -145,17 +148,34 @@ pub async fn criar_checkout_asaas(payload: CheckoutPayload) -> Result<CheckoutRe
             mensagem: None,
         })
     } else {
-        // Captura erros detalhados
-        //println!("Erro Asaas: {}", serde_json::to_string_pretty(&resp_body).unwrap());
-        //if let Some(errors) = resp_body.get("errors") {
-        //    println!("Detalhes dos erros: {}", serde_json::to_string_pretty(errors).unwrap());
-        //}
+        // Captura erros detalhados e expõe o body inteiro quando não houver campo 'message'
+        let fallback_msg = serde_json::to_string(&resp_body).unwrap_or_else(|_| "Resposta inválida da Asaas".to_string());
+        let mensagem = resp_body
+            .get("message")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
+            .unwrap_or(fallback_msg);
         Ok(CheckoutResponse {
             status: "erro".to_string(),
             link: None,
             id: None,
             payment_url,
-            mensagem: resp_body.get("message").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            mensagem: Some(mensagem),
         })
+    }
+}
+
+pub async fn criar_checkout_asaas_handler(
+    Json(payload): Json<CheckoutPayload>,
+) -> Json<CheckoutResponse> {
+    match criar_checkout_asaas(payload).await {
+        Ok(response) => Json(response),
+        Err(error) => Json(CheckoutResponse {
+            status: "erro".to_string(),
+            id: None,
+            link: None,
+            payment_url: None,
+            mensagem: Some(error),
+        }),
     }
 }
