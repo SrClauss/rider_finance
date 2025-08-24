@@ -65,9 +65,10 @@ export default function DashboardChartsSection({ data, selectedTab }: DashboardC
         );
     }
 
-    const xAxisData = Array.from({ length: chartData.series.length }, (_, i) => {
+    const seriesData = chartData.series || [];
+    const xAxisData = Array.from({ length: seriesData.length }, (_, i) => {
         const date = new Date();
-        date.setDate(date.getDate() - (chartData.series.length - 1 - i));
+        date.setDate(date.getDate() - (seriesData.length - 1 - i));
         return chartPeriod === '7dias' 
             ? date.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit' })
             : date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
@@ -157,7 +158,7 @@ export default function DashboardChartsSection({ data, selectedTab }: DashboardC
                                 }
                             }]}
                             series={[{
-                                data: chartData.series,
+                                data: seriesData,
                                 color: chartData.color,
                                 curve: 'catmullRom',
                                 area: true,
@@ -192,7 +193,8 @@ export default function DashboardChartsSection({ data, selectedTab }: DashboardC
             {/* Estatísticas resumidas */}
             <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-around', flexWrap: 'wrap', gap: 2 }}>
                 {(() => {
-                    const values = chartData.series;
+                    const values = seriesData;
+                    if (values.length === 0) return null;
                     const total = values.reduce((sum, val) => sum + val, 0);
                     const average = total / values.length;
                     const max = Math.max(...values);
