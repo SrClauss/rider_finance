@@ -17,6 +17,7 @@
     "@mui/x-charts": "^8.10.0",
     "axios": "^1.11.0",
     "dayjs": "^1.11.13",
+    "framer-motion": "^12.23.12",
     "next": "^15.5.0",
     "react": "19.1.1",
     "react-dom": "19.1.1",

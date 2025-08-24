@@ -251,7 +251,7 @@ export default function DashboardMetricsCarousel({
                                                 {item.label}
                                             </Typography>
                                             <Typography variant="h5" sx={{ fontWeight: 700, color: item.color }}>
-                                                {formatValue(item.value, item.format)}
+                                                {formatValue(item.value ?? null, item.format)}
                                             </Typography>
                                         </Box>
                                         {item.previous !== null && getPercentChange(item.value, item.previous) && (
