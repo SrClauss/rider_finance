@@ -89,7 +89,7 @@ pub async fn seed_movimentacao_robusta() {
     let resp_inner = resp.0; // RegisterResponse
     let id_user: String = resp_inner.id.expect("Falha ao criar usuário seed");
     // Cria categorias padrão para o usuário seed: Corrida Uber, Corrida 99, Abastecimento, Alimentação
-    use crate::services::categoria::{CreateCategoriaPayload, create_categoria_handler};
+    use crate::services::categoria::{CreateCategoriaPayload, create_categoria_internal};
     let payload_uber = CreateCategoriaPayload {
         id_usuario: Some(id_user.clone()),
         nome: "Corrida Uber".to_string(),
@@ -97,7 +97,7 @@ pub async fn seed_movimentacao_robusta() {
         icone: Some("fab fa-uber".to_string()),
         cor: Some("#000000".to_string()),
     };
-    let resp_uber = create_categoria_handler(axum::Json(payload_uber)).await;
+    let resp_uber = create_categoria_internal(axum::Json(payload_uber)).await;
     let id_categoria_entrada = resp_uber.id.clone();
 
     let payload_99 = CreateCategoriaPayload {
@@ -107,7 +107,7 @@ pub async fn seed_movimentacao_robusta() {
         icone: Some("fas fa-car-side".to_string()),
         cor: Some("#111111".to_string()),
     };
-    let _ = create_categoria_handler(axum::Json(payload_99)).await;
+    let _ = create_categoria_internal(axum::Json(payload_99)).await;
 
     let payload_abastecimento = CreateCategoriaPayload {
         id_usuario: Some(id_user.clone()),
@@ -116,7 +116,7 @@ pub async fn seed_movimentacao_robusta() {
         icone: Some("fas fa-gas-pump".to_string()),
         cor: Some("#FF9800".to_string()),
     };
-    let resp_abaste = create_categoria_handler(axum::Json(payload_abastecimento)).await;
+    let resp_abaste = create_categoria_internal(axum::Json(payload_abastecimento)).await;
     let id_categoria_saida = resp_abaste.id.clone();
 
     let payload_alim = CreateCategoriaPayload {
@@ -126,7 +126,7 @@ pub async fn seed_movimentacao_robusta() {
         icone: Some("fas fa-utensils".to_string()),
         cor: Some("#FF5722".to_string()),
     };
-    let _ = create_categoria_handler(axum::Json(payload_alim)).await;
+    let _ = create_categoria_internal(axum::Json(payload_alim)).await;
     // Insere uma assinatura válida para o usuário seed
     {
         use crate::models::assinatura::NewAssinatura;
