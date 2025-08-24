@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import { Box, Card, CardContent, Typography, TextField, Button, Avatar, Link, Divider, IconButton, InputAdornment } from '@mui/material';

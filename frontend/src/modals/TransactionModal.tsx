@@ -1,7 +1,9 @@
 import { useEffect } from "react";
 import axios from "axios";
 import { carregarCategorias } from "@/context/CategoriaContext";
+import { useSession } from "@/context/SessionContext";
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, MenuItem, Box, CircularProgress, Alert } from "@mui/material";
 import useFormReducer from "@/lib/useFormReducer";
 
@@ -36,6 +38,7 @@ export default function TransactionModal({ open, onClose, onCreated, onEdited, t
 
 function TransactionModalInner({ open, onClose, onCreated, onEdited, transaction }: Props) {
   const { dispatchTransacao } = useMetasContext();
+  const { sessaoAtual, attachTransaction } = useSession();
   // Função para obter data/hora local no formato 'YYYY-MM-DDTHH:mm'
   function getNowLocalISO() {
     const now = new Date();
@@ -122,8 +125,16 @@ function TransactionModalInner({ open, onClose, onCreated, onEdited, transaction
       } else {
         // Criação
         try {
+          // attach session id if exists (use hook values captured at top)
+          if (sessaoAtual && sessaoAtual.id) payload.id_sessao = sessaoAtual.id;
           const res = await axios.post('/api/transacao', payload, { withCredentials: true });
           const json: Transaction = res.data;
+          // optimistic attach to session context
+          try {
+            if (attachTransaction) (attachTransaction as any)(json);
+          } catch {
+            // ignore
+          }
           dispatchTransacao(json as any, 'add');
           onCreated(json);
         } catch (err: any) {

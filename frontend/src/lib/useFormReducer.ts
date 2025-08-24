@@ -8,7 +8,7 @@ type InternalMeta = {
 type InternalState<T> = T & InternalMeta;
 
 type Action<T> =
-  | { type: 'SET_FIELD'; field: keyof T | string; value: any }
+  | { type: 'SET_FIELD'; field: keyof T | string; value: unknown }
   | { type: 'RESET' }
   | { type: 'SET_LOADING'; value: boolean }
   | { type: 'SET_ERROR'; value: string | null }
@@ -33,12 +33,12 @@ function createReducer<T>(initial: InternalState<T>) {
   };
 }
 
-export default function useFormReducer<T extends Record<string, any>>(initialState: T) {
+export default function useFormReducer<T extends Record<string, unknown>>(initialState: T) {
   const initial: InternalState<T> = { ...initialState, loading: false, error: null };
   const reducer = createReducer<T>(initial);
   const [state, dispatch] = useReducer(reducer, initial);
 
-  const setField = useCallback((field: keyof T | string, value: any) => dispatch({ type: 'SET_FIELD', field, value }), [dispatch]);
+  const setField = useCallback((field: keyof T | string, value: unknown) => dispatch({ type: 'SET_FIELD', field, value }), [dispatch]);
   const reset = useCallback(() => dispatch({ type: 'RESET' }), [dispatch]);
   const setLoading = useCallback((value: boolean) => dispatch({ type: 'SET_LOADING', value }), [dispatch]);
   const setError = useCallback((value: string | null) => dispatch({ type: 'SET_ERROR', value }), [dispatch]);

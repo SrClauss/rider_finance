@@ -3,8 +3,8 @@
 import { Box, Card, CardContent, Typography, Button, Divider, TextField } from '@mui/material';
 import { useRouter } from 'next/navigation';
 import NextLink from 'next/link';
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
 import axios from 'axios';
 import { ConfiguracoesSistema } from '../../interfaces/ConfiguracoesSistema';
 import {ThemeProvider} from '@/theme/ThemeProvider';
@@ -22,8 +22,14 @@ export default function AssinaturaPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [diasRestantes, setDiasRestantes] = useState<number | null>(null);
   const [meses, setMeses] = useState(1); // Novo estado para quantidade de meses
-  const searchParams = useSearchParams();
-  const idUsuario = searchParams.get('id_usuario') || '';
+  const [idUsuario, setIdUsuario] = useState('');
+
+  // Evita usar useSearchParams (que requer suspense) durante o build.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    setIdUsuario(params.get('id_usuario') || '');
+  }, []);
 
   useEffect(() => {
     setIsClient(true);

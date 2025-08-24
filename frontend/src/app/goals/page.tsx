@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useEffect, useState } from "react";
 import { Box, Typography, Button, CircularProgress, Alert, Pagination, TextField, MenuItem, Drawer, IconButton, Stack, Card, CardContent, LinearProgress } from "@mui/material";

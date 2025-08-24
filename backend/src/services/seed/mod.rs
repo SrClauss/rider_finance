@@ -90,43 +90,96 @@ pub async fn seed_movimentacao_robusta() {
     let id_user: String = resp_inner.id.expect("Falha ao criar usuário seed");
     // Cria categorias padrão para o usuário seed: Corrida Uber, Corrida 99, Abastecimento, Alimentação
     use crate::services::categoria::{CreateCategoriaPayload, create_categoria_internal};
-    let payload_uber = CreateCategoriaPayload {
-        id_usuario: Some(id_user.clone()),
-        nome: "Corrida Uber".to_string(),
-        tipo: "entrada".to_string(),
-        icone: Some("fab fa-uber".to_string()),
-        cor: Some("#000000".to_string()),
-    };
-    let resp_uber = create_categoria_internal(axum::Json(payload_uber)).await;
-    let id_categoria_entrada = resp_uber.id.clone();
+    use crate::schema::categorias::dsl as categorias_dsl;
+    // Função utilitária local para checar existência por nome e id_usuario
+    let mut id_categoria_entrada: String = "".to_string();
+    let mut id_categoria_saida: String = "".to_string();
 
-    let payload_99 = CreateCategoriaPayload {
-        id_usuario: Some(id_user.clone()),
-        nome: "Corrida 99".to_string(),
-        tipo: "entrada".to_string(),
-        icone: Some("fas fa-car-side".to_string()),
-        cor: Some("#111111".to_string()),
-    };
-    let _ = create_categoria_internal(axum::Json(payload_99)).await;
+    // Corrida Uber
+    {
+        let exists = categorias_dsl::categorias
+            .filter(categorias_dsl::nome.eq("Corrida Uber"))
+            .filter(categorias_dsl::id_usuario.eq(Some(id_user.clone())))
+            .first::<crate::models::Categoria>(conn)
+            .optional()
+            .expect("Erro ao checar categoria Corrida Uber");
+        if let Some(cat) = exists {
+            id_categoria_entrada = cat.id.clone();
+        } else {
+            let payload_uber = CreateCategoriaPayload {
+                id_usuario: Some(id_user.clone()),
+                nome: "Corrida Uber".to_string(),
+                tipo: "entrada".to_string(),
+                icone: Some("fab fa-uber".to_string()),
+                cor: Some("#000000".to_string()),
+            };
+            let resp_uber = create_categoria_internal(axum::Json(payload_uber)).await;
+            id_categoria_entrada = resp_uber.id.clone();
+        }
+    }
 
-    let payload_abastecimento = CreateCategoriaPayload {
-        id_usuario: Some(id_user.clone()),
-        nome: "Abastecimento".to_string(),
-        tipo: "saida".to_string(),
-        icone: Some("fas fa-gas-pump".to_string()),
-        cor: Some("#FF9800".to_string()),
-    };
-    let resp_abaste = create_categoria_internal(axum::Json(payload_abastecimento)).await;
-    let id_categoria_saida = resp_abaste.id.clone();
+    // Corrida 99
+    {
+        let exists = categorias_dsl::categorias
+            .filter(categorias_dsl::nome.eq("Corrida 99"))
+            .filter(categorias_dsl::id_usuario.eq(Some(id_user.clone())))
+            .first::<crate::models::Categoria>(conn)
+            .optional()
+            .expect("Erro ao checar categoria Corrida 99");
+        if exists.is_none() {
+            let payload_99 = CreateCategoriaPayload {
+                id_usuario: Some(id_user.clone()),
+                nome: "Corrida 99".to_string(),
+                tipo: "entrada".to_string(),
+                icone: Some("fas fa-car-side".to_string()),
+                cor: Some("#111111".to_string()),
+            };
+            let _ = create_categoria_internal(axum::Json(payload_99)).await;
+        }
+    }
 
-    let payload_alim = CreateCategoriaPayload {
-        id_usuario: Some(id_user.clone()),
-        nome: "Alimentação".to_string(),
-        tipo: "saida".to_string(),
-        icone: Some("fas fa-utensils".to_string()),
-        cor: Some("#FF5722".to_string()),
-    };
-    let _ = create_categoria_internal(axum::Json(payload_alim)).await;
+    // Abastecimento
+    {
+        let exists = categorias_dsl::categorias
+            .filter(categorias_dsl::nome.eq("Abastecimento"))
+            .filter(categorias_dsl::id_usuario.eq(Some(id_user.clone())))
+            .first::<crate::models::Categoria>(conn)
+            .optional()
+            .expect("Erro ao checar categoria Abastecimento");
+        if let Some(cat) = exists {
+            id_categoria_saida = cat.id.clone();
+        } else {
+            let payload_abastecimento = CreateCategoriaPayload {
+                id_usuario: Some(id_user.clone()),
+                nome: "Abastecimento".to_string(),
+                tipo: "saida".to_string(),
+                icone: Some("fas fa-gas-pump".to_string()),
+                cor: Some("#FF9800".to_string()),
+            };
+            let resp_abaste = create_categoria_internal(axum::Json(payload_abastecimento)).await;
+            id_categoria_saida = resp_abaste.id.clone();
+        }
+    }
+
+    // Alimentação
+    {
+        let exists = categorias_dsl::categorias
+            .filter(categorias_dsl::nome.eq("Alimentação"))
+            .filter(categorias_dsl::id_usuario.eq(Some(id_user.clone())))
+            .first::<crate::models::Categoria>(conn)
+            .optional()
+            .expect("Erro ao checar categoria Alimentação");
+        if exists.is_none() {
+            let payload_alim = CreateCategoriaPayload {
+                id_usuario: Some(id_user.clone()),
+                nome: "Alimentação".to_string(),
+                tipo: "saida".to_string(),
+                icone: Some("fas fa-utensils".to_string()),
+                cor: Some("#FF5722".to_string()),
+            };
+            let _ = create_categoria_internal(axum::Json(payload_alim)).await;
+        }
+    }
     // Insere uma assinatura válida para o usuário seed
     {
         use crate::models::assinatura::NewAssinatura;

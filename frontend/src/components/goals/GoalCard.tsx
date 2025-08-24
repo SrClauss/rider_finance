@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect } from 'react';
 import useFormReducer from '@/lib/useFormReducer';
 import { Goal } from '@/interfaces/goal';
@@ -21,7 +22,7 @@ interface GoalCardProps {
 const GoalCard: React.FC<GoalCardProps> = ({ goal, onEdit, onDelete, sx }) => {
   const { atualizarMeta } = useMetasContext();
   // Use useFormReducer for a consistent local state shape
-  const { state: localGoal, setState: setLocalGoal } = useFormReducer<Goal>(goal as any);
+  const { state: localGoal, setState: setLocalGoal } = useFormReducer<any>(goal as any);
 
   useEffect(() => {
     setLocalGoal(goal as any);

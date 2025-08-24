@@ -1,5 +1,5 @@
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, MenuItem, Box, CircularProgress, Alert, Autocomplete } from "@mui/material";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState, ChangeEvent, SyntheticEvent } from "react";
 import axios from "axios";
 import useFormReducer from "@/lib/useFormReducer";
 import type { Categoria } from "@/interfaces/Categoria";
@@ -33,7 +33,8 @@ const ICON_SUGGESTIONS = [
 ];
 
 // Garantir que não existam entradas duplicadas (evita keys repetidas no React)
-const ICON_LIST = Array.from(new Set(ICON_SUGGESTIONS));
+// normaliza espaços e remove duplicatas
+const ICON_LIST = Array.from(new Set(ICON_SUGGESTIONS.map(s => s.trim())));
 
 export default function CategoriaModal({ open, onClose, onCreated }: Props) {
   const { state, setField, reset, setLoading, setError } = useFormReducer(initialState);
@@ -43,8 +44,8 @@ export default function CategoriaModal({ open, onClose, onCreated }: Props) {
     if (!open) reset();
   }, [open, reset]);
 
-  const handleChange = (e: any) => {
-    const { name, value } = e.target;
+  const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target as HTMLInputElement;
     setField(name, value);
   };
 
@@ -63,11 +64,22 @@ export default function CategoriaModal({ open, onClose, onCreated }: Props) {
         const json: Categoria = res.data;
         onCreated(json);
         reset();
-      } catch (err: any) {
-        throw new Error(err?.response?.data?.message || 'Erro ao criar categoria');
+      } catch (err: unknown) {
+        if (axios.isAxiosError(err)) {
+          const respData = err.response?.data;
+          let message = err.message;
+          if (respData && typeof respData === 'object') {
+            const maybeMsg = (respData as Record<string, unknown>)['mensagem'] ?? (respData as Record<string, unknown>)['message'];
+            if (typeof maybeMsg === 'string') message = maybeMsg;
+          }
+          throw new Error(message);
+        }
+        const message = err instanceof Error ? err.message : 'Erro ao criar categoria';
+        throw new Error(message);
       }
-    } catch (e: any) {
-      setError(e.message || 'Erro ao criar categoria');
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Erro ao criar categoria';
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -101,7 +113,7 @@ export default function CategoriaModal({ open, onClose, onCreated }: Props) {
             freeSolo
             options={ICON_LIST}
             value={state.icone}
-            onChange={(e, v) => setField('icone', v || '')}
+            onChange={(e: SyntheticEvent, v: string | null) => setField('icone', v || '')}
             renderInput={(params) => (
               <TextField
                 {...params}
@@ -118,7 +130,7 @@ export default function CategoriaModal({ open, onClose, onCreated }: Props) {
             label="Buscar ícone"
             placeholder="ex: car, food, shop"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
             fullWidth
           />
           <Box sx={{ maxHeight: 160, overflow: 'auto', mt: 1 }}>
@@ -136,14 +148,14 @@ export default function CategoriaModal({ open, onClose, onCreated }: Props) {
                   return c.toLowerCase().includes(term) || c.split(' ').some(p => p.includes(term));
                 })
                 .slice(0, 200)
-                .map((c) => (
+                .map((c, idx) => (
                   <Button
-                    key={c}
+                    key={`${c}-${idx}`}
                     onClick={() => setField('icone', c)}
                     variant={state.icone === c ? 'contained' : 'outlined'}
                     size="small"
                     sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 1 }}
-                    aria-label={`Selecionar ${c}`}
+                    aria-label={`Selecionar ${c}-${idx}`}
                   >
                     <i className={c} style={{ fontSize: 18 }} aria-hidden />
                     <Box component="span" sx={{ fontSize: 10, mt: 0.5, textAlign: 'center' }}>{c.replace(/\s+/g, ' ')}</Box>

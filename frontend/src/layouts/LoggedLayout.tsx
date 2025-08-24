@@ -23,7 +23,11 @@ import FlagIcon from "@mui/icons-material/Flag";
 import LogoutIcon from "@mui/icons-material/Logout";
 import { useRouter } from "next/navigation";
 import { ThemeProvider } from "@/theme/ThemeProvider"; // Adjust the import path as necessary
+import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import { MetasProvider } from "../context/MetasContext";
+import SessionFloatingButton from "@/components/session/SessionFloatingButton";
+import { SessionProvider } from "@/context/SessionContext";
+import StartSessionModal from "@/components/session/StartSessionModal";
 
 const drawerWidth = 240;
 
@@ -81,6 +85,14 @@ export default function LoggedLayout({ children }: LoggedLayoutProps) {
             <ListItemText primary="Transações" />
           </ListItemButton>
         </ListItem>
+        <ListItem key="Sessoes" disablePadding>
+          <ListItemButton onClick={() => router.push("/sessoes") }>
+            <ListItemIcon>
+              <AccessTimeIcon />
+            </ListItemIcon>
+            <ListItemText primary="Sessões" />
+          </ListItemButton>
+        </ListItem>
         <ListItem key="Relatorios" disablePadding>
           <ListItemButton onClick={() => router.push("/relatorios") }>
             <ListItemIcon>
@@ -120,7 +132,8 @@ export default function LoggedLayout({ children }: LoggedLayoutProps) {
   return (
     <ThemeProvider>
       <MetasProvider>
-        <Box sx={{ display: "flex" }}>
+        <SessionProvider>
+          <Box sx={{ display: "flex" }}>
           <CssBaseline />
           <AppBar
             position="fixed"
@@ -186,11 +199,14 @@ export default function LoggedLayout({ children }: LoggedLayoutProps) {
             <Box>
               {children}
             </Box>
+            <SessionFloatingButton />
+            <StartSessionModal />
             <Box component="footer" sx={{ mt: 4, textAlign: "center", color: "#888" }}>
               <small>© {new Date().getFullYear()} Rider Finance</small>
             </Box>
           </Box>
-        </Box>
+          </Box>
+        </SessionProvider>
       </MetasProvider>
     </ThemeProvider>
   );
