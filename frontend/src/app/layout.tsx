@@ -1,4 +1,5 @@
 import "./globals.css";
+import '@fortawesome/fontawesome-free/css/all.min.css';
 import { CategoriaProvider } from '../context/CategoriaContext';
 
 export default function RootLayout({

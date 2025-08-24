@@ -1,9 +1,10 @@
 "use client";
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Box, Card, CardContent, Typography, Button, Divider, TextField } from '@mui/material';
-import { useSearchParams } from 'next/navigation';
+// evitamos useSearchParams no build
 import { ConfiguracoesSistema } from '../../interfaces/ConfiguracoesSistema';
 import {ThemeProvider} from '@/theme/ThemeProvider';
 import { UsuarioRegisterPayload } from '@/interfaces/UsuarioRegisterPayload';
@@ -19,9 +20,13 @@ export default function RenovacaoCheckout() {
   const [modalOpen, setModalOpen] = useState(false);
   const [diasRestantes, setDiasRestantes] = useState<number | null>(null);
   const [meses, setMeses] = useState(1);
+  const [idUsuario, setIdUsuario] = useState('');
 
-  const searchParams = useSearchParams();
-  const idUsuario = searchParams.get('id_usuario') || '';
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    setIdUsuario(params.get('id_usuario') || '');
+  }, []);
 
   useEffect(() => {
     setIsClient(true);

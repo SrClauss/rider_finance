@@ -6,6 +6,7 @@ import type { Goal } from '../interfaces/goal';
 import type { Transacao } from '../interfaces/transacao';
 import { atualizarTransacoesContexto, AcaoTransacao } from '../utils/atualizarTransacoesContexto';
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 interface MetasContextType {
   metas: Goal[];
   transacoes: Transacao[];

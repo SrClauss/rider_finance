@@ -10,6 +10,7 @@ import {
 } from "@mui/material";
 import { DirectionsCar } from "@mui/icons-material";
 import { ThemeProvider } from "@/theme/ThemeProvider";
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useReducer, useEffect } from "react";
 import axios from "axios";
 

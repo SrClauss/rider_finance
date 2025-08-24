@@ -114,7 +114,7 @@ mod tests {
             icone: None,
             cor: None,
         };
-        let Json(resp1) = create_categoria_handler(Json(payload1)).await;
+    let Json(resp1) = create_categoria_internal(Json(payload1)).await;
         let payload2 = CreateCategoriaPayload {
             id_usuario: Some(user_id.to_string()),
             nome: "Cat2".to_string(),
@@ -122,7 +122,7 @@ mod tests {
             icone: None,
             cor: None,
         };
-        let Json(_resp2) = create_categoria_handler(Json(payload2)).await;
+    let Json(_resp2) = create_categoria_internal(Json(payload2)).await;
     // Lista usando handler autenticado (simulando cookie)
     // Aqui, como não temos CookieJar real no teste, pode-se testar apenas criação e deleção
     let Json(ok) = delete_categoria_handler(axum::extract::Path(resp1.id.clone())).await;
@@ -186,12 +186,52 @@ pub async fn list_categorias_autenticado_handler(jar: CookieJar) -> Json<Vec<Cat
     }).collect())
 }
 
-pub async fn create_categoria_handler(Json(payload): Json<CreateCategoriaPayload>) -> Json<CategoriaResponse> {
+// Internal function to create category (used by seed/tests/internal calls)
+pub async fn create_categoria_internal(Json(payload): Json<CreateCategoriaPayload>) -> Json<CategoriaResponse> {
     let conn = &mut db::establish_connection();
     let now = chrono::Utc::now().naive_utc();
     let nova_categoria = NewCategoria {
         id: ulid::Ulid::new().to_string(),
         id_usuario: payload.id_usuario,
+        nome: payload.nome,
+        tipo: payload.tipo,
+        icone: payload.icone,
+        cor: payload.cor,
+        criado_em: now,
+        atualizado_em: now,
+    };
+    diesel::insert_into(categorias)
+        .values(&nova_categoria)
+        .execute(conn)
+        .expect("Erro ao inserir categoria");
+    Json(CategoriaResponse {
+        id: nova_categoria.id,
+        id_usuario: nova_categoria.id_usuario,
+        nome: nova_categoria.nome,
+        tipo: nova_categoria.tipo,
+        icone: nova_categoria.icone,
+        cor: nova_categoria.cor,
+        criado_em: nova_categoria.criado_em,
+        atualizado_em: nova_categoria.atualizado_em,
+    })
+}
+
+// HTTP handler: extract user id from http-only cookie (auth_token) and assign to created category
+pub async fn create_categoria_handler(jar: CookieJar, Json(payload): Json<CreateCategoriaPayload>) -> Json<CategoriaResponse> {
+    // Try to extract token from cookie
+    let token = jar.get("auth_token").map(|c| c.value().to_string()).unwrap_or_default();
+    let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "secret".to_string());
+    let claims = decode::<Claims>(token.as_str(), &DecodingKey::from_secret(secret.as_ref()), &Validation::default())
+        .map(|data| data.claims)
+        .unwrap_or_else(|_| Claims { sub: "".to_string(), email: "".to_string(), exp: 0 });
+    let usuario_id_val = if claims.sub.is_empty() { payload.id_usuario.clone() } else { Some(claims.sub.clone()) };
+
+    // Reuse internal creation logic but with overridden id_usuario when present
+    let conn = &mut db::establish_connection();
+    let now = chrono::Utc::now().naive_utc();
+    let nova_categoria = NewCategoria {
+        id: ulid::Ulid::new().to_string(),
+        id_usuario: usuario_id_val,
         nome: payload.nome,
         tipo: payload.tipo,
         icone: payload.icone,

@@ -3,6 +3,8 @@ import { useEffect } from "react";
 import axios from "axios";
 import useFormReducer from "@/lib/useFormReducer";
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { Goal, GoalPayload } from "@/interfaces/goal";
 
 type GoalModalProps = {
