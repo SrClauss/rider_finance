@@ -74,18 +74,24 @@ mod tests {
     let resp = criar_sessao_handler(axum::Json(payload.clone())).await;
     assert_eq!(resp.id_usuario, "user_sessao_test");
     // Lista sessões
-    let list = listar_sessoes_handler(axum::extract::Path("user_sessao_test".to_string())).await;
-    assert_eq!(list.0.len(), 1);
+    let list = listar_sessoes_handler(
+        axum::extract::Path("user_sessao_test".to_string()),
+        axum::extract::Query(super::Paginacao { page: Some(1), page_size: Some(10) })
+    ).await;
+    assert_eq!(list.0.items.len(), 1);
     // Deleta sessão
     let del = deletar_sessao_handler(axum::extract::Path(resp.id.clone())).await;
     assert!(del.0);
     // Lista novamente
-    let list2 = listar_sessoes_handler(axum::extract::Path("user_sessao_test".to_string())).await;
-    assert_eq!(list2.0.len(), 0);
+    let list2 = listar_sessoes_handler(
+        axum::extract::Path("user_sessao_test".to_string()),
+        axum::extract::Query(super::Paginacao { page: Some(1), page_size: Some(10) })
+    ).await;
+    assert_eq!(list2.0.items.len(), 0);
     }
 }
 
-use axum::{Json, extract::Path};
+use axum::{Json, extract::{Path, Query}};
 use crate::db;
 use crate::models::SessaoTrabalho;
 use crate::schema::sessoes_trabalho::dsl::*;
@@ -141,14 +147,50 @@ pub async fn criar_sessao_handler(Json(payload): Json<NovaSessaoPayload>) -> Jso
     Json(sessao)
 }
 
-pub async fn listar_sessoes_handler(Path(id_usuario_param): Path<String>) -> Json<Vec<SessaoTrabalho>> {
+
+#[derive(serde::Deserialize)]
+pub struct Paginacao {
+    pub page: Option<usize>,
+    pub page_size: Option<usize>,
+}
+
+#[derive(serde::Serialize)]
+pub struct PaginatedSessoes {
+    pub total: usize,
+    pub page: usize,
+    pub page_size: usize,
+    pub items: Vec<SessaoTrabalho>,
+}
+
+pub async fn listar_sessoes_handler(
+    Path(id_usuario_param): Path<String>,
+    Query(paginacao): Query<Paginacao>,
+) -> Json<PaginatedSessoes> {
     let conn = &mut db::establish_connection();
-    let lista = sessoes_trabalho
-        .filter(id_usuario.eq(id_usuario_param))
+    let page = paginacao.page.unwrap_or(1).max(1);
+    let page_size = paginacao.page_size.unwrap_or(10).clamp(1, 100);
+    let offset = (page - 1) * page_size;
+
+    let total: i64 = sessoes_trabalho
+        .filter(id_usuario.eq(&id_usuario_param))
+        .count()
+        .get_result(conn)
+        .unwrap_or(0);
+
+    let items = sessoes_trabalho
+        .filter(id_usuario.eq(&id_usuario_param))
         .order(inicio.desc())
+        .limit(page_size as i64)
+        .offset(offset as i64)
         .load::<SessaoTrabalho>(conn)
-        .unwrap();
-    Json(lista)
+        .unwrap_or_default();
+
+    Json(PaginatedSessoes {
+        total: total as usize,
+        page,
+        page_size,
+        items,
+    })
 }
 
 pub async fn deletar_sessao_handler(Path(id_param): Path<String>) -> Json<bool> {
