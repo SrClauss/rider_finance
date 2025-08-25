@@ -292,6 +292,7 @@ pub async fn get_sessao_com_transacoes_handler(Path(id_param): Path<String>) -> 
             let obj = serde_json::json!({
                 "id": tr.id,
                 "valor": tr.valor,
+                "tipo": tr.tipo,
                 "descricao": tr.descricao,
                 "data": tr.data,
                 "categoria": cat.map(|c| serde_json::json!({"id": c.id, "nome": c.nome, "icone": c.icone}))
