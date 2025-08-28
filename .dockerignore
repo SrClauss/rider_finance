@@ -1,0 +1,12 @@
+# Reduce build context: only include what's necessary for deploy/single build
+**
+!deploy/single/**
+!frontend/**
+!frontend/package.json
+!frontend/package-lock.json
+!frontend/.next
+!frontend/public
+!frontend/node_modules
+!backend/**
+!backend/target/release/backend
+!.dockerignore

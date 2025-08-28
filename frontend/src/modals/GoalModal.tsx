@@ -3,9 +3,7 @@ import { useEffect } from "react";
 import axios from "axios";
 import useFormReducer from "@/lib/useFormReducer";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
-import { Goal, GoalPayload } from "@/interfaces/goal";
+import { Goal } from "@/interfaces/goal";
 
 type GoalModalProps = {
   open: boolean;
@@ -14,9 +12,30 @@ type GoalModalProps = {
   goal?: Goal | null;
 };
 
+type GoalForm = {
+  titulo: string;
+  descricao: string;
+  tipo: string;
+  categoria: string;
+  valor_alvo: number;
+  valor_atual: number;
+  unidade: string;
+  data_inicio: string;
+  data_fim: string;
+  eh_ativa: boolean;
+  eh_concluida: boolean;
+  lembrete_ativo: boolean;
+  criado_em: string;
+  atualizado_em: string;
+  concluida_em?: string | null;
+  concluida_com?: string | null;
+  loading?: boolean;
+  error?: string | null;
+};
+
 export default function GoalModal(props: GoalModalProps) {
   const { open, onClose, onSaved, goal } = props;
-  const { state: form, setField, setState, reset, setLoading, setError } = useFormReducer<any>({
+  const { state: form, setField, setState, reset, setLoading, setError } = useFormReducer<GoalForm>({
     titulo: "",
     descricao: "",
     tipo: "faturamento",
@@ -53,10 +72,10 @@ export default function GoalModal(props: GoalModalProps) {
     } else if (open) {
       reset();
     }
-  }, [open, goal]);
+  }, [open, goal, reset, setState]);
 
-  const handleChange = (e: any) => {
-    const { name, value } = e.target;
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target as HTMLInputElement;
     const val = name === "valor_alvo" || name === "valor_atual" ? Number(value) : value;
     setField(name, val);
   };
@@ -87,8 +106,9 @@ export default function GoalModal(props: GoalModalProps) {
         await axios.post(`/api/meta`, payload);
       }
       onSaved();
-    } catch (e: any) {
-      setError(e?.response?.data?.message || "Erro ao salvar meta");
+    } catch (err: unknown) {
+      const maybe = err as { response?: { data?: { message?: string } } } | undefined;
+      setError(maybe?.response?.data?.message || "Erro ao salvar meta");
     } finally {
       setLoading(false);
     }

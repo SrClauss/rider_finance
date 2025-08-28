@@ -1,12 +1,12 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-'use client';
+"use client";
 
-import { Box, Card, CardContent, Typography, TextField, Button, Avatar, Link, Divider, IconButton, InputAdornment } from '@mui/material';
+import { Box, Card, CardContent, Typography, TextField, Button, Avatar, Divider, IconButton, InputAdornment } from '@mui/material';
 import { Stepper, Step, StepLabel } from '@mui/material';
 import { DirectionsCar } from '@mui/icons-material';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
 import {ThemeProvider} from '@/theme/ThemeProvider';
 import NextLink from "next/link";
+import Image from 'next/image';
 import React, { useReducer, useEffect } from 'react';
 import axios from 'axios';
 import { RegisterResponse } from '../../interfaces/RegisterResponse';
@@ -104,8 +104,6 @@ export default function RegisterPage() {
         return { ...state, cpfcnpj: action.payload };
       case 'SET_ADDRESS':
         return { ...state, address: action.payload };
-      case 'SET_ADDRESS':
-        return { ...state, address: action.payload };
       case 'SET_ADDRESS_NUMBER':
         return { ...state, address_number: action.payload };
       case 'SET_COMPLEMENT':
@@ -146,7 +144,7 @@ export default function RegisterPage() {
           dispatch({ type: 'SET_CAPTCHA_IMG', payload: res.data.png });
           dispatch({ type: 'SET_CAPTCHA_TOKEN', payload: res.data.token });
         }
-      } catch (err) {
+      } catch {
         dispatch({ type: 'SET_ERROR', payload: 'Erro ao carregar captcha' });
       } finally {
         dispatch({ type: 'SET_CAPTCHA_LOADING', payload: false });
@@ -192,9 +190,8 @@ export default function RegisterPage() {
         captcha_token: state.captchaToken,
         captcha_answer: state.captchaAnswer,
       };
-      // Log payload antes de enviar para facilitar debug (o usuário pediu)
-      // eslint-disable-next-line no-console
-      console.log('register payload ->', payload);
+  // Log payload antes de enviar para facilitar debug (o usuário pediu)
+  console.log('register payload ->', payload);
       const response = await axios.post<RegisterResponse>(
         '/api/register',
         payload,
@@ -205,11 +202,7 @@ export default function RegisterPage() {
       const data = response.data;
       if (data && data.status === 'ok' && data.id) {
         // Chama o endpoint de assinatura
-        const assinaturaRes = await axios.post('/api/assinatura/criar', {
-          id_usuario: data.id
-        });
-        const valor = assinaturaRes.data.valor_assinatura || '';
-        const url = assinaturaRes.data.payment_url || '';
+  await axios.post('/api/assinatura/checkout', { id_usuario: data.id });
         // Redireciona para página intermediária, incluindo id_usuario
         window.location.href = `/assinatura?id_usuario=${encodeURIComponent(data.id)}`;
         return;
@@ -219,8 +212,10 @@ export default function RegisterPage() {
       } else {
         dispatch({ type: 'SET_ERROR', payload: 'Erro ao cadastrar.' });
       }
-    } catch (err: any) {
-      dispatch({ type: 'SET_ERROR', payload: err.response?.data?.mensagem || err.message || 'Erro ao cadastrar' });
+    } catch (err: unknown) {
+      const maybe = err as { response?: { data?: { mensagem?: string } }; message?: string } | undefined;
+      const msg = maybe?.response?.data?.mensagem || maybe?.message || 'Erro ao cadastrar';
+      dispatch({ type: 'SET_ERROR', payload: String(msg) });
       // Se captcha falhar, recarrega
       dispatch({ type: 'SET_CAPTCHA_ANSWER', payload: '' });
       try {
@@ -304,7 +299,7 @@ export default function RegisterPage() {
                     {state.captchaLoading ? (
                       <Typography variant="body2" color="text.secondary">Carregando captcha...</Typography>
                     ) : state.captchaImg ? (
-                      <img src={`data:image/png;base64,${state.captchaImg}`} alt="captcha" style={{ maxWidth: '100%', marginBottom: 8, borderRadius: 4, background: '#eee' }} />
+                      <Image src={`data:image/png;base64,${state.captchaImg}`} alt="captcha" width={300} height={100} style={{ maxWidth: '100%', marginBottom: 8, borderRadius: 4, background: '#eee' }} />
                     ) : (
                       <Typography variant="body2" color="error">Erro ao carregar captcha</Typography>
                     )}

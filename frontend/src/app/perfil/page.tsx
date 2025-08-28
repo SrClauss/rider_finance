@@ -1,5 +1,4 @@
 "use client";
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import {
@@ -29,6 +28,23 @@ import EditProfileModal from "@/modals/EditProfileModal";
 import { UsuarioMeResponse } from "@/interfaces/UsuarioMeResponse";
 import { Configuracao } from "@/interfaces/Configuracao";
 import { useRouter } from "next/navigation";
+import { extractErrorMessage } from '@/lib/errorUtils';
+
+const allowedProjecaoMetodos = [
+  "mediana",
+  "media",
+  "media_movel_3",
+  "media_movel_7",
+  "media_movel_30",
+];
+
+function validateProjecaoMetodo(v: string | undefined | null) {
+  if (!v) return "media_movel_3";
+  if (allowedProjecaoMetodos.includes(v)) return v;
+  if (v.includes("media_movel")) return v;
+  if (v.includes("regressao")) return "media";
+  return "media_movel_3";
+}
 
 export default function PerfilPage() {
   const router = useRouter();
@@ -47,8 +63,8 @@ export default function PerfilPage() {
   useEffect(() => {
     let mounted = true;
     (async () => {
-      try {
-        const res = await axios.get("/api/me", { withCredentials: true });
+    try {
+      const res = await axios.get("/api/me", { withCredentials: true });
         if (!mounted) return;
         setUsuario(res.data);
   // prefill configurações
@@ -60,9 +76,10 @@ export default function PerfilPage() {
   if (ppe) setProjecaoPercentualExtremos(validatePercentualExtremos(parseInt(ppe, 10)));
   const mm = find("mask_moeda");
   if (mm) setMaskMoeda(normalizeMaskMoeda(mm));
-      } catch (e) {
+      } catch (err: unknown) {
         if (!mounted) return;
-        setErro("Erro ao carregar dados do perfil.");
+    const msg = extractErrorMessage(err);
+    setErro(msg ?? "Erro ao carregar dados do perfil.");
       } finally {
         if (!mounted) return;
         setLoading(false);
@@ -74,22 +91,6 @@ export default function PerfilPage() {
   }, []);
 
   // --- helpers to validate/normalize configuration values ---
-  const allowedProjecaoMetodos = [
-    "mediana",
-    "media",
-    "media_movel_3",
-    "media_movel_7",
-    "media_movel_30",
-  ];
-
-  function validateProjecaoMetodo(v: string | undefined | null) {
-    if (!v) return "media_movel_3";
-    if (allowedProjecaoMetodos.includes(v)) return v;
-    // map some legacy or unexpected values
-    if (v.includes("media_movel")) return v; // keep if contains
-    if (v.includes("regressao")) return "media"; // fallback
-    return "media_movel_3";
-  }
 
   function validatePercentualExtremos(n: number | undefined | null) {
     const allowed = [5, 10, 15, 20, 25];
@@ -108,9 +109,10 @@ export default function PerfilPage() {
     return 'brl';
   }
 
-  function normalizeCurrencyValue(raw: any) {
+  function normalizeCurrencyValue(raw: unknown) {
     if (raw == null) return '';
     if (typeof raw === 'number') return raw.toFixed(2);
+    if (typeof raw !== 'string' && typeof raw !== 'number') return '';
     let s = String(raw).trim();
     if (!s) return '';
     // remove currency symbols and spaces
@@ -134,44 +136,69 @@ export default function PerfilPage() {
     ? usuario.nome_completo.split(" ").map((n) => n[0]).slice(0, 2).join("")
     : "";
 
-  function formatEndereco(e: any) {
-  if (!e) return "Não informado";
-  const line1Parts = [];
-  if (e.rua) line1Parts.push(e.rua);
-  if (e.numero) line1Parts.push(e.numero);
-  let line1 = line1Parts.join(", ");
-  if (e.complemento) line1 = line1 ? `${line1} ${e.complemento}` : e.complemento;
+  type Endereco = {
+    rua?: string;
+  numero?: string;
+    complemento?: string;
+    cidade?: string;
+    estado?: string;
+    cep?: string;
+  };
+  function formatEndereco(e?: Endereco | null) {
+    if (!e) return "Não informado";
+    const line1Parts: string[] = [];
+    if (e.rua) line1Parts.push(String(e.rua));
+    if (e.numero) line1Parts.push(String(e.numero));
+    let line1 = line1Parts.join(", ");
+    if (e.complemento) line1 = line1 ? `${line1} ${e.complemento}` : e.complemento;
 
-  const line2 = [e.cidade, e.estado].filter(Boolean).join(" - ");
-  const line3 = e.cep ? `CEP ${e.cep}` : "";
+    const line2 = [e.cidade, e.estado].filter(Boolean).join(" - ");
+    const line3 = e.cep ? `CEP ${e.cep}` : "";
 
-  return [line1, line2, line3].filter(Boolean).join("\n");
+    return [line1, line2, line3].filter(Boolean).join("\n");
   }
 
-  async function handleSaveProfile(updated: { email?: string; endereco?: any }) {
+  function getEnderecoFromUsuario(u?: UsuarioMeResponse | null): Endereco | null {
+    if (!u) return null;
+    return {
+      rua: u.address || undefined,
+  numero: u.address_number != null ? String(u.address_number) : undefined,
+      complemento: u.complement || undefined,
+      cidade: u.city || undefined,
+      estado: u.province || undefined,
+      cep: u.postal_code || undefined,
+    };
+  }
+
+  async function handleSaveProfile(updated: { email?: string; endereco?: Endereco | null }) {
     // atualizar localmente (otimista)
     setUsuario((u) => {
       if (!u) return u;
-      return { ...u, email: updated.email ?? u.email, endereco: updated.endereco ?? (u as any).endereco } as UsuarioMeResponse;
+  return { ...u, email: updated.email ?? u.email, endereco: updated.endereco ?? (u as UsuarioMeResponse).address } as UsuarioMeResponse;
     });
   setSnackMessage("Perfil atualizado com sucesso");
   setSnackOpen(true);
   }
 
   // Reuso: inicia o fluxo de checkout utilizando fallback em /api/checkout-info quando necessário
-  async function startCheckout(payload: any) {
+  async function startCheckout(payload: Record<string, unknown>) {
     try {
       // busca valor padrão do sistema caso não venha no payload
-      if (!payload.valor) {
+      const payloadRecord = payload as Record<string, unknown>;
+      const hasValor = 'valor' in payloadRecord && payloadRecord['valor'] != null && String(payloadRecord['valor']).trim() !== '';
+      if (!hasValor) {
         try {
           const cfg = await axios.get('/api/checkout-info');
-          payload.valor = cfg.data.valor || payload.valor || '';
+          const cfgData = cfg.data as Record<string, unknown> | undefined;
+          const cfgValor = cfgData?.valor;
+          const fallback = typeof cfgValor === 'string' || typeof cfgValor === 'number' ? String(cfgValor) : (payloadRecord['valor'] ? String(payloadRecord['valor']) : '');
+          (payloadRecord as Record<string, unknown>)['valor'] = fallback;
         } catch (e) {
-          // não fatal, apenas log
+          // n3o fatal, apenas log
           console.error('Falha ao buscar checkout-info:', e);
         }
       }
-      const res = await axios.post('/api/assinatura/checkout', payload);
+  const res = await axios.post('/api/assinatura/checkout', payload);
       const link = res.data?.link || res.data?.payment_url || res.data?.paymentUrl || res.data?.url;
       if (link) {
         window.location.href = link;
@@ -191,16 +218,16 @@ export default function PerfilPage() {
           const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/json' });
           const url = URL.createObjectURL(blob);
           window.open(url, '_blank');
-        } catch (e) {
+        } catch {
           // ignore
         }
       }
-    } catch (err: any) {
-      console.error('Erro ao iniciar checkout', err);
-      const msg = err?.response?.data?.mensagem || err?.response?.data?.message || err?.message || 'Erro ao iniciar checkout';
-      setSnackMessage(msg);
-      setSnackOpen(true);
-    }
+    } catch (err: unknown) {
+  console.error('Erro ao iniciar checkout', err);
+  const msg = extractErrorMessage(err);
+  setSnackMessage(String(msg));
+        setSnackOpen(true);
+      }
   }
 
   const handleRenewSubscription = async () => {
@@ -299,7 +326,7 @@ export default function PerfilPage() {
 
                     <Box sx={{ mt: 2 }}>
                       <Typography variant="subtitle2">Endereço</Typography>
-                      <Typography variant="body2" sx={{ opacity: 0.85, whiteSpace: 'pre-line', mt: 0.5 }}>{formatEndereco((usuario as any)?.endereco)}</Typography>
+                      <Typography variant="body2" sx={{ opacity: 0.85, whiteSpace: 'pre-line', mt: 0.5 }}>{formatEndereco(getEnderecoFromUsuario(usuario))}</Typography>
                     </Box>
                   </Box>
                 </AccordionDetails>
@@ -381,10 +408,11 @@ export default function PerfilPage() {
                         setSavingConfigs(true);
                         try {
                           // salvar apenas as configs alteradas
-                          const payload: any = { configuracoes: [
-                            { chave: 'projecao_metodo', valor: projecaoMetodo },
-                            { chave: 'projecao_percentual_extremos', valor: String(projecaoPercentualExtremos) },
-                            { chave: 'mask_moeda', valor: maskMoeda },
+                          const now = new Date().toISOString();
+                          const payload: { configuracoes: Configuracao[] } = { configuracoes: [
+                            { id: 'new-projecao_metodo', id_usuario: usuario!.id, chave: 'projecao_metodo', valor: projecaoMetodo, eh_publica: false, criado_em: now, atualizado_em: now },
+                            { id: 'new-projecao_percentual_extremos', id_usuario: usuario!.id, chave: 'projecao_percentual_extremos', valor: String(projecaoPercentualExtremos), eh_publica: false, criado_em: now, atualizado_em: now },
+                            { id: 'new-mask_moeda', id_usuario: usuario!.id, chave: 'mask_moeda', valor: maskMoeda, eh_publica: false, criado_em: now, atualizado_em: now },
                           ] };
                           await axios.patch('/api/me', payload, { withCredentials: true });
                           // atualizar localmente: aplicar/atualizar as 3 chaves no array de configuracoes
@@ -392,11 +420,11 @@ export default function PerfilPage() {
                             if (!u) return u;
                             const prev = u.configuracoes || [];
                             const upsert = (chave: string, valor: string) => {
-                              const idx = prev.findIndex((p:any) => p.chave === chave);
+                              const idx = prev.findIndex((p) => p.chave === chave);
                               if (idx >= 0) {
                                 prev[idx] = { ...prev[idx], valor };
                               } else {
-                                prev.push({ id: 'new-'+chave, id_usuario: u.id, chave, valor, eh_publica: false, criado_em: new Date().toISOString(), atualizado_em: new Date().toISOString() } as any);
+                                prev.push({ id: 'new-'+chave, id_usuario: u.id, chave, valor, eh_publica: false, criado_em: new Date().toISOString(), atualizado_em: new Date().toISOString() } as Configuracao);
                               }
                             };
                             upsert('projecao_metodo', projecaoMetodo);
@@ -407,7 +435,7 @@ export default function PerfilPage() {
                           setSnackMessage('Configurações atualizadas');
                           setSnackOpen(true);
                           setEditingConfigs(false);
-                        } catch (e) {
+                        } catch {
                           setSnackMessage('Falha ao salvar configurações');
                           setSnackOpen(true);
                         } finally {
@@ -453,20 +481,22 @@ export default function PerfilPage() {
                         <Typography variant="body2" sx={{ opacity: 0.85 }}>Nenhuma assinatura encontrada.</Typography>
                         <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
                           <Button variant="contained" onClick={async () => {
-                            const payload = {
-                              id_usuario: usuario!.id,
-                              valor: normalizeCurrencyValue((usuario as any).valor_assinatura || ''),
-                              nome: usuario!.nome_completo || usuario!.nome_usuario,
-                              cpf: usuario!.cpfcnpj || '',
-                              email: usuario!.email || '',
-                              telefone: usuario!.telefone || '',
-                              endereco: (usuario as any).address || '',
-                              numero: (usuario as any).address_number || '',
-                              complemento: (usuario as any).complement || '',
-                              cep: (usuario as any).postal_code || '',
-                              bairro: (usuario as any).province || '',
-                              cidade: (usuario as any).city || ''
-                            };
+                                const userObj = usuario ?? {};
+                                const getField = (k: string) => ((userObj as Record<string, unknown>)[k] ?? '');
+                                const payload = {
+                                  id_usuario: usuario!.id,
+                                  valor: normalizeCurrencyValue(getField('valor_assinatura')),
+                                  nome: usuario!.nome_completo || usuario!.nome_usuario,
+                                  cpf: usuario!.cpfcnpj || '',
+                                  email: usuario!.email || '',
+                                  telefone: usuario!.telefone || '',
+                                  endereco: String(getField('address')),
+                                  numero: String(getField('address_number')),
+                                  complemento: String(getField('complement')),
+                                  cep: String(getField('postal_code')),
+                                  bairro: String(getField('province')),
+                                  cidade: String(getField('city')),
+                                };
                             await startCheckout(payload);
                           }}>Assinar agora</Button>
                         </Box>
@@ -485,7 +515,7 @@ export default function PerfilPage() {
       <EditProfileModal
         open={openEdit}
         initialEmail={usuario?.email}
-        initialEndereco={(usuario as any)?.endereco ?? null}
+    initialEndereco={getEnderecoFromUsuario(usuario)}
         onClose={() => setOpenEdit(false)}
         onSave={handleSaveProfile}
       />

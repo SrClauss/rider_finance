@@ -1,6 +1,5 @@
 
 "use client";
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   Box,
   Card,
@@ -18,7 +17,6 @@ import { DirectionsCar, Visibility, VisibilityOff } from "@mui/icons-material";
 import {ThemeProvider} from "@/theme/ThemeProvider";
 import React, { useReducer } from "react";
 import axios from "axios";
-import { carregarCategorias, useCategoriaContext } from "@/context/CategoriaContext";
 
 type State = {
   usuario: string;
@@ -84,11 +82,14 @@ export default function Page() {
       } else {
         dispatch({ type: "SET_ERROR", payload: "Usuário ou senha inválidos" });
       }
-    } catch (err: any) {
-      dispatch({
-        type: "SET_ERROR",
-        payload: err.response?.data?.message || err.message || "Erro ao logar",
-      });
+    } catch (err: unknown) {
+      let message = "Erro ao logar";
+      if (axios.isAxiosError(err)) {
+        message = err.response?.data?.message || err.message || message;
+      } else if (err instanceof Error) {
+        message = err.message;
+      }
+      dispatch({ type: "SET_ERROR", payload: message });
     } finally {
       dispatch({ type: "SET_LOADING", payload: false });
     }

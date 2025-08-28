@@ -10,9 +10,9 @@ import {
 } from "@mui/material";
 import { DirectionsCar } from "@mui/icons-material";
 import { ThemeProvider } from "@/theme/ThemeProvider";
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useReducer, useEffect } from "react";
 import axios from "axios";
+import Image from "next/image";
 
 export default function ForgotPage() {
   type State = {
@@ -74,12 +74,12 @@ export default function ForgotPage() {
     const fetchCaptcha = async () => {
       dispatch({ type: "SET_CAPTCHA_LOADING", payload: true });
       try {
-        const res = await axios.get("/api/captcha");
-        if (res.data && res.data.svg && res.data.token) {
-          dispatch({ type: "SET_CAPTCHA_IMG", payload: res.data.svg });
+  const res = await axios.get("/api/captcha");
+        if (res.data && res.data.png && res.data.token) {
+          dispatch({ type: "SET_CAPTCHA_IMG", payload: res.data.png });
           dispatch({ type: "SET_CAPTCHA_TOKEN", payload: res.data.token });
         }
-      } catch (err) {
+      } catch {
         dispatch({ type: "SET_ERROR", payload: "Erro ao carregar captcha" });
       } finally {
         dispatch({ type: "SET_CAPTCHA_LOADING", payload: false });
@@ -102,7 +102,7 @@ export default function ForgotPage() {
     }
     try {
       await axios.post(
-        "/api/forgot",
+        "/api/request-password-reset",
         {
           email: state.email,
           captcha_token: state.captchaToken,
@@ -111,17 +111,25 @@ export default function ForgotPage() {
         { headers: { "Content-Type": "application/json" } }
       );
       dispatch({ type: "SET_SUCCESS", payload: "Se as informações estiverem corretas, você receberá um e-mail para redefinir sua senha." });
-    } catch (err: any) {
-      dispatch({ type: "SET_ERROR", payload: err.response?.data?.message || err.message || "Erro ao enviar e-mail" });
+  } catch (err: unknown) {
+      let message = "Erro ao enviar e-mail";
+      if (axios.isAxiosError(err)) {
+        message = err.response?.data?.message || err.message || message;
+      } else if (err instanceof Error) {
+        message = err.message;
+      }
+      dispatch({ type: "SET_ERROR", payload: message });
       // Se captcha falhar, recarrega
       dispatch({ type: "SET_CAPTCHA_ANSWER", payload: "" });
       try {
         const res = await axios.get("/api/captcha");
-        if (res.data && res.data.svg && res.data.token) {
-          dispatch({ type: "SET_CAPTCHA_IMG", payload: res.data.svg });
+        if (res?.data && res.data.png && res.data.token) {
+          dispatch({ type: "SET_CAPTCHA_IMG", payload: res.data.png });
           dispatch({ type: "SET_CAPTCHA_TOKEN", payload: res.data.token });
         }
-      } catch {}
+      } catch {
+        // ignore
+      }
     } finally {
       dispatch({ type: "SET_LOADING", payload: false });
     }
@@ -159,9 +167,11 @@ export default function ForgotPage() {
                 {state.captchaLoading ? (
                   <Typography variant="body2" color="text.secondary">Carregando captcha...</Typography>
                 ) : state.captchaImg ? (
-                  <img
+                  <Image
                     src={`data:image/png;base64,${state.captchaImg}`}
                     alt="captcha"
+                    width={300}
+                    height={100}
                     style={{ maxWidth: "100%", marginBottom: 8, borderRadius: 4, background: "#eee" }}
                   />
                 ) : (

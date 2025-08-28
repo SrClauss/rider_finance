@@ -10,7 +10,6 @@ interface Props {
   onDelete?: (id: string) => void;
 }
 
-import axios from "axios";
 
 export default function TransactionList({ transactions, onEdit, onDelete }: Props) {
   if (!transactions || transactions.length === 0) {

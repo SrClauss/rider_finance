@@ -1,9 +1,6 @@
 "use client";
 
 import { Box, Card, CardContent, Typography, Button, Divider, TextField } from '@mui/material';
-import { useRouter } from 'next/navigation';
-import NextLink from 'next/link';
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { ConfiguracoesSistema } from '../../interfaces/ConfiguracoesSistema';
@@ -18,9 +15,9 @@ export default function AssinaturaPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [usuario, setUsuario] = useState<UsuarioRegisterPayload | null>(null);
-  const [assinatura, setAssinatura] = useState<any | null>(null);
+  const [assinatura] = useState<{ periodo_fim?: string } | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const [diasRestantes, setDiasRestantes] = useState<number | null>(null);
+  const [diasRestantes] = useState<number | null>(null);
   const [meses, setMeses] = useState(1); // Novo estado para quantidade de meses
   const [idUsuario, setIdUsuario] = useState('');
 
@@ -74,8 +71,8 @@ export default function AssinaturaPage() {
           captcha_answer: res.data.captcha_answer
         }
         setUsuario(usuarioData);
-      })
-      .catch(() => {});
+  })
+  .catch(() => {});
   }, [idUsuario]);
 
   function sanitizePhone(raw?: string | null) {
@@ -109,7 +106,7 @@ export default function AssinaturaPage() {
       setError('CEP inválido. Informe 8 dígitos (ex: 01234567)');
       return;
     }
-    try {
+  try {
       const res = await axios.post('/api/assinatura/checkout', {
         id_usuario: idUsuario,
         valor,
@@ -131,7 +128,7 @@ export default function AssinaturaPage() {
       } else {
         setError('Erro ao criar checkout');
       }
-    } catch (err) {
+    } catch {
       setError('Erro ao criar checkout');
     }
   };
@@ -251,7 +248,7 @@ export default function AssinaturaPage() {
                   } else {
                     setError('Erro ao criar checkout');
                   }
-                } catch (err) {
+                } catch {
                   setError('Erro ao criar checkout');
                 }
               }}

@@ -6,7 +6,6 @@ import { darkTheme, lightTheme } from "./uber-theme";
 
 const ThemeModeContext = createContext({
   mode: "dark",
-  setMode: (_: "light" | "dark") => {},
   toggleMode: () => {},
 });
 
@@ -25,7 +24,7 @@ export function ThemeProvider({ children, forcedMode }: { children: React.ReactN
 
   useEffect(() => {
     if (forcedMode && forcedMode !== mode) setMode(forcedMode);
-  }, [forcedMode]);
+  }, [forcedMode, mode]);
 
   const toggleMode = useCallback(() => {
     setMode((prev) => {
@@ -40,7 +39,7 @@ export function ThemeProvider({ children, forcedMode }: { children: React.ReactN
   const muiTheme = useMemo(() => (mode === "dark" ? darkTheme : lightTheme), [mode]);
 
   return (
-    <ThemeModeContext.Provider value={{ mode, setMode, toggleMode }}>
+    <ThemeModeContext.Provider value={{ mode, toggleMode }}>
       <MuiThemeProvider theme={muiTheme}>
         <CssBaseline />
         {children}

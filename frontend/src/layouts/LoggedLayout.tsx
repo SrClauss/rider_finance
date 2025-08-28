@@ -27,7 +27,7 @@ import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import { MetasProvider } from "../context/MetasContext";
 import SessionFloatingButton from "@/components/session/SessionFloatingButton";
 import { SessionProvider } from "@/context/SessionContext";
-import StartSessionModal from "@/components/session/StartSessionModal";
+import StartSessionModal from "@/modals/StartSessionModal";
 
 const drawerWidth = 240;
 
@@ -49,10 +49,10 @@ export default function LoggedLayout({ children }: LoggedLayoutProps) {
 
         }
       })
-      .catch((err) => {
+      .catch(() => {
         router.replace("/login");
       });
-  }, []);
+  }, [router]);
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);

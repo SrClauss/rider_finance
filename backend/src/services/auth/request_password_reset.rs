@@ -13,7 +13,7 @@ mod tests {
         assert!(msg.contains("não encontrado"));
     }
 }
-use axum::{Json};
+use axum::Json;
 use serde::Deserialize;
 use crate::models::Usuario;
 use crate::db;
@@ -21,13 +21,25 @@ use chrono::{Utc, Duration};
 use diesel::prelude::*;
 use crate::schema::usuarios::dsl::*;
 use crate::schema::usuarios::{email, id, ultima_tentativa_redefinicao};
+use std::env;
+use lettre::transport::smtp::authentication::Credentials;
+use lettre::{Message, SmtpTransport, Transport};
+use jsonwebtoken::{encode, EncodingKey, Header};
+use serde::Serialize;
 
 #[derive(Deserialize)]
 pub struct RequestPasswordResetPayload {
     pub email: String,
 }
 
+#[derive(Serialize)]
+struct Claims {
+    sub: String,
+    exp: usize,
+}
+
 pub async fn request_password_reset_handler(Json(payload): Json<RequestPasswordResetPayload>) -> Json<String> {
+    println!("[request_password_reset] entrada: email={}", payload.email);
     let conn = &mut db::establish_connection();
     // Buscar usuário pelo email
     let usuario_result = usuarios
@@ -36,22 +48,69 @@ pub async fn request_password_reset_handler(Json(payload): Json<RequestPasswordR
 
     match usuario_result {
         Ok(usuario) => {
+            println!("[request_password_reset] usuário encontrado: id={} email={}", usuario.id, usuario.email);
             let now = Utc::now().naive_utc();
             let pode_reenviar = now - usuario.ultima_tentativa_redefinicao > Duration::hours(4);
             if !pode_reenviar {
+                println!("[request_password_reset] tentativa recente detectada para user={}", usuario.id);
                 return Json("Já foi solicitado recentemente. Aguarde 4 horas para nova tentativa.".to_string());
             }
-            // Simular envio de email
-            let token = format!("token-{}", usuario.id); // Aqui você pode usar JWT ou outro método
-            let link = format!("https://site.com/{}", token);
-            let corpo_email = format!("<html><body><a href='{}'>Redefinir senha</a></body></html>", link);
-            println!("Simulando envio de email para {}: {}", usuario.email, corpo_email);
+            // Gerar JWT expira em 1h
+            let secret = env::var("JWT_SECRET").unwrap_or_else(|_| "secret123".to_string());
+            let exp = (Utc::now() + Duration::hours(1)).timestamp() as usize;
+            let claims = Claims {
+                sub: usuario.id.clone(),
+                exp,
+            };
+            println!("[request_password_reset] gerando token JWT (exp={}s)", exp);
+            let token = match encode(&Header::default(), &claims, &EncodingKey::from_secret(secret.as_bytes())) {
+                Ok(t) => t,
+                Err(e) => {
+                    println!("[request_password_reset] erro ao gerar token JWT: {:?}", e);
+                    return Json(format!("Erro ao gerar token: {}", e));
+                }
+            };
+            let frontend_url = env::var("FRONTEND_URL").unwrap_or_else(|_| "http://localhost:3000".to_string());
+            let link = format!("{}/reset/{}", frontend_url, token);
+            let corpo_email = format!("<html><body><p>Para redefinir sua senha, clique no link abaixo:</p><a href='{}'>Redefinir senha</a></body></html>", link);
+
+            // Enviar email real
+            let smtp_server = env::var("YAHOO_SMTP_SERVER").unwrap_or_else(|_| "smtp.mail.yahoo.com".to_string());
+            let smtp_port = env::var("YAHOO_SMTP_PORT").unwrap_or_else(|_| "465".to_string());
+            let smtp_port: u16 = smtp_port.parse().unwrap_or(465);
+            let smtp_user = env::var("YAHOO_EMAIL").unwrap();
+            let smtp_pass = env::var("YAHOO_APP_PASSWORD").unwrap();
+            let email_from = smtp_user.clone();
+            let email_to = usuario.email.clone();
+            let email_msg = Message::builder()
+                .from(email_from.parse().unwrap())
+                .to(email_to.parse().unwrap())
+                .subject("Redefinição de senha - Rider Finance")
+                .header(lettre::message::header::ContentType::TEXT_HTML)
+                .body(corpo_email)
+                .unwrap();
+            let creds = Credentials::new(smtp_user, smtp_pass);
+            let mailer = SmtpTransport::relay(&smtp_server)
+                .unwrap()
+                .port(smtp_port)
+                .credentials(creds)
+                .build();
+            match mailer.send(&email_msg) {
+                Ok(response) => {
+                    println!("[request_password_reset] email enviado com sucesso para {}: {:?}", email_to, response);
+                }
+                Err(e) => {
+                    println!("[request_password_reset] erro ao enviar email para {}: {:?}", email_to, e);
+                    return Json(format!("Erro ao enviar e-mail: {}", e));
+                }
+            }
+
             // Atualizar ultima_tentativa_redefinicao
             diesel::update(usuarios.filter(id.eq(&usuario.id)))
                 .set(ultima_tentativa_redefinicao.eq(now))
                 .execute(conn)
                 .ok();
-            Json("Email de redefinição de senha enviado (simulado)".to_string())
+            Json("Email de redefinição de senha enviado com sucesso!".to_string())
         }
         Err(_) => Json("Usuário não encontrado".to_string()),
     }

@@ -1,14 +1,14 @@
 "use client";
-/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useEffect, useState } from "react";
-import { Box, Typography, Button, CircularProgress, Alert, Pagination, TextField, MenuItem, Drawer, IconButton, Stack, Card, CardContent, LinearProgress } from "@mui/material";
+import { Box, Typography, Button, CircularProgress, Alert } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import LoggedLayout from "@/layouts/LoggedLayout";
 import ConfirmDeleteModal from "@/modals/ConfirmDeleteModal";
 import GoalModal from "../../modals/GoalModal";
 
 import axios from "axios";
+import { extractErrorMessage } from '@/lib/errorUtils';
 import { Goal } from "@/interfaces/goal";
 import GoalCard from "../../components/goals/GoalCard";
 
@@ -24,7 +24,8 @@ export default function GoalsPage() {
   const fetchGoals = async () => {
     setLoading(true);
     setError(null);
-    try {
+  try {
+
       try {
         const res = await axios.get("/api/meta/a_cumprir", { withCredentials: true });
         if (Array.isArray(res.data)) {
@@ -44,10 +45,8 @@ export default function GoalsPage() {
         } else {
           setGoals([]);
         }
-      } catch (err: any) {
-        let msg = "Erro ao buscar metas";
-        if (err?.response?.data?.message) msg += ": " + err.response.data.message;
-        else if (err?.message) msg += ": " + err.message;
+      } catch (err: unknown) {
+        const msg = extractErrorMessage(err) ?? 'Erro ao buscar metas';
         setError(msg);
         setGoals([]);
       }
@@ -104,7 +103,7 @@ export default function GoalsPage() {
           window.dispatchEvent(new CustomEvent('metas:refresh', { detail: res.data }));
         }
       }
-    } catch (e) {
+    } catch {
       // Silencioso
     }
   };

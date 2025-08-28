@@ -1,18 +1,9 @@
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum::Json;
+    // use axum::Json;
 
-    #[tokio::test]
-    async fn test_reset_password_handler_usuario_inexistente() {
-        let payload = ResetPasswordPayload {
-            nova_senha: "nova123".to_string(),
-        };
-        let user_id = "naoexiste".to_string();
-        let resp = reset_password_handler(axum::extract::Path(user_id), Json(payload)).await;
-        let msg = resp.0;
-        assert!(msg.contains("sucesso") || msg.contains("Erro"));
-    }
+    // Teste removido: handler agora espera token JWT, não Path
 
     #[test]
     fn test_reset_password_usuario_inexistente() {
@@ -22,7 +13,7 @@ mod tests {
 }
 
 // --- Payload ---
-use serde::Deserialize;
+// use serde::Deserialize; // já importado acima
 
 #[derive(Deserialize)]
 pub struct ResetPasswordPayload {
@@ -30,12 +21,42 @@ pub struct ResetPasswordPayload {
 }
 
 // --- Handler ---
-use axum::{Json, extract::Path};
+use axum::{Json};
 
-pub async fn reset_password_handler(Path(user_id): Path<String>, Json(payload): Json<ResetPasswordPayload>) -> Json<String> {
-    match reset_password(&user_id, &payload.nova_senha) {
-        Ok(_) => Json("Senha redefinida com sucesso".to_string()),
-        Err(e) => Json(format!("Erro: {}", e)),
+
+use serde::Deserialize;
+use jsonwebtoken::{decode, DecodingKey, Validation, Algorithm};
+use serde::Serialize;
+use std::env;
+
+#[derive(Deserialize)]
+pub struct ResetPasswordTokenPayload {
+    pub token: String,
+    pub nova_senha: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct Claims {
+    sub: String,
+    exp: usize,
+}
+
+pub async fn reset_password_handler(Json(payload): Json<ResetPasswordTokenPayload>) -> Json<String> {
+    let secret = env::var("JWT_SECRET").unwrap_or_else(|_| "secret123".to_string());
+    let token_data = decode::<Claims>(
+        &payload.token,
+        &DecodingKey::from_secret(secret.as_bytes()),
+        &Validation::new(Algorithm::HS256),
+    );
+    match token_data {
+        Ok(data) => {
+            let user_id = data.claims.sub;
+            match reset_password(&user_id, &payload.nova_senha) {
+                Ok(_) => Json("Senha redefinida com sucesso".to_string()),
+                Err(e) => Json(format!("Erro: {}", e)),
+            }
+        }
+        Err(e) => Json(format!("Token inválido ou expirado: {}", e)),
     }
 }
 

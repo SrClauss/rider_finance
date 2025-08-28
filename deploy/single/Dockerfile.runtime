@@ -1,0 +1,26 @@
+FROM node:20-bullseye-slim AS runtime
+
+RUN apt-get update \
+    && apt-get install -y nginx gettext-base ca-certificates --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
+
+# copy nginx template and entrypoint
+COPY deploy/single/nginx.conf.template /etc/nginx/nginx.conf.template
+COPY deploy/single/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+WORKDIR /opt/frontend
+
+# copy frontend production artifacts (built outside of this image)
+COPY frontend/.next /opt/frontend/.next
+COPY frontend/public /opt/frontend/public
+COPY frontend/node_modules /opt/frontend/node_modules
+COPY frontend/package.json /opt/frontend/package.json
+
+# copy backend binary built for Linux
+COPY backend/target/release/backend /usr/local/bin/backend
+RUN chmod +x /usr/local/bin/backend
+
+EXPOSE 80 3000 8000
+
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]

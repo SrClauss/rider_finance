@@ -1,6 +1,7 @@
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, MenuItem, Box, CircularProgress, Alert, Autocomplete } from "@mui/material";
 import React, { useEffect, useState, ChangeEvent, SyntheticEvent } from "react";
 import axios from "axios";
+import { extractErrorMessage } from '@/lib/errorUtils';
 import useFormReducer from "@/lib/useFormReducer";
 import type { Categoria } from "@/interfaces/Categoria";
 
@@ -65,17 +66,8 @@ export default function CategoriaModal({ open, onClose, onCreated }: Props) {
         onCreated(json);
         reset();
       } catch (err: unknown) {
-        if (axios.isAxiosError(err)) {
-          const respData = err.response?.data;
-          let message = err.message;
-          if (respData && typeof respData === 'object') {
-            const maybeMsg = (respData as Record<string, unknown>)['mensagem'] ?? (respData as Record<string, unknown>)['message'];
-            if (typeof maybeMsg === 'string') message = maybeMsg;
-          }
-          throw new Error(message);
-        }
-        const message = err instanceof Error ? err.message : 'Erro ao criar categoria';
-        throw new Error(message);
+        const msg = extractErrorMessage(err) ?? (err instanceof Error ? err.message : 'Erro ao criar categoria');
+        throw new Error(msg);
       }
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Erro ao criar categoria';

@@ -11,18 +11,21 @@ export type AcaoTransacao = 'add' | 'update' | 'delete';
  */
 export function atualizarTransacoesContexto(
   transacoes: Transacao[],
-  transacao: Transacao,
+  transacao: Partial<Transacao>,
   acao: AcaoTransacao
 ): Transacao[] {
   switch (acao) {
     case 'add':
-      // Adiciona no início
-      return [transacao, ...transacoes];
+      // Para add, garantimos que temos um id e valores mínimos; se faltar, retornamos o estado atual
+      if (!transacao.id) return transacoes;
+      return [transacao as Transacao, ...transacoes];
     case 'update':
-      // Atualiza pelo id
-      return transacoes.map(t => t.id === transacao.id ? transacao : t);
+      // Atualiza pelo id; se não houver id, nada a fazer
+      if (!transacao.id) return transacoes;
+      return transacoes.map(t => t.id === transacao.id ? { ...t, ...(transacao as Partial<Transacao>) } as Transacao : t);
     case 'delete':
       // Remove pelo id
+      if (!transacao.id) return transacoes;
       return transacoes.filter(t => t.id !== transacao.id);
     default:
       return transacoes;

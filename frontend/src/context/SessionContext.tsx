@@ -1,6 +1,7 @@
 "use client";
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import axios from "axios";
+import type { Transaction as SharedTransaction } from "@/interfaces/Transaction";
 
 type Sessao = {
   id?: string;
@@ -18,13 +19,7 @@ type Sessao = {
   local_fim?: string | null;
 };
 
-type Transaction = {
-  id?: string;
-  valor: number;
-  tipo?: string;
-  id_sessao?: string | null;
-  [k: string]: unknown;
-};
+type Transaction = SharedTransaction;
 
 type SessionContextValue = {
   sessaoAtual?: Sessao | null;
@@ -68,6 +63,17 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       .finally(() => setLoading(false));
   }, []);
 
+  const refreshFromServer = useCallback(async () => {
+    if (!sessaoAtual?.id) return;
+    try {
+      const r = await axios.get(`/api/sessao/com-transacoes/${sessaoAtual.id}`, { withCredentials: true });
+      if (r.data && Array.isArray(r.data.transacoes)) setTransacoes(r.data.transacoes as Transaction[]);
+      else if (Array.isArray(r.data)) setTransacoes(r.data as Transaction[]);
+    } catch (err: unknown) {
+      console.error("SessionContext.refreshFromServer error", err);
+    }
+  }, [sessaoAtual?.id]);
+
   useEffect(() => {
     if (!userId) return;
     // find active session for user
@@ -92,18 +98,9 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }
       })
       .catch(() => {});
-  }, [userId]);
+  }, [userId, refreshFromServer]);
 
-  const refreshFromServer = async () => {
-    if (!sessaoAtual?.id) return;
-    try {
-      const r = await axios.get(`/api/sessao/com-transacoes/${sessaoAtual.id}`, { withCredentials: true });
-      if (r.data && Array.isArray(r.data.transacoes)) setTransacoes(r.data.transacoes as Transaction[]);
-      else if (Array.isArray(r.data)) setTransacoes(r.data as Transaction[]);
-    } catch (err) {
-      console.error("SessionContext.refreshFromServer error", err);
-    }
-  };
+  
 
   // Polling to refresh session transactions while session active
   useEffect(() => {
@@ -117,7 +114,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       mounted = false;
       clearInterval(iv);
     };
-  }, [sessaoAtual?.id]);
+  }, [sessaoAtual?.id, refreshFromServer]);
 
   const openStartModal = () => setStartModalOpen(true);
   const closeStartModal = () => setStartModalOpen(false);

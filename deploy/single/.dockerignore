@@ -1,0 +1,11 @@
+# ignore everything except what we need for the image build
+**
+!frontend/**
+!frontend/package.json
+!frontend/package-lock.json
+!frontend/.next
+!frontend/public
+!frontend/node_modules
+!backend/target/release/backend
+!deploy/single/**
+!.dockerignore

@@ -20,13 +20,14 @@ interface GoalCardProps {
 
 
 const GoalCard: React.FC<GoalCardProps> = ({ goal, onEdit, onDelete, sx }) => {
-  const { atualizarMeta } = useMetasContext();
+  // atualizarMeta não é usado diretamente neste componente
+  useMetasContext();
   // Use useFormReducer for a consistent local state shape
   const { state: localGoal, setState: setLocalGoal } = useFormReducer<any>(goal as any);
 
   useEffect(() => {
     setLocalGoal(goal as any);
-  }, [goal]);
+  }, [goal, setLocalGoal]);
 
   // Exemplo: se quiser atualizar meta por ação local, use atualizarMeta(metaAtualizada)
 

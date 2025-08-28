@@ -13,6 +13,7 @@ import {
 } from "@mui/icons-material";
 import { Box, useMediaQuery } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
+import RouteTransition from "@/components/RouteTransition";
 import { Swiper, SwiperSlide } from "swiper/react";
 import "swiper/css";
 import DashboardLineChartCard from "@/components/dashboard/DashboardLineChartCard";
@@ -32,7 +33,7 @@ export default function Page() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div>Carregando dashboard...</div>;
+  if (loading) return <RouteTransition message="Carregando dash" />;
   if (error) return <div>{error}</div>;
 
   return (

@@ -3,7 +3,7 @@
     {
       "name": "backend",
       "promptName": "🐍 Axum Backend",
-      "command": "cargo run",
+      "command": "cargo run --bin backend",
       "cwd": "backend",
       "keepOpen": false
     },

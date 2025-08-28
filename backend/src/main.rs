@@ -48,7 +48,7 @@ async fn main() {
         .route("/api/metas/ativas-com-transacoes", get(metas_ativas_com_transacoes_handler))
         .route("/api/register", post(register_user_handler))
         // .route("/api/register-pending", post(register_pending_user_handler))
-        .route("/api/reset-password/{id}", post(reset_password_handler))
+    .route("/api/reset_password", post(reset_password_handler))
         .route("/api/request-password-reset", post(request_password_reset_handler))
         .route("/api/login", post(login_handler))
         .route("/api/logout", post(logout_handler))

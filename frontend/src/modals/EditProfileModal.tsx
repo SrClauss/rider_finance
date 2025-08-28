@@ -1,9 +1,9 @@
 "use client";
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useState } from "react";
 import { Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button, Box, Stack, CircularProgress, Typography, IconButton, FormControl, InputLabel, Select, MenuItem } from "@mui/material";
 import axios from "axios";
 import ClearIcon from "@mui/icons-material/Clear";
+import { extractErrorMessage, getAxiosResponseInfo } from '@/lib/errorUtils';
 
 type Endereco = {
   rua?: string;
@@ -68,7 +68,7 @@ export default function EditProfileModal({ open, initialEmail, initialEndereco, 
       } else {
         setEndereco((s) => ({ ...s, rua: data.logradouro || s.rua, complemento: data.complemento || s.complemento, cidade: data.localidade || s.cidade, estado: data.uf || s.estado, cep }));
       }
-    } catch (e) {
+    } catch {
       setCepError("Falha ao buscar CEP. Tente novamente.");
     } finally {
       setCepLoading(false);
@@ -90,10 +90,10 @@ export default function EditProfileModal({ open, initialEmail, initialEndereco, 
     setLoading(true);
     try {
       // construir payload somente com campos alterados
-      const payload: any = {};
+  const payload: { email?: string; endereco?: Partial<Endereco> } = {};
       if (email !== (initialEmail ?? "")) payload.email = email;
 
-      const enderecoPayload: any = {};
+  const enderecoPayload: Partial<Endereco> = {};
       if (endereco.rua) enderecoPayload.rua = endereco.rua;
       if (endereco.numero) enderecoPayload.numero = endereco.numero;
       if (endereco.complemento) enderecoPayload.complemento = endereco.complemento;
@@ -107,18 +107,20 @@ export default function EditProfileModal({ open, initialEmail, initialEndereco, 
         onSave({ email, endereco });
         onClose();
       }
-    } catch (e: any) {
+    } catch (err: unknown) {
       // tratar erros específicos retornados pelo backend
-      const status = e?.response?.status;
-      const data = e?.response?.data;
+      const axiosInfo = getAxiosResponseInfo(err);
+      const extracted = extractErrorMessage(err);
+      const status = axiosInfo?.status;
+      const data = axiosInfo?.data;
       if (status === 400) {
-        setError(typeof data === "string" ? data : "Entrada inválida.");
+        setError(typeof data === "string" ? data : extracted ?? "Entrada inválida.");
       } else if (status === 401) {
         setError("Você precisa estar autenticado para editar o perfil.");
       } else if (status === 409) {
-        setError(typeof data === "string" ? data : "Email já em uso.");
+        setError(typeof data === "string" ? data : extracted ?? "Email já em uso.");
       } else {
-        setError("Não foi possível salvar. Tente novamente mais tarde.");
+        setError(extracted ?? "Não foi possível salvar. Tente novamente mais tarde.");
       }
     } finally {
       setLoading(false);

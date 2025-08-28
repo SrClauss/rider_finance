@@ -1,11 +1,10 @@
 "use client";
-/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Box, Card, CardContent, Typography, Button, Divider, TextField } from '@mui/material';
-// evitamos useSearchParams no build
 import { ConfiguracoesSistema } from '../../interfaces/ConfiguracoesSistema';
+import { extractErrorMessage, getAxiosResponseInfo } from '@/lib/errorUtils';
 import {ThemeProvider} from '@/theme/ThemeProvider';
 import { UsuarioRegisterPayload } from '@/interfaces/UsuarioRegisterPayload';
 import AssinaturaModal from '@/modals/AssinaturaModal';
@@ -16,9 +15,9 @@ export default function RenovacaoCheckout() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [usuario, setUsuario] = useState<UsuarioRegisterPayload | null>(null);
-  const [assinatura, setAssinatura] = useState<any | null>(null);
+  const [assinatura] = useState<{ periodo_fim?: string } | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const [diasRestantes, setDiasRestantes] = useState<number | null>(null);
+  const [diasRestantes] = useState<number | null>(null);
   const [meses, setMeses] = useState(1);
   const [idUsuario, setIdUsuario] = useState('');
 
@@ -31,7 +30,6 @@ export default function RenovacaoCheckout() {
   useEffect(() => {
     setIsClient(true);
     if (!idUsuario) {
-      // if no id provided, stop loading and show form in minimal mode
       setLoading(false);
       return;
     }
@@ -39,7 +37,7 @@ export default function RenovacaoCheckout() {
       try {
         const cfgRes = await axios.get<ConfiguracoesSistema>(`/api/checkout-info?id_usuario=${idUsuario}`);
         setValor(cfgRes.data.valor ?? '');
-      } catch (e) {
+      } catch {
         setError('Erro ao buscar configurações do sistema');
       }
       try {
@@ -73,7 +71,7 @@ export default function RenovacaoCheckout() {
           captcha_answer: userRes.data.captcha_answer
         };
         setUsuario(usuarioData);
-      } catch (e) {
+        } catch {
         // ignore
       } finally {
         setLoading(false);
@@ -111,12 +109,13 @@ export default function RenovacaoCheckout() {
         console.error('Checkout sem link:', res.data);
         alert(msg);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Erro ao criar checkout:', err);
-      const resp = err?.response?.data;
-      const msg = resp?.mensagem || resp?.message || (resp ? JSON.stringify(resp) : err.message || 'Erro ao criar checkout');
-      setError(msg);
-      alert(msg);
+      const extracted = extractErrorMessage(err);
+      const axiosInfo = getAxiosResponseInfo(err);
+      const resp = axiosInfo?.data as { mensagem?: string; message?: string } | undefined;
+      const msg = resp?.mensagem || resp?.message || extracted || 'Erro ao criar checkout';
+      setError(String(msg));
     }
   };
 
@@ -234,7 +233,8 @@ export default function RenovacaoCheckout() {
                   } else {
                     setError('Erro ao criar checkout');
                   }
-                } catch (err) {
+                } catch (err: unknown) {
+                  console.error('Erro ao criar checkout (onRenovar):', err);
                   setError('Erro ao criar checkout');
                 }
               }}

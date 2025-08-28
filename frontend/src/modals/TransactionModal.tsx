@@ -1,15 +1,15 @@
 import { useEffect } from "react";
 import axios from "axios";
 import { carregarCategorias } from "@/context/CategoriaContext";
+import { extractErrorMessage } from '@/lib/errorUtils';
 import { useSession } from "@/context/SessionContext";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, MenuItem, Box, CircularProgress, Alert } from "@mui/material";
 import useFormReducer from "@/lib/useFormReducer";
 
 import type { Transaction } from "@/interfaces/Transaction";
 import { useMetasContext } from "@/context/MetasContext";
-import { AcaoTransacao } from "@/utils/atualizarTransacoesContexto";
+// AcaoTransacao not used here
 import { CategoriaProvider, useCategoriaContext } from "@/context/CategoriaContext";
 
 
@@ -46,7 +46,7 @@ function TransactionModalInner({ open, onClose, onCreated, onEdited, transaction
     const localISO = new Date(now.getTime() - tzOffset).toISOString().slice(0, 16);
     return localISO;
   }
-  const { state: form, setField, setState, reset, setLoading, setError } = useFormReducer({
+  const { state: form, setField, setState, reset, setLoading, setError } = useFormReducer<{ valor: string; tipo: string; descricao: string; id_categoria: string; data: string }>({
     valor: "",
     tipo: "entrada",
     descricao: "",
@@ -67,7 +67,7 @@ function TransactionModalInner({ open, onClose, onCreated, onEdited, transaction
     } else if (open && !transaction) {
       reset();
     }
-  }, [open, transaction]);
+  }, [open, transaction, reset, setState]);
   const { categorias, setCategorias } = useCategoriaContext();
   // loading/error are managed by the reducer via setLoading/setError; form.loading / form.error available if needed
 
@@ -76,9 +76,9 @@ function TransactionModalInner({ open, onClose, onCreated, onEdited, transaction
     if (open && (!categorias || categorias.length === 0)) {
       carregarCategorias().then(setCategorias).catch(() => {});
     }
-  }, [open]);
+  }, [open, categorias, setCategorias]);
 
-  const handleChange = (e: any) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setField(e.target.name, e.target.value);
   };
 
@@ -91,7 +91,7 @@ function TransactionModalInner({ open, onClose, onCreated, onEdited, transaction
       // Garantir tipo correto
       const tipo = form.tipo === 'entrada' || form.tipo === 'saida' ? form.tipo : 'entrada';
       // Montar payload compatível
-      const payload: any = {
+  const payload: { [k: string]: unknown } = {
         valor: valorInt,
         tipo,
         id_categoria: form.id_categoria,
@@ -114,12 +114,10 @@ function TransactionModalInner({ open, onClose, onCreated, onEdited, transaction
         try {
           const res = await axios.put(`/api/transacao/${transaction.id}`, { ...payload, id: transaction.id }, { withCredentials: true });
           const json: Transaction = res.data;
-          dispatchTransacao(json as any, 'update');
+          dispatchTransacao(json, 'update');
           onEdited(json);
-        } catch (err: any) {
-          let msg = 'Erro ao editar transação';
-          const data = err?.response?.data;
-          if (data && data.message) msg = data.message;
+        } catch (err: unknown) {
+          const msg = extractErrorMessage(err) ?? 'Erro ao editar transação';
           throw new Error(msg);
         }
       } else {
@@ -131,21 +129,20 @@ function TransactionModalInner({ open, onClose, onCreated, onEdited, transaction
           const json: Transaction = res.data;
           // optimistic attach to session context
           try {
-            if (attachTransaction) (attachTransaction as any)(json);
+            if (attachTransaction) attachTransaction(json);
           } catch {
             // ignore
           }
-          dispatchTransacao(json as any, 'add');
+          dispatchTransacao(json, 'add');
           onCreated(json);
-        } catch (err: any) {
-          let msg = 'Erro ao criar transação';
-          const data = err?.response?.data;
-          if (data && data.message) msg = data.message;
+        } catch (err: unknown) {
+          const msg = extractErrorMessage(err) ?? 'Erro ao criar transação';
           throw new Error(msg);
         }
       }
-    } catch (e: any) {
-      setError(e.message || (transaction ? "Erro ao editar transação" : "Erro ao criar transação"));
+    } catch (err: unknown) {
+      const msg = extractErrorMessage(err) ?? (transaction ? "Erro ao editar transação" : "Erro ao criar transação");
+      setError(msg);
     } finally {
       setLoading(false);
     }

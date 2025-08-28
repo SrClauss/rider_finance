@@ -54,8 +54,8 @@ export const GoalProgress: React.FC<GoalProgressProps> = ({ meta, isActive }) =>
     if (isExpired && meta.eh_ativa) {
       atualizarMeta({ ...meta, eh_ativa: false, concluida_com: total });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isCompleted, isExpired]);
+    // atualizarMeta, meta and total are stable enough for this effect; include them to satisfy lint
+  }, [isCompleted, isExpired, atualizarMeta, meta, total]);
 
   if (meta.eh_concluida) {
     // Só mostra o valor final atingido, centralizado e em verde

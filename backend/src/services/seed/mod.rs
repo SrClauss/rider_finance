@@ -92,8 +92,8 @@ pub async fn seed_movimentacao_robusta() {
     use crate::services::categoria::{CreateCategoriaPayload, create_categoria_internal};
     use crate::schema::categorias::dsl as categorias_dsl;
     // Função utilitária local para checar existência por nome e id_usuario
-    let mut id_categoria_entrada: String = "".to_string();
-    let mut id_categoria_saida: String = "".to_string();
+    let id_categoria_entrada: String;
+    let id_categoria_saida: String;
 
     // Corrida Uber
     {

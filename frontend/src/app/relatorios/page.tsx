@@ -21,7 +21,7 @@ export default function RelatoriosPage() {
     if (categorias.length === 0) {
       carregarCategorias().then(setCategorias);
     }
-  }, []);
+  }, [categorias.length, setCategorias]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFiltros({ ...filtros, [e.target.name]: e.target.value });
@@ -56,7 +56,7 @@ export default function RelatoriosPage() {
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
-    } catch (err) {
+    } catch {
       alert("Erro ao gerar relatório");
     } finally {
       setLoading(false);

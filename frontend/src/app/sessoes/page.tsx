@@ -15,13 +15,6 @@ type Sessao = {
   total_gastos?: number;
 };
 
-type PaginatedSessoes = {
-  total: number;
-  page: number;
-  page_size: number;
-  items: Sessao[];
-};
-
 export default function SessionsPage() {
   const [sessoes, setSessoes] = useState<Sessao[]>([]);
   const [loading, setLoading] = useState(false);

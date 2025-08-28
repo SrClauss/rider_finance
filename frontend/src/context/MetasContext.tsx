@@ -5,13 +5,11 @@ import axios from 'axios';
 import type { Goal } from '../interfaces/goal';
 import type { Transacao } from '../interfaces/transacao';
 import { atualizarTransacoesContexto, AcaoTransacao } from '../utils/atualizarTransacoesContexto';
-
-/* eslint-disable @typescript-eslint/no-explicit-any */
 interface MetasContextType {
   metas: Goal[];
   transacoes: Transacao[];
   setMetas: React.Dispatch<React.SetStateAction<Goal[]>>;
-  dispatchTransacao: (transacao: Transacao, acao: AcaoTransacao) => void;
+  dispatchTransacao: (transacao: Partial<Transacao>, acao: AcaoTransacao) => void;
   atualizarMeta: (meta: Goal) => void;
 }
 
@@ -38,15 +36,17 @@ export const MetasProvider = ({ children }: { children: ReactNode }) => {
     };
     fetchMetasTransacoes();
     // Listener para atualização externa
-    const handler = (e: any) => {
-      if (e?.detail) {
-        setMetas(e.detail.metas);
-        setTransacoes(e.detail.transacoes);
-        console.log('[MetasContext] Metas e transações atualizadas via evento:', e.detail);
-      } else {
-        fetchMetasTransacoes();
-      }
-    };
+      const handler = (e: Event) => {
+        const custom = e as CustomEvent | Event;
+        if ((custom as CustomEvent)?.detail) {
+          const detail = (custom as CustomEvent).detail as { metas?: Goal[]; transacoes?: Transacao[] };
+          if (detail.metas) setMetas(detail.metas);
+          if (detail.transacoes) setTransacoes(detail.transacoes);
+          console.log('[MetasContext] Metas e transacoes atualizadas via evento:', detail);
+        } else {
+          fetchMetasTransacoes();
+        }
+      };
     window.addEventListener('metas:refresh', handler);
     return () => window.removeEventListener('metas:refresh', handler);
   }, []);
@@ -57,7 +57,7 @@ export const MetasProvider = ({ children }: { children: ReactNode }) => {
   };
 
   // Função centralizada para add/update/delete
-  const dispatchTransacao = (transacao: Transacao, acao: AcaoTransacao) => {
+  const dispatchTransacao = (transacao: Partial<Transacao>, acao: AcaoTransacao) => {
     console.log(`[MetasContext] dispatchTransacao acionado:`, { acao, transacao });
     setTransacoes(prev => {
       const novo = atualizarTransacoesContexto(prev, transacao, acao);
