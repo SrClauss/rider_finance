@@ -5,7 +5,6 @@ import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
-import Button from '@mui/material/Button';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import StopIcon from '@mui/icons-material/Stop';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
@@ -61,7 +60,12 @@ export default function SessionFloatingPanel() {
   aria-expanded={open}
   aria-controls="rf-session-panel"
   onClick={() => setPanelOpen && setPanelOpen(!open)}
-  onKeyDown={(e: React.KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setPanelOpen && setPanelOpen(!open); } }}
+  onKeyDown={(e: React.KeyboardEvent) => { 
+    if (e.key === 'Enter' || e.key === ' ') { 
+      e.preventDefault(); 
+      setPanelOpen?.(!open); 
+    } 
+  }}
         sx={{
           width: 36,
       height: PANEL_HEIGHT,

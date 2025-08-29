@@ -40,7 +40,6 @@ describe('ConfirmDeleteModal', () => {
 
   it('chama axios.delete e atualiza contexts / callbacks em sucesso', async () => {
     // mock axios.delete como sucesso
-    // @ts-ignore
     axios.delete = vi.fn().mockResolvedValue({ status: 200 });
 
     const onClose = vi.fn();
@@ -62,7 +61,6 @@ describe('ConfirmDeleteModal', () => {
   it('quando axios falha, exibe mensagem de erro extraída', async () => {
     // Simula erro estilo axios com response.data.message
     const err = { response: { data: { message: 'não autorizado' } } };
-    // @ts-ignore
     axios.delete = vi.fn().mockRejectedValue(err);
 
     render(<ConfirmDeleteModal open={true} onClose={vi.fn()} idToDelete={'tx-2'} />);

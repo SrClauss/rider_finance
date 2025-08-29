@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import axios from 'axios';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { SessionProvider, useSession } from '@/context/SessionContext';
 
 vi.mock('axios');
@@ -17,7 +17,7 @@ describe('SessionContext start integration', () => {
   it('calls backend to create session and elapsedSeconds advances', async () => {
     const nowIso = new Date().toISOString();
 
-  (mockedAxios.get as any).mockImplementation((url: string) => {
+    mockedAxios.get.mockImplementation((url: string) => {
       if (url === '/api/me') return Promise.resolve({ data: { id: 'user1' } });
       if (url.startsWith('/api/sessao/list/')) return Promise.resolve({ data: [] });
       if (url.startsWith('/api/sessao/com-transacoes/')) {
@@ -26,7 +26,7 @@ describe('SessionContext start integration', () => {
       return Promise.resolve({ data: null });
     });
 
-  (mockedAxios.post as any).mockImplementation((url: string) => {
+    mockedAxios.post.mockImplementation((url: string) => {
       if (url === '/api/sessao/start') return Promise.resolve({ data: { id: 's1', inicio: nowIso } });
       if (url === '/api/sessao/stop') return Promise.resolve({ data: {} });
       return Promise.resolve({ data: {} });
@@ -48,7 +48,7 @@ describe('SessionContext start integration', () => {
   fireEvent.click(screen.getByTestId('start'));
 
   // ensure the start request was sent and the session id was propagated to UI
-  await waitFor(() => expect((mockedAxios.post as any)).toHaveBeenCalledWith('/api/sessao/start', expect.anything(), expect.anything()));
+  await waitFor(() => expect(mockedAxios.post).toHaveBeenCalledWith('/api/sessao/start', expect.anything(), expect.anything()));
 
   await waitFor(() => expect(screen.getByTestId('id').textContent).toBe('s1'));
 

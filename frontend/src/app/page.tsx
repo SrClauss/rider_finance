@@ -1,5 +1,7 @@
 
+
 import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
 
 export default async function Home() {
   // Faz uma requisição server-side para o backend validar o token
@@ -7,7 +9,7 @@ export default async function Home() {
     method: 'GET',
     // Importante: repassar os cookies do request original
     headers: {
-      Cookie: (typeof window === 'undefined' ? require('next/headers').cookies().toString() : ''),
+      Cookie: cookies().toString(),
     },
     cache: 'no-store',
     credentials: 'include',

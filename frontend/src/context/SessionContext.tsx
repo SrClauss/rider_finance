@@ -97,7 +97,8 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
         const list = await axios.get(`/api/sessao/list/${userId}`, { withCredentials: true });
         if (!mounted) return;
         if (Array.isArray(list.data)) {
-          const active = list.data.find((s: any) => s.eh_ativa === true) as { id?: string } | undefined;
+          type SessaoListItem = { id: string; eh_ativa: boolean };
+          const active = list.data.find((s: SessaoListItem) => s.eh_ativa === true) as SessaoListItem | undefined;
           if (active && active.id) {
             // fetch session with transactions
             const r = await axios.get(`/api/sessao/com-transacoes/${active.id}`, { withCredentials: true });
@@ -109,7 +110,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
           }
         }
         if (mounted) setSessao(null);
-      } catch (err) {
+      } catch {
         if (mounted) setSessao(null);
       }
     };
@@ -117,7 +118,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
 
   useEffect(() => {
@@ -143,7 +144,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
         const diff = Math.max(0, Math.floor((now - startTime) / 1000));
         setElapsedSeconds(diff);
   // log removido
-      } catch (err) {
+      } catch {
   // log removido
         setElapsedSeconds(0);
       }
@@ -175,7 +176,8 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
         } catch {}
       }
       // build body
-      const body: any = {
+      type SessaoCreateBody = Partial<SessaoComTransacoes['sessao']>;
+      const body: SessaoCreateBody = {
         id_usuario: userId ?? undefined,
         inicio: payload?.inicio ?? new Date().toISOString().split('.')[0],
         local_inicio: payload?.local_inicio ?? null,
@@ -216,12 +218,12 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
             setElapsedSeconds(initialElapsed);
             // log removido
           }
-        } catch (err) {
+        } catch {
           // log removido
         }
         try { localStorage.setItem('rf_active_session', JSON.stringify({ id: res.data.id, inicio: res.data.inicio })); } catch {}
       }
-    } catch (err) {
+    } catch {
   // log removido
     } finally {
       setLoading(false);
@@ -244,7 +246,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
         }
       }
       try { localStorage.removeItem('rf_active_session'); } catch {}
-    } catch (err) {
+    } catch {
   // log removido
     } finally {
       setLoading(false);
@@ -269,7 +271,8 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
             if (!userId) return;
             const list = await axios.get(`/api/sessao/list/${userId}`, { withCredentials: true });
             if (Array.isArray(list.data)) {
-              const active = list.data.find((s: any) => s.eh_ativa === true) as { id?: string } | undefined;
+              type SessaoListItem = { id: string; eh_ativa: boolean };
+              const active = list.data.find((s: SessaoListItem) => s.eh_ativa === true) as SessaoListItem | undefined;
               if (active && active.id) id = active.id;
             }
           }
@@ -287,7 +290,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
             sessao: { ...fresh.sessao, total_ganhos: entradas, total_gastos: saidas, total_corridas: newTrans.length },
           };
           setSessao(updated);
-        } catch (err) {
+        } catch {
           // swallow
         }
       })();
@@ -316,7 +319,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     // Try to inform backend; don't block on failure
     try {
       await axios.post('/api/transacao/delete', { id }, { withCredentials: true });
-    } catch (err) {
+    } catch {
       // log and swallow
   // log removido
     }

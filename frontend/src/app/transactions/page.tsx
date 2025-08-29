@@ -14,7 +14,6 @@ import CategoriaModal from "@/modals/CategoriaModal";
 import ConfirmDeleteModal from "@/modals/ConfirmDeleteModal";
 import type { Transaction } from "@/interfaces/Transaction";
 import axios from "axios";
-import { extractErrorMessage } from '@/lib/errorUtils';
 import dayjs from "dayjs";
 import { CategoriaProvider, useCategoriaContext, carregarCategorias } from "@/context/CategoriaContext";
 import { useMetasContext } from "@/context/MetasContext";
@@ -30,7 +29,7 @@ export default function TransactionsPage() {
 }
 
 function TransactionsPageInner() {
-  const { dispatchTransacao } = useMetasContext(); // Apenas para atualizar metas
+  const { } = useMetasContext(); // Apenas para atualizar metas
   // Controle de deleção
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedDeleteId, setSelectedDeleteId] = useState<string | null>(null);
@@ -73,11 +72,6 @@ function TransactionsPageInner() {
   };
 
   // Confirma a deleção
-  const handleConfirmDelete = async () => {
-  // deleção agora é centralizada no modal ConfirmDeleteModal
-  return;
-  };
-
   // Função chamada ao clicar em editar
   const handleEditClick = (tx: Transaction) => {
     setEditTx(tx);

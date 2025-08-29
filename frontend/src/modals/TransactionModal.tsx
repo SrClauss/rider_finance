@@ -127,7 +127,17 @@ function TransactionModalInner({ open, onClose, onCreated, onEdited, transaction
           const json: Transaction = res.data;
           dispatchTransacao(json, 'add');
           // atualiza contexto de sessão (se houver sessão ativa)
-          try { attachTransaction?.(json as any); } catch (e) { /* swallow */ }
+          try { 
+            const sessionTx = {
+              id: json.id,
+              valor: json.valor,
+              tipo: json.tipo as "entrada" | "saida",
+              descricao: json.descricao,
+              data: json.data,
+              categoria: null // será carregado depois se necessário
+            };
+            attachTransaction?.(sessionTx); 
+          } catch { /* swallow */ }
           onCreated(json);
         } catch (err: unknown) {
           const msg = extractErrorMessage(err) ?? 'Erro ao criar transação';
