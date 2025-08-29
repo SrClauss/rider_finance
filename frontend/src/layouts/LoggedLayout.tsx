@@ -69,7 +69,7 @@ export default function LoggedLayout({ children }: LoggedLayoutProps) {
       <Divider />
       <List>
         <ListItem key="Dashboard" disablePadding>
-          <ListItemButton onClick={() => router.push("/") }>
+          <ListItemButton onClick={() => router.push("/dashboard") }>
             <ListItemIcon>
               <HomeIcon />
             </ListItemIcon>
