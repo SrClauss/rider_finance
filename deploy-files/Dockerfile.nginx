@@ -1,0 +1,26 @@
+FROM nginx:alpine
+
+# Copiar configuração customizada do nginx para Docker
+COPY ./deploy-files/nginx-docker.conf /etc/nginx/nginx.conf
+
+# Copiar certificados SSL
+COPY ./deploy-files/fullchain.pem /etc/ssl/certs/fullchain.pem
+COPY ./deploy-files/privkey.pem /etc/ssl/private/privkey.pem
+COPY ./deploy-files/chain.pem /etc/ssl/certs/chain.pem
+COPY ./deploy-files/cert.pem /etc/ssl/certs/cert.pem
+
+# Criar diretórios necessários
+RUN mkdir -p /var/log/nginx /var/cache/nginx /var/run
+
+# Ajustar permissões
+RUN chown -R nginx:nginx /var/log/nginx /var/cache/nginx /var/run /etc/ssl
+
+# Expor portas HTTP e HTTPS
+EXPOSE 80 443
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost/health || exit 1
+
+# Comando para iniciar nginx
+CMD ["nginx", "-g", "daemon off;"]

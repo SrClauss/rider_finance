@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: rider_finance_postgres
+    environment:
+      POSTGRES_DB: "ride"
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "dy213y1984"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./deploy-files/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ride"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - rider_finance_network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: rider_finance_backend
+    environment:
+      DATABASE_URL: "postgres://postgres:dy213y1984@postgres:5432/ride"
+      RUST_LOG: info
+      RUST_BACKTRACE: 1
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - rider_finance_network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: rider_finance_frontend
+    environment:
+      NODE_ENV: development
+      BACKEND_INTERNAL_URL: "http://backend:8000"
+      # Dentro dos containers, 'localhost' referencia o próprio container.
+      # Apontamos a URL pública para o serviço nginx na rede Docker para
+      # que SSR e outros fetches que usam NEXT_PUBLIC_APP_URL atinjam o proxy.
+      NEXT_PUBLIC_APP_URL: "http://nginx"
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - rider_finance_network
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: rider_finance_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy-files/nginx-docker.conf:/etc/nginx/nginx.conf:ro
+      - ./deploy-files/nginx-site.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./deploy-files/fullchain.pem:/etc/ssl/certs/fullchain.pem:ro
+      - ./deploy-files/privkey.pem:/etc/ssl/private/privkey.pem:ro
+      - ./deploy-files/chain.pem:/etc/ssl/certs/chain.pem:ro
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - rider_finance_network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  rider_finance_network:
+    driver: bridge

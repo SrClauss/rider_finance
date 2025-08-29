@@ -1,0 +1,10 @@
+# Ignorar diretórios e arquivos desnecessários
+/target
+/node_modules
+/.git
+/.idea
+*.log
+*.tmp
+*.swp
+.DS_Store
+.env

@@ -46,8 +46,10 @@ export default function RelatoriosPage() {
       },
     };
     try {
-  const res = await axios.post("http://localhost/api/relatorio/transacoes", req, { withCredentials: true, responseType: 'blob' });
-  const blob = res.data as Blob;
+      // Use rota relativa para que as requisições passem pelo proxy (nginx)
+      // em produção/compose, ou pelo host quando acessado localmente.
+      const res = await axios.post("/api/relatorio/transacoes", req, { withCredentials: true, responseType: 'blob' });
+      const blob = res.data as Blob;
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;

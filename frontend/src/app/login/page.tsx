@@ -16,6 +16,7 @@ import NextLink from "next/link";
 import { DirectionsCar, Visibility, VisibilityOff } from "@mui/icons-material";
 import {ThemeProvider} from "@/theme/ThemeProvider";
 import React, { useReducer } from "react";
+import { useRouter } from 'next/navigation';
 import axios from "axios";
 
 type State = {
@@ -60,6 +61,7 @@ function reducer(state: State, action: Action): State {
 
 export default function Page() {
   const [state, dispatch] = useReducer(reducer, initialState);
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,7 +80,7 @@ export default function Page() {
         }
       );
       if (response.status === 200) {
-        window.location.href = "/";
+        await router.push('/dashboard');
       } else {
         dispatch({ type: "SET_ERROR", payload: "Usuário ou senha inválidos" });
       }
