@@ -1,131 +1,183 @@
-"use client";
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
-import axios from "axios";
-import type { Transaction as SharedTransaction } from "@/interfaces/Transaction";
+'use client'
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import axios from 'axios';
+import { SessaoComTransacoes } from '@/interfaces/SessaoComTransacoes';
 
-type Sessao = {
-  id?: string;
-  id_usuario?: string;
-  inicio?: string;
-  fim?: string | null;
-  eh_ativa?: boolean;
-  total_corridas?: number;
-  total_ganhos?: number;
-  total_gastos?: number;
-  plataforma?: string | null;
-  clima?: string | null;
-  observacoes?: string | null;
-  local_inicio?: string | null;
-  local_fim?: string | null;
-};
 
-type Transaction = SharedTransaction;
 
-type SessionContextValue = {
-  sessaoAtual?: Sessao | null;
-  transacoes: Transaction[];
-  totals: { ganhos: number; gastos: number; corridas: number };
-  loading: boolean;
-  userId?: string | null;
-  startModalOpen: boolean;
-  openStartModal: () => void;
-  closeStartModal: () => void;
-  start: (payload?: Partial<Sessao>) => Promise<void>;
-  stop: () => Promise<void>;
-  attachTransaction: (tx: Transaction) => void;
-  refreshFromServer: () => Promise<void>;
-};
+export const SessionContext = createContext<{
+  sessao?: SessaoComTransacoes | null;
+  setSessao?: (s: SessaoComTransacoes | null) => void;
+  elapsedSeconds?: number;
+  loading?: boolean;
+  start?: (payload?: Partial<SessaoComTransacoes['sessao']>) => Promise<void>;
+  stop?: () => Promise<void>;
+  attachTransaction?: (tx: SessaoComTransacoes['transacoes'][number]) => void;
+  removeTransaction?: (id: string) => Promise<void> | void;
+  panelOpen?: boolean;
+  setPanelOpen?: (v: boolean) => void;
+} | undefined>(undefined);
 
-const SessionContext = createContext<SessionContextValue | undefined>(undefined);
-
-export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [sessaoAtual, setSessaoAtual] = useState<Sessao | null | undefined>(undefined);
-  const [transacoes, setTransacoes] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [userId, setUserId] = useState<string | null | undefined>(undefined);
-  const [startModalOpen, setStartModalOpen] = useState<boolean>(false);
-
-  const totals = {
-  ganhos: transacoes.reduce((s, t) => s + (typeof t.valor === "number" && t.tipo !== "saida" ? t.valor : 0), 0),
-  gastos: transacoes.reduce((s, t) => s + (typeof t.valor === "number" && t.tipo === "saida" ? t.valor : 0), 0),
-    corridas: transacoes.length,
-  };
-
-  useEffect(() => {
-    // fetch current user id
-    axios
-      .get("/api/me", { withCredentials: true })
-      .then((res) => {
-        if (res.data && res.data.id) setUserId(res.data.id);
-        else setUserId(null);
-      })
-      .catch(() => setUserId(null))
-      .finally(() => setLoading(false));
-  }, []);
-
-  const refreshFromServer = useCallback(async () => {
-    if (!sessaoAtual?.id) return;
+export const SessionProvider = ({ children }: { children: ReactNode }) => {
+  const [sessaoState, setSessaoState] = useState<SessaoComTransacoes | null | undefined>(() => {
     try {
-      const r = await axios.get(`/api/sessao/com-transacoes/${sessaoAtual.id}`, { withCredentials: true });
-      if (r.data && Array.isArray(r.data.transacoes)) setTransacoes(r.data.transacoes as Transaction[]);
-      else if (Array.isArray(r.data)) setTransacoes(r.data as Transaction[]);
-    } catch (err: unknown) {
-      console.error("SessionContext.refreshFromServer error", err);
+      const raw = localStorage.getItem('rf_sessao');
+      if (!raw) return undefined;
+      return JSON.parse(raw) as SessaoComTransacoes;
+    } catch {
+      return undefined;
     }
-  }, [sessaoAtual?.id]);
+  });
+  // wrapper that persists to localStorage whenever sessao changes
+  const setSessao = (s: SessaoComTransacoes | null | undefined) => {
+    try {
+      if (s === undefined) {
+        localStorage.removeItem('rf_sessao');
+      } else {
+        localStorage.setItem('rf_sessao', JSON.stringify(s));
+      }
+    } catch {}
+    setSessaoState(s ?? null);
+    // se sessão ativa, atualiza relógio imediatamente
+    try {
+      if (s && s.sessao && s.sessao.eh_ativa && s.sessao.inicio) {
+        const startMs = new Date(s.sessao.inicio).getTime();
+        const now = Date.now();
+        setElapsedSeconds(Math.max(0, Math.floor((now - startMs) / 1000)));
+      } else {
+        setElapsedSeconds(0);
+      }
+    } catch {
+      setElapsedSeconds(0);
+    }
+  };
+  const sessao = sessaoState;
+  const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [panelOpen, setPanelOpen] = useState<boolean>(() => {
+    try {
+      const raw = localStorage.getItem('rf_panel_open');
+      if (raw === null) return true;
+      return raw === '1';
+    } catch {
+      return true;
+    }
+  });
+
+  // persist panel state
+  useEffect(() => {
+    try { localStorage.setItem('rf_panel_open', panelOpen ? '1' : '0'); } catch {}
+  }, [panelOpen]);
 
   useEffect(() => {
-    if (!userId) return;
-    // find active session for user
-    axios
-      .get(`/api/sessao/list/${userId}`, { withCredentials: true })
-      .then((res) => {
-        if (Array.isArray(res.data)) {
-          const active = res.data.find((s: Sessao) => s.eh_ativa === true) as Sessao | undefined;
-          setSessaoAtual(active ?? null);
-          if (active) {
-            // load transactions for session
-            axios
-              .get(`/api/sessao/com-transacoes/${active.id}`, { withCredentials: true })
-              .then((r) => {
-                if (r.data && Array.isArray(r.data.transacoes)) setTransacoes(r.data.transacoes as Transaction[]);
-                else if (Array.isArray(r.data)) setTransacoes(r.data as Transaction[]);
-              })
-              .catch(() => {});
-          } else {
-            setTransacoes([]);
+    let mounted = true;
+    const init = async () => {
+      try {
+        const me = await axios.get('/api/me', { withCredentials: true });
+        const userId = me?.data?.id;
+        if (!userId) {
+          if (mounted) setSessao(null);
+          return;
+        }
+        // if we have a cached session in localStorage, try to refresh it from server
+        const cached = sessao;
+        if (cached && cached.sessao && cached.sessao.id) {
+          try {
+            const r = await axios.get(`/api/sessao/com-transacoes/${cached.sessao.id}`, { withCredentials: true });
+            if (!mounted) return;
+            if (r.data) {
+              setSessao(r.data as SessaoComTransacoes);
+              return;
+            }
+          } catch {
+            // ignore and fallthrough to fetching list
           }
         }
-      })
-      .catch(() => {});
-  }, [userId, refreshFromServer]);
-
-  
-
-  // Polling to refresh session transactions while session active
-  useEffect(() => {
-    if (!sessaoAtual?.id) return;
-    let mounted = true;
-    const iv = setInterval(() => {
-      if (!mounted) return;
-      refreshFromServer().catch(() => {});
-    }, 5000);
+        // fetch list of sessions for user and try to find active one
+        const list = await axios.get(`/api/sessao/list/${userId}`, { withCredentials: true });
+        if (!mounted) return;
+        if (Array.isArray(list.data)) {
+          const active = list.data.find((s: any) => s.eh_ativa === true) as { id?: string } | undefined;
+          if (active && active.id) {
+            // fetch session with transactions
+            const r = await axios.get(`/api/sessao/com-transacoes/${active.id}`, { withCredentials: true });
+            if (!mounted) return;
+            if (r.data) {
+              setSessao(r.data as SessaoComTransacoes);
+              return;
+            }
+          }
+        }
+        if (mounted) setSessao(null);
+      } catch (err) {
+        if (mounted) setSessao(null);
+      }
+    };
+    init();
     return () => {
       mounted = false;
-      clearInterval(iv);
     };
-  }, [sessaoAtual?.id, refreshFromServer]);
+  }, []);
 
-  const openStartModal = () => setStartModalOpen(true);
-  const closeStartModal = () => setStartModalOpen(false);
 
-  const start = async (payload?: Partial<Sessao>) => {
-    if (!userId) return;
+  useEffect(() => {
+    let iv: ReturnType<typeof setInterval> | undefined;
+    const update = () => {
+      if (!sessao || !sessao.sessao || !sessao.sessao.inicio || !sessao.sessao.eh_ativa) {
+        setElapsedSeconds(0);
+        return;
+      }
+      try {
+        // Corrigir problema de timezone: se a data não tem timezone, assumir UTC
+        let startTime: number;
+        const inicioStr = sessao.sessao.inicio;
+
+        if (inicioStr.includes('T') && !inicioStr.includes('Z') && !inicioStr.includes('+')) {
+          // Data sem timezone explícito - assumir UTC
+          startTime = new Date(inicioStr + 'Z').getTime();
+        } else {
+          startTime = new Date(inicioStr).getTime();
+        }
+
+        const now = Date.now();
+        const diff = Math.max(0, Math.floor((now - startTime) / 1000));
+        setElapsedSeconds(diff);
+  // log removido
+      } catch (err) {
+  // log removido
+        setElapsedSeconds(0);
+      }
+    };
+    update(); // update immediately
+    if (sessao && sessao.sessao && sessao.sessao.eh_ativa) {
+      iv = setInterval(update, 1000);
+  // log removido
+    } else {
+  // log removido
+    }
+    return () => { if (iv) clearInterval(iv); };
+  }, [sessao]);
+
+  const start = async (payload?: Partial<SessaoComTransacoes['sessao']>) => {
     setLoading(true);
     try {
-      const body = {
-        id_usuario: userId,
-        inicio: payload?.inicio ?? new Date().toISOString().split(".")[0],
+      // avoid creating duplicate active sessions
+      if (sessao && sessao.sessao && sessao.sessao.eh_ativa) {
+        setLoading(false);
+        return;
+      }
+      // ensure we have user id; fetch /api/me if missing
+      let userId = payload?.id_usuario;
+      if (!userId) {
+        try {
+          const me = await axios.get('/api/me', { withCredentials: true });
+          userId = me?.data?.id;
+        } catch {}
+      }
+      // build body
+      const body: any = {
+        id_usuario: userId ?? undefined,
+        inicio: payload?.inicio ?? new Date().toISOString().split('.')[0],
         local_inicio: payload?.local_inicio ?? null,
         plataforma: payload?.plataforma ?? null,
         observacoes: payload?.observacoes ?? null,
@@ -135,76 +187,147 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
         total_gastos: 0,
         eh_ativa: true,
       };
-      const res = await axios.post("/api/sessao/start", body, { withCredentials: true });
-      setSessaoAtual(res.data ?? null);
-      // load transactions
-      if (res.data && res.data.id) {
-        const r = await axios.get(`/api/sessao/com-transacoes/${res.data.id}`, { withCredentials: true });
-        if (r.data && Array.isArray(r.data.transacoes)) setTransacoes(r.data.transacoes as Transaction[]);
-        else if (Array.isArray(r.data)) setTransacoes(r.data as Transaction[]);
+      const res = await axios.post('/api/sessao/start', body, { withCredentials: true });
+      if (res.data) {
+        // if server returns SessaoTrabalho or SessaoComTransacoes, normalize
+        if (res.data.transacoes) {
+          setSessao(res.data as SessaoComTransacoes);
+        } else {
+          // server may return only session; fetch with transacoes
+          if (res.data.id) {
+            const r = await axios.get(`/api/sessao/com-transacoes/${res.data.id}`, { withCredentials: true });
+            if (r.data) setSessao(r.data as SessaoComTransacoes);
+            else setSessao(null);
+          }
+        }
+        // garantir relógio no caso de inicio imediato - definir elapsedSeconds imediatamente
+        try {
+          const inicio = res.data.inicio ?? (res.data.sessao && res.data.sessao.inicio);
+          if (inicio) {
+            // Mesma correção de timezone
+            let startMs: number;
+            if (inicio.includes('T') && !inicio.includes('Z') && !inicio.includes('+')) {
+              startMs = new Date(inicio + 'Z').getTime();
+            } else {
+              startMs = new Date(inicio).getTime();
+            }
+            const now = Date.now();
+            const initialElapsed = Math.max(0, Math.floor((now - startMs) / 1000));
+            setElapsedSeconds(initialElapsed);
+            // log removido
+          }
+        } catch (err) {
+          // log removido
+        }
+        try { localStorage.setItem('rf_active_session', JSON.stringify({ id: res.data.id, inicio: res.data.inicio })); } catch {}
       }
-      setStartModalOpen(false);
     } catch (err) {
-      console.error("SessionContext.start error", err);
+  // log removido
     } finally {
       setLoading(false);
     }
   };
 
   const stop = async () => {
-    if (!userId || !sessaoAtual?.id) return;
+    if (!sessao || !sessao.sessao || !sessao.sessao.id) return;
     setLoading(true);
     try {
-      const payload = {
-        id_sessao: sessaoAtual.id,
-        fim: new Date().toISOString().split(".")[0],
-        local_fim: null,
-        observacoes: null,
-      };
-      const res = await axios.post("/api/sessao/stop", payload, { withCredentials: true });
-      setSessaoAtual(res.data ?? null);
-      // refresh transactions/totals
-      if (sessaoAtual.id) {
-        const r = await axios.get(`/api/sessao/com-transacoes/${sessaoAtual.id}`, { withCredentials: true });
-        if (r.data && Array.isArray(r.data.transacoes)) setTransacoes(r.data.transacoes as Transaction[]);
-        else if (Array.isArray(r.data)) setTransacoes(r.data as Transaction[]);
+      const payload = { id_sessao: sessao.sessao.id, fim: new Date().toISOString().split('.')[0], local_fim: null, observacoes: null };
+      const res = await axios.post('/api/sessao/stop', payload, { withCredentials: true });
+      if (res.data) {
+        // server returns updated session
+        // fetch session with transacoes to update
+        if (sessao.sessao.id) {
+          const r = await axios.get(`/api/sessao/com-transacoes/${sessao.sessao.id}`, { withCredentials: true });
+          if (r.data) setSessao(r.data as SessaoComTransacoes);
+          else setSessao(null);
+        }
       }
+      try { localStorage.removeItem('rf_active_session'); } catch {}
     } catch (err) {
-      console.error("SessionContext.stop error", err);
+  // log removido
     } finally {
       setLoading(false);
     }
   };
 
-  const attachTransaction = (tx: Transaction) => {
-    // optimistic attach
-    setTransacoes((prev) => [tx, ...prev]);
+  const attachTransaction = (tx: SessaoComTransacoes['transacoes'][number]) => {
+    // se não temos sessao local, tentamos buscar sem bloquear o chamador
+    if (!sessao || !sessao.sessao || !sessao.sessao.id) {
+      (async () => {
+        try {
+          // tenta usar active session salvo
+          const raw = localStorage.getItem('rf_active_session');
+          let id: string | undefined;
+          if (raw) {
+            try { id = JSON.parse(raw).id; } catch {}
+          }
+          if (!id) {
+            // fallback: fetch list
+            const me = await axios.get('/api/me', { withCredentials: true });
+            const userId = me?.data?.id;
+            if (!userId) return;
+            const list = await axios.get(`/api/sessao/list/${userId}`, { withCredentials: true });
+            if (Array.isArray(list.data)) {
+              const active = list.data.find((s: any) => s.eh_ativa === true) as { id?: string } | undefined;
+              if (active && active.id) id = active.id;
+            }
+          }
+          if (!id) return;
+          const r = await axios.get(`/api/sessao/com-transacoes/${id}`, { withCredentials: true });
+          if (!r.data) return;
+          // agora temos sessao, chama novamente attachTransaction para inserir
+          const fresh = r.data as SessaoComTransacoes;
+          const newTrans = [tx, ...fresh.transacoes];
+          const entradas = newTrans.filter(t => t.tipo === 'entrada').reduce((acc, t) => acc + Number(t.valor || 0), 0);
+          const saidas = newTrans.filter(t => t.tipo === 'saida').reduce((acc, t) => acc + Number(t.valor || 0), 0);
+          const updated: SessaoComTransacoes = {
+            ...fresh,
+            transacoes: newTrans,
+            sessao: { ...fresh.sessao, total_ganhos: entradas, total_gastos: saidas, total_corridas: newTrans.length },
+          };
+          setSessao(updated);
+        } catch (err) {
+          // swallow
+        }
+      })();
+      return;
+    }
+
+    // já temos sessao local: insere e recalcula totais
+    const newTrans = [tx, ...sessao.transacoes];
+    const entradas = newTrans.filter(t => t.tipo === 'entrada').reduce((acc, t) => acc + Number(t.valor || 0), 0);
+    const saidas = newTrans.filter(t => t.tipo === 'saida').reduce((acc, t) => acc + Number(t.valor || 0), 0);
+    const updated: SessaoComTransacoes = {
+      ...sessao,
+      transacoes: newTrans,
+      sessao: { ...sessao.sessao, total_ganhos: entradas, total_gastos: saidas, total_corridas: newTrans.length },
+    };
+    setSessao(updated);
   };
 
-  
-
-  const value: SessionContextValue = {
-    sessaoAtual,
-    transacoes,
-    totals,
-    loading,
-    userId: userId ?? null,
-    startModalOpen,
-    openStartModal,
-    closeStartModal,
-    start,
-    stop,
-    attachTransaction,
-    refreshFromServer,
+  const removeTransaction = async (id: string) => {
+    // Optimistically remove from local state
+    const next = (prev: SessaoComTransacoes | null | undefined) => {
+      if (!prev) return prev;
+      return { ...prev, transacoes: prev.transacoes.filter((t) => t.id !== id) } as SessaoComTransacoes;
+    };
+    setSessao(next(sessao));
+    // Try to inform backend; don't block on failure
+    try {
+      await axios.post('/api/transacao/delete', { id }, { withCredentials: true });
+    } catch (err) {
+      // log and swallow
+  // log removido
+    }
   };
 
+  const value = { sessao, setSessao, elapsedSeconds, loading, start, stop, attachTransaction, removeTransaction, panelOpen, setPanelOpen };
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 };
 
 export const useSession = () => {
   const ctx = useContext(SessionContext);
-  if (!ctx) throw new Error("useSession must be used within SessionProvider");
+  if (!ctx) throw new Error('useSession must be used within SessionProvider');
   return ctx;
 };
-
-export default SessionContext;

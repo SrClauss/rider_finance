@@ -21,25 +21,25 @@
     "next": "^15.5.0",
     "react": "19.1.1",
     "react-dom": "19.1.1",
-    "swiper": "^11.2.10"
+    "swiper": "^11.2.10",
+    "vite-tsconfig-paths": "^4.0.0",
+    "vitest": "^0.34.3"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@playwright/test": "^1.54.2",
     "@testing-library/jest-dom": "^6.6.4",
     "@testing-library/react": "^16.3.0",
-    "@types/jest": "^30.0.0",
     "@types/node": "^24.3.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "cross-env": "^10.0.0",
     "eslint": "^9",
     "eslint-config-next": "^15.5.0",
-    "jest": "^30.0.5",
-    "jest-environment-jsdom": "^30.0.5",
-    "ts-jest": "^29.4.1",
+    "jsdom": "^22.1.0",
     "typescript": "^5"
   },
+  "vite-tsconfig-paths": "^4.0.0",
   "engines": {
     "vscode": ">=1.70.0"
   }

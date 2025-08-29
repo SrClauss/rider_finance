@@ -2,7 +2,6 @@ import { useEffect } from "react";
 import axios from "axios";
 import { carregarCategorias } from "@/context/CategoriaContext";
 import { extractErrorMessage } from '@/lib/errorUtils';
-import { useSession } from "@/context/SessionContext";
 
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, MenuItem, Box, CircularProgress, Alert } from "@mui/material";
 import useFormReducer from "@/lib/useFormReducer";
@@ -11,6 +10,7 @@ import type { Transaction } from "@/interfaces/Transaction";
 import { useMetasContext } from "@/context/MetasContext";
 // AcaoTransacao not used here
 import { CategoriaProvider, useCategoriaContext } from "@/context/CategoriaContext";
+import { useSession } from '@/context/SessionContext';
 
 
 interface Props {
@@ -38,7 +38,7 @@ export default function TransactionModal({ open, onClose, onCreated, onEdited, t
 
 function TransactionModalInner({ open, onClose, onCreated, onEdited, transaction }: Props) {
   const { dispatchTransacao } = useMetasContext();
-  const { sessaoAtual, attachTransaction } = useSession();
+  const { attachTransaction } = useSession();
   // Função para obter data/hora local no formato 'YYYY-MM-DDTHH:mm'
   function getNowLocalISO() {
     const now = new Date();
@@ -123,17 +123,11 @@ function TransactionModalInner({ open, onClose, onCreated, onEdited, transaction
       } else {
         // Criação
         try {
-          // attach session id if exists (use hook values captured at top)
-          if (sessaoAtual && sessaoAtual.id) payload.id_sessao = sessaoAtual.id;
           const res = await axios.post('/api/transacao', payload, { withCredentials: true });
           const json: Transaction = res.data;
-          // optimistic attach to session context
-          try {
-            if (attachTransaction) attachTransaction(json);
-          } catch {
-            // ignore
-          }
           dispatchTransacao(json, 'add');
+          // atualiza contexto de sessão (se houver sessão ativa)
+          try { attachTransaction?.(json as any); } catch (e) { /* swallow */ }
           onCreated(json);
         } catch (err: unknown) {
           const msg = extractErrorMessage(err) ?? 'Erro ao criar transação';

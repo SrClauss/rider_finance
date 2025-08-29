@@ -74,22 +74,8 @@ function TransactionsPageInner() {
 
   // Confirma a deleção
   const handleConfirmDelete = async () => {
-    if (!selectedDeleteId) return;
-    setLoading(true);
-    setError(null);
-    try {
-      await axios.delete(`/api/transacao/${selectedDeleteId}`);
-      setDeleteModalOpen(false);
-      setSelectedDeleteId(null);
-      await fetchTransacoes();
-      // Atualiza contexto global após exclusão
-      dispatchTransacao({ id: selectedDeleteId! }, 'delete');
-    } catch (err: unknown) {
-      const msg = extractErrorMessage(err) ?? 'Erro ao deletar transação';
-      setError(String(msg));
-    } finally {
-      setLoading(false);
-    }
+  // deleção agora é centralizada no modal ConfirmDeleteModal
+  return;
   };
 
   // Função chamada ao clicar em editar
@@ -289,7 +275,12 @@ function TransactionsPageInner() {
       <ConfirmDeleteModal
         open={deleteModalOpen}
         onClose={() => setDeleteModalOpen(false)}
-        onConfirm={handleConfirmDelete}
+        idToDelete={selectedDeleteId}
+        onDeleted={async () => {
+          setDeleteModalOpen(false);
+          setSelectedDeleteId(null);
+          await fetchTransacoes();
+        }}
         title="Confirmar exclusão"
         description="Tem certeza que deseja deletar esta transação? Esta ação não pode ser desfeita."
       />

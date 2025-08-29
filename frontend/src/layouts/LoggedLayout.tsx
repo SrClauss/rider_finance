@@ -25,9 +25,8 @@ import { useRouter } from "next/navigation";
 import { ThemeProvider } from "@/theme/ThemeProvider"; // Adjust the import path as necessary
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import { MetasProvider } from "../context/MetasContext";
-import SessionFloatingButton from "@/components/session/SessionFloatingButton";
-import { SessionProvider } from "@/context/SessionContext";
-import StartSessionModal from "@/modals/StartSessionModal";
+import { SessionProvider } from '@/context/SessionContext';
+import SessionFloatingPanel from '@/components/session/SessionFloatingPanel';
 
 const drawerWidth = 240;
 
@@ -134,77 +133,82 @@ export default function LoggedLayout({ children }: LoggedLayoutProps) {
       <MetasProvider>
         <SessionProvider>
           <Box sx={{ display: "flex" }}>
-          <CssBaseline />
-          <AppBar
-            position="fixed"
-            sx={{
-              width: { sm: `calc(100% - ${drawerWidth}px)` },
-              ml: { sm: `${drawerWidth}px` },
-            }}
-          >
-            <Toolbar>
-              <IconButton
-                color="inherit"
-                aria-label="open drawer"
-                edge="start"
-                onClick={handleDrawerToggle}
-                sx={{ mr: 2, display: { sm: "none" } }}
-              >
-                <MenuIcon />
-              </IconButton>
-              <Typography variant="h6" noWrap component="div">
-                Rider Finance
-              </Typography>
-            </Toolbar>
-          </AppBar>
-          {/* Drawer para mobile */}
-          <Drawer
-            variant="temporary"
-            open={mobileOpen}
-            onClose={handleDrawerToggle}
-            ModalProps={{ keepMounted: true }}
-            sx={{
-              display: { xs: "block", sm: "none" },
-              "& .MuiDrawer-paper": { boxSizing: "border-box", width: drawerWidth }
-            }}
-          >
-            {drawer}
-          </Drawer>
-          {/* Drawer para desktop */}
-          <Drawer
-            variant="permanent"
-            sx={{
-              display: { xs: "none", sm: "block" },
-              "& .MuiDrawer-paper": { boxSizing: "border-box", width: drawerWidth }
-            }}
-            open
-          >
-            {drawer}
-          </Drawer>
-          <Box
-            component="main"
-            sx={{
-              flexGrow: 1,
-              p: 3,
-              width: { sm: `calc(100% - ${drawerWidth}px)` },
-              bgcolor: "#181c24",
-              color: "#f5f5f5",
-              minHeight: "100vh",
-              pl: { sm: `${drawerWidth}px` }, // Garante espaço para a sidebar
-              boxSizing: 'border-box',
-              transition: 'padding-left 0.2s',
-            }}
-          >
-            <Toolbar />
-            <Box>
-              {children}
+            <CssBaseline />
+            <AppBar
+              position="fixed"
+              sx={{
+                width: { sm: `calc(100% - ${drawerWidth}px)` },
+                ml: { sm: `${drawerWidth}px` },
+              }}
+            >
+              <Toolbar>
+                <IconButton
+                  color="inherit"
+                  aria-label="open drawer"
+                  edge="start"
+                  onClick={handleDrawerToggle}
+                  sx={{ mr: 2, display: { sm: "none" } }}
+                >
+                  <MenuIcon />
+                </IconButton>
+                <Typography variant="h6" noWrap component="div">
+                  Rider Finance
+                </Typography>
+              </Toolbar>
+            </AppBar>
+
+            {/* Drawer para mobile */}
+            <Drawer
+              variant="temporary"
+              open={mobileOpen}
+              onClose={handleDrawerToggle}
+              ModalProps={{ keepMounted: true }}
+              sx={{
+                display: { xs: "block", sm: "none" },
+                "& .MuiDrawer-paper": { boxSizing: "border-box", width: drawerWidth }
+              }}
+            >
+              {drawer}
+            </Drawer>
+
+            {/* Drawer para desktop */}
+            <Drawer
+              variant="permanent"
+              sx={{
+                display: { xs: "none", sm: "block" },
+                "& .MuiDrawer-paper": { boxSizing: "border-box", width: drawerWidth }
+              }}
+              open
+            >
+              {drawer}
+            </Drawer>
+
+            <Box
+              component="main"
+              sx={{
+                position: 'relative',
+                flexGrow: 1,
+                p: 3,
+                width: { sm: `calc(100% - ${drawerWidth}px)` },
+                bgcolor: "#181c24",
+                color: "#f5f5f5",
+                minHeight: "100vh",
+                pl: { sm: `${drawerWidth}px` }, // Garante espaço para a sidebar
+                boxSizing: 'border-box',
+                transition: 'padding-left 0.2s',
+              }}
+            >
+              <Toolbar />
+              <Box>
+                {children}
+              </Box>
+
+              <SessionFloatingPanel />
+
+              <Box component="footer" sx={{ mt: 4, textAlign: "center", color: "#888" }}>
+                <small>© {new Date().getFullYear()} Rider Finance</small>
+              </Box>
             </Box>
-            <SessionFloatingButton />
-            <StartSessionModal />
-            <Box component="footer" sx={{ mt: 4, textAlign: "center", color: "#888" }}>
-              <small>© {new Date().getFullYear()} Rider Finance</small>
-            </Box>
-          </Box>
           </Box>
         </SessionProvider>
       </MetasProvider>
