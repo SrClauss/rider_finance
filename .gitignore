@@ -1,4 +1,4 @@
-# Rust build artifacts
+ # Rust build artifacts
 /backend/target/
 /target/
 **/*.rs.bk
@@ -34,7 +34,6 @@ Cargo.lock
 # IDE files
 .vscode/
 .idea/
-*.swp
 *.swo
 
 # OS files
@@ -42,7 +41,6 @@ Cargo.lock
 Thumbs.db
 
 # Build artifacts grandes
-/backend/target/
 **/target/
 **/node_modules/
 
