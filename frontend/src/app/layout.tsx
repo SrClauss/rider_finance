@@ -1,6 +1,16 @@
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import "./globals.css";
-import '@fortawesome/fontawesome-free/css/all.min.css';
-import { CategoriaProvider } from '../context/CategoriaContext';
+import { ThemeProvider } from "@/theme/ThemeProvider";
+import { SessionProvider } from '@/context/SessionContext';
+import { MetasProvider } from '@/context/MetasContext';
+
+const inter = Inter({ subsets: ["latin"] });
+
+export const metadata: Metadata = {
+  title: "Rider Finance",
+  description: "Sistema de gestão financeira pessoal",
+};
 
 export default function RootLayout({
   children,
@@ -9,10 +19,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR">
-      <body>
-        <CategoriaProvider>
-          {children}
-        </CategoriaProvider>
+      <body className={inter.className}>
+        <ThemeProvider>
+          <SessionProvider>
+            <MetasProvider>
+              {children}
+            </MetasProvider>
+          </SessionProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

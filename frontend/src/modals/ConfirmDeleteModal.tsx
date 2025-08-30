@@ -3,7 +3,6 @@ import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Typography, 
 import axios from 'axios';
 import { extractErrorMessage } from '@/lib/errorUtils';
 import { useMetasContext } from '@/context/MetasContext';
-import { useSession } from '@/context/SessionContext';
 
 interface ConfirmDeleteModalProps {
   open: boolean;
@@ -18,8 +17,7 @@ interface ConfirmDeleteModalProps {
 }
 
 export default function ConfirmDeleteModal({ open, onClose, onConfirm, idToDelete = null, onDeleted, title = "Confirmar exclusão", description = "Tem certeza que deseja deletar este item? Esta ação não pode ser desfeita." }: ConfirmDeleteModalProps) {
-  const { dispatchTransacao } = useMetasContext();
-  const { removeTransaction: ctxRemoveTransaction } = useSession();
+  const { dispatchTransacoes } = useMetasContext(); // ← Corrigido: dispatchTransacoes (plural)
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,10 +34,12 @@ export default function ConfirmDeleteModal({ open, onClose, onConfirm, idToDelet
     setError(null);
     try {
       await axios.delete(`/api/transacao/${idToDelete}`);
-      // atualiza MetasContext
-      try { dispatchTransacao({ id: idToDelete }, 'delete'); } catch {}
-      // atualiza SessionContext
-      try { ctxRemoveTransaction?.(idToDelete); } catch {}
+      // atualiza MetasContext - cria objeto Transacao mínimo para dispatch
+      try { 
+        const transacaoToDelete = { id: idToDelete } as any; // Type assertion necessário
+        dispatchTransacoes(transacaoToDelete, 'delete'); 
+      } catch {}
+      // SessionContext será atualizado automaticamente quando necessário
       try { if (onDeleted) onDeleted(idToDelete); } catch {}
       onClose();
     } catch (err: unknown) {

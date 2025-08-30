@@ -5,6 +5,7 @@ import useFormReducer from "@/lib/useFormReducer";
 import parseNumberToInt from '@/utils/parseNumber';
 
 import { Goal } from "@/interfaces/goal";
+import { useMetasContext } from "@/context/MetasContext";
 
 type GoalModalProps = {
   open: boolean;
@@ -36,6 +37,7 @@ type GoalForm = {
 
 export default function GoalModal(props: GoalModalProps) {
   const { open, onClose, onSaved, goal } = props;
+  const { dispatchMetas } = useMetasContext();
   const { state: form, setField, setState, reset, setLoading, setError } = useFormReducer<GoalForm>({
     titulo: "",
     descricao: "",
@@ -171,10 +173,15 @@ export default function GoalModal(props: GoalModalProps) {
         concluida_com: form.concluida_com ?? null
       };
       console.log('[GoalModal] Payload:', payload);
+      let responseData: Goal;
       if (goal && goal.id) {
-        await axios.put(`/api/meta/${goal.id}`, payload, { withCredentials: true });
+        const res = await axios.put(`/api/meta/${goal.id}`, payload, { withCredentials: true });
+        responseData = res.data;
+        dispatchMetas(responseData, 'update'); // Atualiza MetasContext após edição
       } else {
-        await axios.post(`/api/meta`, payload, { withCredentials: true });
+        const res = await axios.post(`/api/meta`, payload, { withCredentials: true });
+        responseData = res.data;
+        dispatchMetas(responseData, 'add'); // Atualiza MetasContext após criação
       }
       onSaved();
     } catch (err: unknown) {

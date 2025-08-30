@@ -13,7 +13,6 @@ export const SessionContext = createContext<{
   start?: (payload?: Partial<SessaoComTransacoes['sessao']>) => Promise<void>;
   stop?: () => Promise<void>;
   attachTransaction?: (tx: SessaoComTransacoes['transacoes'][number]) => void;
-  removeTransaction?: (id: string) => Promise<void> | void;
   panelOpen?: boolean;
   setPanelOpen?: (v: boolean) => void;
 } | undefined>(undefined);
@@ -311,22 +310,11 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const removeTransaction = async (id: string) => {
-    // Optimistically remove from local state
-    const next = (prev: SessaoComTransacoes | null | undefined) => {
-      if (!prev) return prev;
-      return { ...prev, transacoes: prev.transacoes.filter((t) => t.id !== id) } as SessaoComTransacoes;
-    };
-    setSessao(next(sessao));
-    // Try to inform backend; don't block on failure
-    try {
-      await axios.post('/api/transacao/delete', { id }, { withCredentials: true });
-    } catch {
-      // log and swallow
-  // log removido
-    }
+    // Método removido - usar o método de transactions page diretamente
+    console.warn('removeTransaction do SessionProvider foi removido. Use o método de transactions page.');
   };
 
-  const value = { sessao, setSessao, elapsedSeconds, loading, start, stop, attachTransaction, removeTransaction, panelOpen, setPanelOpen };
+  const value = { sessao, setSessao, elapsedSeconds, loading, start, stop, attachTransaction, panelOpen, setPanelOpen };
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 };
 

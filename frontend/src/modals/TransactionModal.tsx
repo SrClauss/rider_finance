@@ -1,222 +1,345 @@
-import { useEffect } from "react";
-import axios from "axios";
-import { carregarCategorias } from "@/context/CategoriaContext";
-import { extractErrorMessage } from '@/lib/errorUtils';
+import React, { useState, useMemo, useReducer } from 'react';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Button,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Box,
+  Typography,
+  IconButton,
+} from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
+import { Transaction } from '@/interfaces/Transaction';
+import { useCategoriaContext } from '@/context/CategoriaContext';
 
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, MenuItem, Box, CircularProgress, Alert } from "@mui/material";
-import useFormReducer from "@/lib/useFormReducer";
+// Import FontAwesome CSS (certifique-se de que está instalado)
+import '@fortawesome/fontawesome-free/css/all.min.css';
 
-import type { Transaction } from "@/interfaces/Transaction";
-import { useMetasContext } from "@/context/MetasContext";
-// AcaoTransacao not used here
-import { CategoriaProvider, useCategoriaContext } from "@/context/CategoriaContext";
-import { useSession } from '@/context/SessionContext';
-
-
-interface Props {
+interface TransactionModalProps {
   open: boolean;
   onClose: () => void;
-  onCreated: (tx: Transaction) => void;
-  onEdited?: (tx: Transaction) => void;
+  onCreated?: () => void;
+  onEdited?: () => void;
   transaction?: Transaction | null;
 }
 
-
-export default function TransactionModal({ open, onClose, onCreated, onEdited, transaction }: Props) {
-  return (
-    <CategoriaProvider>
-      <TransactionModalInner
-        open={open}
-        onClose={onClose}
-        onCreated={onCreated}
-        onEdited={onEdited}
-        transaction={transaction}
-      />
-    </CategoriaProvider>
-  );
+// Estado inicial do formulário
+interface FormState {
+  valor: string;
+  tipo: string;
+  descricao: string;
+  id_categoria: string;
+  data: string;
 }
 
-function TransactionModalInner({ open, onClose, onCreated, onEdited, transaction }: Props) {
-  const { dispatchTransacao } = useMetasContext();
-  const { attachTransaction } = useSession();
-  // Função para obter data/hora local no formato 'YYYY-MM-DDTHH:mm'
-  function getNowLocalISO() {
-    const now = new Date();
-    const tzOffset = now.getTimezoneOffset() * 60000;
-    const localISO = new Date(now.getTime() - tzOffset).toISOString().slice(0, 16);
-    return localISO;
+// Ações do reducer
+type FormAction =
+  | { type: 'SET_VALOR'; payload: string }
+  | { type: 'SET_TIPO'; payload: string }
+  | { type: 'SET_DESCRICAO'; payload: string }
+  | { type: 'SET_CATEGORIA'; payload: string }
+  | { type: 'SET_DATA'; payload: string }
+  | { type: 'RESET_FORM' }
+  | { type: 'LOAD_TRANSACTION'; payload: Transaction };
+
+// Reducer para gerenciar o estado do formulário
+const formReducer = (state: FormState, action: FormAction): FormState => {
+  switch (action.type) {
+    case 'SET_VALOR':
+      return { ...state, valor: action.payload };
+    case 'SET_TIPO':
+      return { ...state, tipo: action.payload };
+    case 'SET_DESCRICAO':
+      return { ...state, descricao: action.payload };
+    case 'SET_CATEGORIA':
+      return { ...state, id_categoria: action.payload };
+    case 'SET_DATA':
+      return { ...state, data: action.payload };
+    case 'RESET_FORM':
+      return {
+        valor: '',
+        tipo: '',
+        descricao: '',
+        id_categoria: '',
+        data: new Date().toISOString().slice(0, 16), // Formato YYYY-MM-DDTHH:mm para datetime-local
+      };
+    case 'LOAD_TRANSACTION':
+      const transaction = action.payload;
+      return {
+        valor: transaction.valor ? transaction.valor.toString() : '',
+        tipo: transaction.tipo || '',
+        descricao: transaction.descricao || '',
+        id_categoria: transaction.id_categoria || '',
+        data: transaction.data
+          ? new Date(transaction.data).toISOString().slice(0, 16) // Formato YYYY-MM-DDTHH:mm para datetime-local
+          : new Date().toISOString().slice(0, 16),
+      };
+    default:
+      return state;
   }
-  const { state: form, setField, setState, reset, setLoading, setError } = useFormReducer<{ valor: string; tipo: string; descricao: string; id_categoria: string; data: string }>({
-    valor: "",
-    tipo: "entrada",
-    descricao: "",
-    id_categoria: "",
-    data: getNowLocalISO(),
+};
+
+/**
+ * Modal para criação e edição de transações
+ * Componente visual sem lógica de estado
+ */
+const TransactionModal: React.FC<TransactionModalProps> = ({
+  open,
+  onClose,
+  transaction,
+}) => {
+  const isEditing = Boolean(transaction);
+  const { categorias } = useCategoriaContext();
+
+  // Estado do formulário usando reducer
+  const [formState, dispatch] = useReducer(formReducer, {
+    valor: '',
+    tipo: '',
+    descricao: '',
+    id_categoria: '',
+    data: new Date().toISOString().slice(0, 16), // Formato YYYY-MM-DDTHH:mm para datetime-local
   });
 
-  // Preencher formulário ao abrir para edição
-  useEffect(() => {
-    if (open && transaction) {
-      setState({
-        valor: transaction.valor.toString(),
-        tipo: transaction.tipo,
-        descricao: transaction.descricao || "",
-        id_categoria: transaction.id_categoria,
-        data: transaction.data ? transaction.data.slice(0, 16) : getNowLocalISO(),
-      });
-    } else if (open && !transaction) {
-      reset();
+  // Carregar transação para edição quando o modal abrir ou quando a transação mudar
+  React.useEffect(() => {
+    if (transaction && open) {
+      dispatch({ type: 'LOAD_TRANSACTION', payload: transaction });
+    } else if (!transaction && open) {
+      dispatch({ type: 'RESET_FORM' });
     }
-  }, [open, transaction, reset, setState]);
-  const { categorias, setCategorias } = useCategoriaContext();
-  // loading/error are managed by the reducer via setLoading/setError; form.loading / form.error available if needed
+  }, [transaction, open]);
 
-  // Carregar categorias ao abrir o modal se necessário
-  useEffect(() => {
-    if (open && (!categorias || categorias.length === 0)) {
-      carregarCategorias().then(setCategorias).catch(() => {});
+  // Efeito adicional para garantir que a transação seja carregada quando o componente montar
+  React.useEffect(() => {
+    if (transaction && open) {
+      dispatch({ type: 'LOAD_TRANSACTION', payload: transaction });
     }
-  }, [open, categorias, setCategorias]);
+  }, []); // Executa apenas uma vez quando o componente montar
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setField(e.target.name, e.target.value);
+  const selectedCategoria = useMemo(
+    () => categorias.find((c) => c.id === formState.id_categoria) ?? null,
+    [categorias, formState.id_categoria]
+  );
+
+  // Função para submeter o formulário
+  const handleSubmit = () => {
+    // Aqui você pode adicionar validação e lógica para salvar
+    // TODO: Implementar lógica de salvar
   };
 
-  const handleSubmit = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-     
-      const valorInt = Math.round(Number(form.valor));
-      const tipo = form.tipo === 'entrada' || form.tipo === 'saida' ? form.tipo : 'entrada';
-     
-  const payload: { [k: string]: unknown } = {
-        valor: valorInt,
-        tipo,
-        id_categoria: form.id_categoria,
-      };
-      if (form.descricao && form.descricao.trim()) payload.descricao = form.descricao.trim();
-      if (form.data) {
-  
-        const [date, time] = form.data.split('T');
-        let dataFormatada = form.data;
-        if (date && time) {
-          // Garante segundos
-          const [hh, mm] = time.split(":");
-          dataFormatada = `${date}T${hh}:${mm}:00`;
-        }
-        payload.data = dataFormatada;
-      }
-      if (transaction && onEdited) {
-        // Edição
-        try {
-          const res = await axios.put(`/api/transacao/${transaction.id}`, { ...payload, id: transaction.id }, { withCredentials: true });
-          const json: Transaction = res.data;
-          dispatchTransacao(json, 'update');
-          onEdited(json);
-        } catch (err: unknown) {
-          const msg = extractErrorMessage(err) ?? 'Erro ao editar transação';
-          throw new Error(msg);
-        }
-      } else {
-        // Criação
-        try {
-          const res = await axios.post('/api/transacao', payload, { withCredentials: true });
-          const json: Transaction = res.data;
-          dispatchTransacao(json, 'add');
- 
-          try { 
-            const sessionTx = {
-              id: json.id,
-              valor: json.valor,
-              tipo: json.tipo as "entrada" | "saida",
-              descricao: json.descricao,
-              data: json.data,
-              categoria: null // será carregado depois se necessário
-            };
-            attachTransaction?.(sessionTx); 
-          } catch { /* swallow */ }
-          onCreated(json);
-        } catch (err: unknown) {
-          const msg = extractErrorMessage(err) ?? 'Erro ao criar transação';
-          throw new Error(msg);
-        }
-      }
-    } catch (err: unknown) {
-      const msg = extractErrorMessage(err) ?? (transaction ? "Erro ao editar transação" : "Erro ao criar transação");
-      setError(msg);
-    } finally {
-      setLoading(false);
-    }
+  // Função para limpar o formulário
+  const handleClose = () => {
+    dispatch({ type: 'RESET_FORM' });
+    onClose();
+  };
+
+  // Função para renderizar ícone FontAwesome
+  const renderIcon = (icone: string | undefined, size: string = '1.2em') => {
+    if (!icone) return null;
+
+    return (
+      <Box
+        component="i"
+        className={icone}
+        sx={{
+          fontSize: size,
+          lineHeight: 1,
+          minWidth: size,
+          display: 'inline-block',
+          textAlign: 'center',
+        }}
+      />
+    );
+  };
+
+  // Função para renderizar o tipo com cor
+  const renderTipo = (tipo: string | undefined) => {
+    if (!tipo) return null;
+
+    const isReceita = tipo === 'entrada';
+    return (
+      <Typography
+        variant="caption"
+        sx={{
+          color: isReceita ? 'success.main' : 'error.main',
+          fontWeight: 700,
+          fontSize: '0.75rem',
+        }}
+      >
+        {isReceita ? 'RECEITA' : 'DESPESA'}
+      </Typography>
+    );
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
-      <DialogTitle>{transaction ? "Editar Transação" : "Nova Transação"}</DialogTitle>
-      <DialogContent>
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="sm"
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: 3,
+          minHeight: 500,
+        },
+      }}
+    >
+      <DialogTitle
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          pb: 1,
+        }}
+      >
+        <Typography 
+          variant="h6" 
+          component="span" 
+          fontWeight={700} 
+          color="primary.main"
+        >
+          {isEditing ? 'Editar Transação' : 'Nova Transação'}
+        </Typography>
+        <IconButton
+          onClick={handleClose}
+          size="small"
+          sx={{ color: 'text.secondary' }}
+        >
+          <CloseIcon />
+        </IconButton>
+      </DialogTitle>
+
+      <DialogContent sx={{ px: 3, pb: 2 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, pt: 1 }}>
+          {/* Campo Valor */}
           <TextField
-            label="Valor"
-            name="valor"
+            label="Valor (R$)"
             type="number"
-            value={form.valor}
-            onChange={handleChange}
             fullWidth
-            required
+            variant="outlined"
+            placeholder="0,00"
+            value={formState.valor}
+            onChange={(e) => dispatch({ type: 'SET_VALOR', payload: e.target.value })}
+            slotProps={{
+              input: {
+                sx: { borderRadius: 2 },
+              },
+            }}
           />
-          <TextField
-            label="Tipo"
-            name="tipo"
-            select
-            value={form.tipo}
-            onChange={handleChange}
-            fullWidth
-          >
-            <MenuItem value="entrada">Receita</MenuItem>
-            <MenuItem value="saida">Despesa</MenuItem>
-          </TextField>
-          <TextField
-            label="Categoria"
-            name="id_categoria"
-            select
-            value={form.id_categoria}
-            onChange={handleChange}
-            fullWidth
-            required
-          >
-            {categorias && categorias.length > 0 ? (
-              categorias.map((cat) => (
-                <MenuItem key={cat.id} value={cat.id}>{cat.nome}</MenuItem>
-              ))
-            ) : (
-              <MenuItem value="" disabled>Nenhuma categoria encontrada</MenuItem>
-            )}
-          </TextField>
+
+          {/* Campo Descrição */}
           <TextField
             label="Descrição"
-            name="descricao"
-            value={form.descricao}
-            onChange={handleChange}
             fullWidth
+            variant="outlined"
+            placeholder="Descrição da transação"
+            multiline
+            rows={2}
+            value={formState.descricao}
+            onChange={(e) => dispatch({ type: 'SET_DESCRICAO', payload: e.target.value })}
+            slotProps={{
+              input: {
+                sx: { borderRadius: 2 },
+              },
+            }}
           />
+
+          {/* Campo Categoria (ícone FontAwesome + nome + tipo nas opções) */}
+          <FormControl fullWidth variant="outlined">
+            <InputLabel>Categoria</InputLabel>
+            <Select
+              label="Categoria"
+              value={formState.id_categoria}
+              onChange={(e) => dispatch({ type: 'SET_CATEGORIA', payload: e.target.value as string })}
+              renderValue={(val) => {
+                const cat = categorias.find((c) => c.id === val);
+                if (!cat) return <Typography color="text.secondary">Selecione uma categoria</Typography>;
+                return (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    {renderIcon(cat.icone || undefined)}
+                    <Typography sx={{ ml: 1 }}>{cat.nome}</Typography>
+                    {renderTipo(cat.tipo)}
+                  </Box>
+                );
+              }}
+              sx={{ borderRadius: 2 }}
+            >
+              <MenuItem value="">
+                <Typography color="text.secondary">Selecione uma categoria</Typography>
+              </MenuItem>
+              {categorias.map((categoria) => (
+                <MenuItem key={categoria.id} value={categoria.id}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
+                    {/* Ícone FontAwesome antes do nome */}
+                    {renderIcon(categoria.icone || undefined)}
+                    
+                    {/* Nome da categoria */}
+                    <Typography sx={{ ml: 1 }}>{categoria.nome}</Typography>
+
+                    {/* Tipo no canto direito */}
+                    <Box sx={{ ml: 'auto' }}>
+                      {renderTipo(categoria.tipo)}
+                    </Box>
+                  </Box>
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          {/* Campo Data e Hora */}
           <TextField
             label="Data e Hora"
-            name="data"
             type="datetime-local"
-            value={form.data}
-            onChange={handleChange}
             fullWidth
-            InputLabelProps={{ shrink: true }}
+            variant="outlined"
+            value={formState.data}
+            onChange={(e) => dispatch({ type: 'SET_DATA', payload: e.target.value })}
+            slotProps={{
+              inputLabel: {
+                shrink: true,
+              },
+              input: {
+                sx: { borderRadius: 2 },
+              },
+            }}
           />
-          {form.error && <Alert severity="error">{form.error}</Alert>}
         </Box>
       </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose} color="inherit">Cancelar</Button>
-        <Button onClick={handleSubmit} variant="contained" color="primary" disabled={form.loading}>
-          {form.loading ? <CircularProgress size={20} /> : "Salvar"}
+
+      <DialogActions sx={{ px: 3, pb: 3, pt: 1 }}>
+        <Button
+          onClick={handleClose}
+          variant="outlined"
+          color="inherit"
+          sx={{
+            borderRadius: 2,
+            px: 3,
+            fontWeight: 600,
+          }}
+        >
+          Cancelar
+        </Button>
+        <Button
+          onClick={handleSubmit}
+          variant="contained"
+          color="primary"
+          sx={{
+            borderRadius: 2,
+            px: 3,
+            fontWeight: 600,
+          }}
+        >
+          {isEditing ? 'Salvar' : 'Criar'}
         </Button>
       </DialogActions>
     </Dialog>
   );
-}
+};
+
+export default TransactionModal;

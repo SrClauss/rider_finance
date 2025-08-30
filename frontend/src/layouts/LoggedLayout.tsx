@@ -24,10 +24,8 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import { useRouter } from "next/navigation";
 import { ThemeProvider } from "@/theme/ThemeProvider"; // Adjust the import path as necessary
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
-import { MetasProvider } from "../context/MetasContext";
 import { SessionProvider } from '@/context/SessionContext';
 import SessionFloatingPanel from '@/components/session/SessionFloatingPanel';
-
 const drawerWidth = 240;
 
 interface LoggedLayoutProps {
@@ -131,8 +129,7 @@ export default function LoggedLayout({ children }: LoggedLayoutProps) {
   return (
     <ThemeProvider>
       <SessionProvider>
-        <MetasProvider>
-          <Box sx={{ display: "flex" }}>
+        <Box sx={{ display: "flex" }}>
             <CssBaseline />
             <AppBar
               position="fixed"
@@ -210,8 +207,7 @@ export default function LoggedLayout({ children }: LoggedLayoutProps) {
               </Box>
             </Box>
           </Box>
-        </MetasProvider>
-      </SessionProvider>
-    </ThemeProvider>
-  );
-}
+        </SessionProvider>
+      </ThemeProvider>
+    );
+  }

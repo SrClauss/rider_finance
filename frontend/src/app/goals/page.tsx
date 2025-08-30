@@ -11,8 +11,10 @@ import axios from "axios";
 import { extractErrorMessage } from '@/lib/errorUtils';
 import { Goal } from "@/interfaces/goal";
 import GoalCard from "../../components/goals/GoalCard";
+import { useMetasContext } from "@/context/MetasContext";
 
 export default function GoalsPage() {
+  const { dispatchMetas, loading: contextLoading, error: contextError } = useMetasContext();
   const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -76,7 +78,16 @@ export default function GoalsPage() {
     setLoading(true);
     setError(null);
     try {
+      // Encontra a meta antes de deletar para fazer o dispatch
+      const metaToDelete = goals.find(g => g.id === selectedDeleteId);
+      
       await axios.delete(`/api/meta/${selectedDeleteId}`);
+      
+      // Atualiza MetasContext após deletar
+      if (metaToDelete) {
+        dispatchMetas(metaToDelete, 'delete');
+      }
+      
       setDeleteModalOpen(false);
       setSelectedDeleteId(null);
       await fetchGoals();
@@ -94,18 +105,7 @@ export default function GoalsPage() {
     setModalOpen(false);
     setEditGoal(null);
     await fetchGoals();
-    // Atualiza contexto global de metas e transações
-    try {
-      const res = await axios.get('/api/metas/ativas-com-transacoes');
-      if (res.data) {
-        // Atualiza contexto global se o provider estiver disponível
-        if (window && window.dispatchEvent) {
-          window.dispatchEvent(new CustomEvent('metas:refresh', { detail: res.data }));
-        }
-      }
-    } catch {
-      // Silencioso
-    }
+    // O dispatch já foi feito no GoalModal, então não precisamos fazer novamente aqui
   };
 
   return (

@@ -16,7 +16,7 @@ import type { Transaction } from "@/interfaces/Transaction";
 import axios from "axios";
 import dayjs from "dayjs";
 import { CategoriaProvider, useCategoriaContext, carregarCategorias } from "@/context/CategoriaContext";
-import { useMetasContext } from "@/context/MetasContext";
+
 
 export default function TransactionsPage() {
   return (
@@ -29,11 +29,9 @@ export default function TransactionsPage() {
 }
 
 function TransactionsPageInner() {
-  const { } = useMetasContext(); // Apenas para atualizar metas
-  // Controle de deleção
+
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedDeleteId, setSelectedDeleteId] = useState<string | null>(null);
-  // Controle de edição
   const [editTx, setEditTx] = useState<Transaction | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]); // Fonte de verdade para renderização

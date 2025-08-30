@@ -1,72 +1,157 @@
+"use client"
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
+import { Goal } from '@/interfaces/goal';
+import { Transacao } from '@/interfaces/transacao';
 import axios from 'axios';
 
-// Interfaces (ajuste conforme seu projeto)
-import type { Goal } from '../interfaces/goal';
-import type { Transacao } from '../interfaces/transacao';
-import { atualizarTransacoesContexto, AcaoTransacao } from '../utils/atualizarTransacoesContexto';
-interface MetasContextType {
+export interface MetasETransacoes{
   metas: Goal[];
   transacoes: Transacao[];
-  setMetas: React.Dispatch<React.SetStateAction<Goal[]>>;
-  dispatchTransacao: (transacao: Partial<Transacao>, acao: AcaoTransacao) => void;
-  atualizarMeta: (meta: Goal) => void;
+  loading: boolean;
+  error: string | null;
+  dispatchTransacoes: (transacao: Transacao, action: 'add' | 'update' | 'delete') => void;
+  dispatchMetas: (meta: Goal, action: 'add' | 'update' | 'delete') => void;
+  transactionsOfMeta: (metaId: string) => Transacao[];
 }
 
-const MetasContext = createContext<MetasContextType | undefined>(undefined);
+const MetasContext = createContext<MetasETransacoes | undefined>(undefined);
 
+// Hook customizado para consumir o contexto
 export const useMetasContext = () => {
-  const ctx = useContext(MetasContext);
-  if (!ctx) throw new Error('useMetasContext deve ser usado dentro de MetasProvider');
-  return ctx;
+  const context = useContext(MetasContext);
+  if (!context) {
+    throw new Error('useMetasContext must be used within MetasProvider');
+  }
+  return context;
 };
 
-export const MetasProvider = ({ children }: { children: ReactNode }) => {
-  const [metas, setMetas] = useState<Goal[]>([]);
-  const [transacoes, setTransacoes] = useState<Transacao[]>([]);
-
+export const MetasProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  // Estados para dados, loading e error
+  const [metasETransacoes, setMetasETransacoes] = useState<{
+    metas: Goal[];
+    transacoes: Transacao[];
+  }>({
+    metas: [],
+    transacoes: [],
+  });
+  
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  
   useEffect(() => {
-    const fetchMetasTransacoes = () => {
-      axios.get('/api/metas/ativas-com-transacoes')
-        .then(res => {
-          setMetas(res.data.metas);
-          setTransacoes(res.data.transacoes);
-          console.log('[MetasContext] Metas e transações carregadas:', res.data);
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await axios.get("/api/metas/ativas-com-transacoes", {
+          withCredentials: true
         });
+        setMetasETransacoes(response.data);
+      } catch (err: any) {
+        const errorMessage = err?.response?.data?.message || err?.message || 'Erro ao carregar dados';
+        setError(errorMessage);
+      } finally {
+        setLoading(false);
+      }
     };
-    fetchMetasTransacoes();
-    // Listener para atualização externa
-      const handler = (e: Event) => {
-        const custom = e as CustomEvent | Event;
-        if ((custom as CustomEvent)?.detail) {
-          const detail = (custom as CustomEvent).detail as { metas?: Goal[]; transacoes?: Transacao[] };
-          if (detail.metas) setMetas(detail.metas);
-          if (detail.transacoes) setTransacoes(detail.transacoes);
-          console.log('[MetasContext] Metas e transacoes atualizadas via evento:', detail);
-        } else {
-          fetchMetasTransacoes();
-        }
-      };
-    window.addEventListener('metas:refresh', handler);
-    return () => window.removeEventListener('metas:refresh', handler);
+    
+    fetchData();
   }, []);
 
-  // Atualização otimista de meta (estabilizada com useCallback)
-  const atualizarMeta = useCallback((meta: Goal) => {
-    setMetas(prev => prev.map(m => m.id === meta.id ? meta : m));
-  }, [setMetas]);
+ useEffect(()=>{
+   console.log('📊 METAS E TRANSAÇÕES ATUALIZADAS:', metasETransacoes);
+ }, [metasETransacoes])
 
-  // Função centralizada para add/update/delete (estabilizada com useCallback)
-  const dispatchTransacao = useCallback((transacao: Partial<Transacao>, acao: AcaoTransacao) => {
-    console.log(`[MetasContext] dispatchTransacao acionado:`, { acao, transacao });
-    setTransacoes(prev => {
-      const novo = atualizarTransacoesContexto(prev, transacao, acao);
-      console.log('[MetasContext] Novo estado de transacoes:', novo);
-      return novo;
+  const dispatchTransacoes = useCallback((transacao: Transacao, action: 'add' | 'update' | 'delete') => {
+    setMetasETransacoes(prev => {
+      switch (action) {
+        case 'add':
+          return { ...prev, transacoes: [...prev.transacoes, transacao] };
+        case 'update':
+          return {
+            ...prev,
+            transacoes: prev.transacoes.map(t => (t.id === transacao.id ? transacao : t)),
+          };
+        case 'delete':
+          return {
+            ...prev,
+            transacoes: prev.transacoes.filter(t => t.id !== transacao.id),
+          };
+        default:
+          return prev;
+      }
     });
-  }, [setTransacoes]);
+  }, []);
 
-  const value = useMemo(() => ({ metas, transacoes, setMetas, dispatchTransacao, atualizarMeta }), [metas, transacoes, setMetas, dispatchTransacao, atualizarMeta]);
+  const dispatchMetas = useCallback((meta: Goal, action: 'add' | 'update' | 'delete') => {
+    setMetasETransacoes(prev => {
+      switch (action) {
+        case 'add':
+          return { ...prev, metas: [...prev.metas, meta] };
+        case 'update':
+          return {
+            ...prev,
+            metas: prev.metas.map(m => (m.id === meta.id ? meta : m)),
+          };
+        case 'delete':
+          return {
+            ...prev,
+            metas: prev.metas.filter(m => m.id !== meta.id),
+          };
+        default:
+          return prev;
+      }
+    });
+  }, []);
+
+  const transactionsOfMeta = useCallback((metaId: string): Transacao[] => {
+
+    const meta = metasETransacoes.metas.find(m => m.id === metaId);
+
+    if (!meta?.data_inicio) {
+      return [];
+    }
+
+    // PRIMEIRA ETAPA: Filtrar por período (datas)
+    const transacoesNoPeriodo = metasETransacoes.transacoes.filter(t => {
+      // Usar timestamps para evitar problemas de timezone
+      const dataTransacao = new Date(t.data).getTime();
+      const dataInicio = new Date(meta.data_inicio!).getTime();
+      const dataFim = meta.data_fim ? new Date(meta.data_fim).getTime() : null;
+
+      // Verifica se está dentro do período usando timestamps
+      if (dataTransacao < dataInicio) return false;
+      if (dataFim && dataTransacao > dataFim) return false;
+
+      return true;
+    });
+
+    // SEGUNDA ETAPA: Filtrar por tipo
+    const filtered = transacoesNoPeriodo.filter(t => {
+      switch (meta.tipo.toLowerCase()) {
+        case 'faturamento':
+          return t.tipo === 'entrada';
+        case 'economia':
+          return t.tipo === 'saida';
+        case 'lucro':
+          return t.tipo === 'entrada' || t.tipo === 'saida';
+        default:
+          // Para tipos desconhecidos, incluir todas as transações
+          return true;
+      }
+    });
+
+    return filtered;
+  }, [metasETransacoes.metas, metasETransacoes.transacoes]);
+  const value: MetasETransacoes = useMemo(() => ({
+    metas: metasETransacoes.metas,
+    transacoes: metasETransacoes.transacoes,
+    loading,
+    error,
+    dispatchTransacoes,
+    dispatchMetas,
+    transactionsOfMeta,
+  }), [metasETransacoes.metas, metasETransacoes.transacoes, loading, error, dispatchTransacoes, dispatchMetas, transactionsOfMeta]);
 
   return (
     <MetasContext.Provider value={value}>
