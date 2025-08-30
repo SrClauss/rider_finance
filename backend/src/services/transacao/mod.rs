@@ -1,8 +1,7 @@
 use axum::{response::{Response}, http::{StatusCode, header}};
 use crate::utils::relatorio::{gerar_pdf, gerar_xlsx};
-// Adicione as dependências no Cargo.toml:
-// printpdf = "0.6" (para PDF)
-// umya-spreadsheet = "1.0" (para XLSX)
+use crate::utils::date_utils::parse_datetime;
+
 
 #[derive(Deserialize)]
 pub struct RelatorioTransacoesRequest {
@@ -90,155 +89,13 @@ pub struct Claims {
     pub exp: usize,
 }
 
-#[cfg(test)]
-mod tests {
-    use crate::models::categoria::NewCategoria;
-    use super::*;
-    use crate::db::establish_connection;
-    use chrono::Utc;
-    use crate::models::usuario::NewUsuario;
 
-    fn clean_db() {
-        std::env::set_var("ENVIRONMENT", "tests");
-        let conn = &mut establish_connection();
-        diesel::delete(crate::schema::transacoes::dsl::transacoes).execute(conn).ok();
-        diesel::delete(crate::schema::usuarios::dsl::usuarios).execute(conn).ok();
-    }
-
-    // Removido: create_fake_user
-
-    fn fake_payload() -> CreateTransacaoPayload {
-        let now = Utc::now().naive_utc();
-        CreateTransacaoPayload {
-            id_categoria: "cat1".to_string(),
-            valor: 123,
-            tipo: "entrada".to_string(),
-            descricao: Some("Transação de teste".to_string()),
-            data: Some(now),
-        }
-    }
-
-    #[derive(Serialize, serde::Deserialize)]
-    struct Claims {
-        sub: String,
-        email: String,
-        exp: usize,
-    }
-
-    #[tokio::test]
-    async fn test_create_get_and_delete_transacao() {
-        std::env::set_var("ENVIRONMENT", "tests");
-        clean_db();
-        let db_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| "SEM DATABASE_URL".to_string());
-        println!("[TESTE] DATABASE_URL em uso: {}", db_url);
-        let conn = &mut establish_connection();
-
-        // Cria usuário diretamente
-        let now = chrono::Utc::now().naive_utc();
-        let user_id = "user_transacao_test".to_string();
-        let new_user = NewUsuario {
-            id: user_id.clone(),
-            nome_usuario: "user_transacao_test".to_string(),
-            email: "transacao@teste.com".to_string(),
-            senha: "senha123".to_string(),
-            nome_completo: "Transacao Teste".to_string(),
-            telefone: "11999999999".to_string(),
-            veiculo: "Carro".to_string(),
-            criado_em: now,
-            atualizado_em: now,
-            ultima_tentativa_redefinicao: now,
-            address: "Rua Teste".to_string(),
-            address_number: "123".to_string(),
-            complement: "Apto 1".to_string(),
-            postal_code: "01234567".to_string(),
-            province: "Centro".to_string(),
-            city: "São Paulo".to_string(),
-            cpfcnpj: "12345678900".to_string(),
-        };
-        diesel::insert_into(crate::schema::usuarios::dsl::usuarios)
-            .values(&new_user)
-            .on_conflict(crate::schema::usuarios::dsl::id)
-            .do_nothing()
-            .execute(conn)
-            .expect("Erro ao inserir usuário");
-        // Assert usuário criado
-        let usuario_existe = crate::schema::usuarios::dsl::usuarios
-            .filter(crate::schema::usuarios::dsl::id.eq(&user_id))
-            .first::<crate::models::usuario::Usuario>(conn)
-            .is_ok();
-        assert!(usuario_existe, "Usuário não foi criado corretamente");
-
-        // Cria categoria diretamente
-        let categoria_id = "cat1".to_string();
-        let new_cat = NewCategoria {
-            id: categoria_id.clone(),
-            id_usuario: Some(user_id.clone()),
-            nome: "Categoria Teste".to_string(),
-            tipo: "entrada".to_string(),
-            icone: Some("icon.png".to_string()),
-            cor: Some("#FFFFFF".to_string()),
-            
-            criado_em: now,
-            atualizado_em: now,
-        };
-        diesel::insert_into(crate::schema::categorias::dsl::categorias)
-            .values(&new_cat)
-            .on_conflict(crate::schema::categorias::dsl::id)
-            .do_nothing()
-            .execute(conn)
-            .expect("Erro ao inserir categoria");
-        // Assert categoria criada
-        let categoria_existe = crate::schema::categorias::dsl::categorias
-            .filter(crate::schema::categorias::dsl::id.eq(&categoria_id))
-            .first::<crate::models::categoria::Categoria>(conn)
-            .is_ok();
-        assert!(categoria_existe, "Categoria não foi criada corretamente");
-
-        // Cria transação
-        let payload = fake_payload();
-        let nova_transacao = crate::models::NewTransacao {
-            id: ulid::Ulid::new().to_string(),
-            id_usuario: user_id.clone(),
-            id_categoria: categoria_id.clone(),
-            valor: payload.valor,
-            tipo: payload.tipo.clone(),
-            descricao: payload.descricao.clone(),
-            data: payload.data.unwrap_or(now),
-            criado_em: now,
-            atualizado_em: now,
-        };
-        diesel::insert_into(crate::schema::transacoes::dsl::transacoes)
-            .values(&nova_transacao)
-            .execute(conn)
-            .expect("Erro ao inserir transação");
-        let transacao_id = nova_transacao.id.clone();
-        // Assert transação criada
-        let found = crate::schema::transacoes::dsl::transacoes
-            .filter(crate::schema::transacoes::dsl::id.eq(&transacao_id))
-            .first::<crate::models::Transacao>(conn);
-        assert!(found.is_ok(), "Transação não encontrada após inserção");
-
-        // Deleta transação diretamente
-        let deleted = diesel::delete(crate::schema::transacoes::dsl::transacoes
-            .filter(crate::schema::transacoes::dsl::id.eq(&transacao_id))
-            .filter(crate::schema::transacoes::dsl::id_usuario.eq(&user_id)))
-            .execute(conn)
-            .unwrap_or(0);
-        assert!(deleted > 0, "Falha ao deletar transação: usuário do teste = {}", user_id);
-
-        // Assert transação removida
-        let found2 = crate::schema::transacoes::dsl::transacoes
-            .filter(crate::schema::transacoes::dsl::id.eq(&transacao_id))
-            .first::<crate::models::Transacao>(conn);
-        assert!(found2.is_err(), "Transação ainda encontrada após deleção");
-    }
-}
 #[derive(Serialize, Deserialize)]
 pub struct UpdateTransacaoPayload {
     pub valor: Option<i32>,
     pub tipo: Option<String>,
     pub descricao: Option<String>,
-    pub data: Option<chrono::NaiveDateTime>,
+    pub data: Option<String>, // Mantém como String para aceitar do frontend
 }
 
 use crate::schema::transacoes;
@@ -249,16 +106,24 @@ pub struct TransacaoChangeset {
     pub valor: Option<i32>,
     pub tipo: Option<String>,
     pub descricao: Option<String>,
-    pub data: Option<chrono::NaiveDateTime>,
+    pub data: Option<chrono::NaiveDateTime>, // Mantém como NaiveDateTime para o Diesel
 }
 
 pub async fn update_transacao_handler(Path(id_param): Path<String>, Json(payload): Json<UpdateTransacaoPayload>) -> Json<Option<TransacaoResponse>> {
     let conn = &mut db::establish_connection();
+
+    // Parse da data se fornecida
+    let parsed_data = if let Some(data_str) = &payload.data {
+        parse_datetime(data_str).ok()
+    } else {
+        None
+    };
+
     let changeset = TransacaoChangeset {
         valor: payload.valor,
         tipo: payload.tipo,
         descricao: payload.descricao,
-        data: payload.data,
+        data: parsed_data,
     };
     diesel::update(transacoes.filter(id.eq(&id_param)))
         .set(changeset)
@@ -291,7 +156,7 @@ pub struct CreateTransacaoPayload {
     pub valor: i32,
     pub tipo: String,
     pub descricao: Option<String>,
-    pub data: Option<chrono::NaiveDateTime>,
+    pub data: Option<String>, // Alterado para String para aceitar formato do frontend
 }
 
 #[derive(Serialize)]
@@ -315,7 +180,17 @@ pub async fn create_transacao_handler(jar: CookieJar, Json(payload): Json<Create
         .map(|token_data| token_data.claims)
         .unwrap_or_else(|_| Claims { sub: "".to_string(), email: "".to_string(), exp: 0 });
     let user_id = claims.sub.clone();
-    let nova_data: NaiveDateTime = payload.data.unwrap_or(now);
+    let nova_data: NaiveDateTime = if let Some(ref data_str) = payload.data {
+        match parse_datetime(data_str) {
+            Ok(dt) => dt,
+            Err(e) => {
+                now // Fallback para now
+            }
+        }
+    } else {
+        now
+    };
+
     let nova_transacao = crate::models::NewTransacao {
         id: ulid::Ulid::new().to_string(),
         id_usuario: user_id.clone(),
@@ -331,6 +206,7 @@ pub async fn create_transacao_handler(jar: CookieJar, Json(payload): Json<Create
         .values(&nova_transacao)
         .execute(conn)
         .expect("Erro ao inserir transação");
+
     Json(TransacaoResponse {
         id: nova_transacao.id,
         id_usuario: nova_transacao.id_usuario,

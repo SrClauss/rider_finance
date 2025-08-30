@@ -16,7 +16,7 @@ export default function DashboardSimpleCard({ label, value, icon, color, mod = '
   if (mod === 'percent') {
     displayValue = typeof value === 'number' ? `${value.toFixed(0)}%` : `${value}%`;
   } else if (mod === 'currency') {
-    displayValue = typeof value === 'number' ? `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : `R$ ${value}`;
+    displayValue = typeof value === 'number' ? (value / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : `R$ ${value}`;
   } else {
     displayValue = value.toString();
   }

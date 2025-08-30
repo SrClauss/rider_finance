@@ -4,7 +4,6 @@ use lettre::{Message, SmtpTransport, Transport};
 
 #[tokio::main]
 async fn main() {
-    println!("[test_mail] iniciando");
     dotenvy::dotenv().ok();
     let smtp_server = env::var("YAHOO_SMTP_SERVER").unwrap_or_else(|_| "smtp.mail.yahoo.com".to_string());
     let smtp_port = env::var("YAHOO_SMTP_PORT").unwrap_or_else(|_| "465".to_string());
@@ -26,8 +25,6 @@ async fn main() {
 
     let creds = Credentials::new(smtp_user.clone(), smtp_pass.clone());
 
-    println!("[test_mail] config: server={} port={} user={}", smtp_server, smtp_port, smtp_user);
-
     // Try implicit TLS first (smtps) using relay_builder? lettre 0.11 SmtpTransport::relay uses STARTTLS on port 587. For implicit TLS on 465, use SmtpTransport::relay() + .port(465) may not initiate implicit TLS. We'll try builder for tls.
     let mailer = SmtpTransport::relay(&smtp_server)
         .expect("relay failed")
@@ -36,7 +33,7 @@ async fn main() {
         .build();
 
     match mailer.send(&email_msg) {
-        Ok(resp) => println!("[test_mail] email enviado com sucesso: {:?}", resp),
-        Err(e) => println!("[test_mail] erro ao enviar email: {:?}", e),
+        Ok(resp) => (),
+        Err(e) => (),
     }
 }

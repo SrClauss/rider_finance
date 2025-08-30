@@ -52,7 +52,6 @@ pub async fn update_me_handler(cookie_jar: CookieJar, Json(payload): Json<Update
             .set(email.eq(new_email))
             .execute(conn)
         {
-            eprintln!("Erro ao atualizar email: {:?}", e);
             return (StatusCode::INTERNAL_SERVER_ERROR, Json("Falha ao atualizar email".to_string())).into_response();
         }
     }
@@ -82,7 +81,6 @@ pub async fn update_me_handler(cookie_jar: CookieJar, Json(payload): Json<Update
             }
             Ok(())
         }) {
-            eprintln!("Erro ao atualizar endereco: {:?}", e);
             return (StatusCode::INTERNAL_SERVER_ERROR, Json("Falha ao atualizar endereco".to_string())).into_response();
         }
     }

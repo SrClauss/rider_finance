@@ -23,7 +23,7 @@ export default function TransactionListCompact({ transactions }: Props) {
             </Box>
             <Chip label={isEntrada ? "Receita" : "Despesa"} color={isEntrada ? "success" : "error"} size="small" sx={{ fontWeight: 700, fontSize: 12 }} />
             <Typography fontWeight={700} color={isEntrada ? "#00e676" : "#ff1744"} sx={{ fontSize: 15, minWidth: 90, textAlign: 'right' }}>
-              {tx.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+              {(tx.valor / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
             </Typography>
             {tx.categoria?.icone && (
               <i className={`fa-solid ${tx.categoria.icone}`} style={{ fontSize: 20, marginLeft: 10, color: '#fff' }} title={tx.categoria.nome}></i>

@@ -44,7 +44,7 @@ export default function DashboardCardData({ label, value, color, icon, periodoAn
     if (mod === 'percent') {
         displayValue = `${value.toFixed(0)}%`;
     } else if (mod === 'currency') {
-        displayValue = `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+        displayValue = (value / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     } else {
         displayValue = value.toString();
     }

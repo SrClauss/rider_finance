@@ -36,7 +36,6 @@ mod tests {
         };
 
         let result = criar_checkout_asaas(payload).await;
-        println!("Resultado do teste criar_checkout_asaas_mock: {:?}", result);
         assert!(result.is_ok());
         let resp = result.unwrap();
         assert_eq!(resp.status, "ok");
@@ -139,7 +138,6 @@ pub async fn criar_checkout_asaas(payload: CheckoutPayload) -> Result<CheckoutRe
     let resp_body: serde_json::Value = res.json().await.map_err(|e| format!("Erro ao ler resposta Asaas: {}", e))?;
     let payment_url = resp_body.get("paymentUrl").and_then(|v| v.as_str()).map(|s| s.to_string());
     if status.is_success() {
-        //println!("Resposta Asaas: {}", serde_json::to_string_pretty(&resp_body).unwrap());
         Ok(CheckoutResponse {
             status: "ok".to_string(),
             link: resp_body.get("link").and_then(|v| v.as_str()).map(|s| s.to_string()),

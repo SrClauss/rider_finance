@@ -191,7 +191,6 @@ export default function RegisterPage() {
         captcha_answer: state.captchaAnswer,
       };
   // Log payload antes de enviar para facilitar debug (o usuário pediu)
-  console.log('register payload ->', payload);
       const response = await axios.post<RegisterResponse>(
         '/api/register',
         payload,

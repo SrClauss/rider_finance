@@ -31,7 +31,7 @@ export default function SessionResumo({ transacoes }: Props) {
 function ResumoItem({ label, value, color, destaque, inteiro }: { label: string, value: number, color: string, destaque?: boolean, inteiro?: boolean }) {
   return (
     <Box sx={{ minWidth: 120, textAlign: 'center', p: destaque ? 2 : 1, borderRadius: 2, bgcolor: destaque ? 'rgba(0,230,118,0.08)' : 'transparent', border: destaque ? `2px solid ${color}` : undefined }}>
-      <Typography sx={{ fontWeight: 600, color, fontSize: destaque ? 22 : 16 }}>{inteiro ? value : value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</Typography>
+      <Typography sx={{ fontWeight: 600, color, fontSize: destaque ? 22 : 16 }}>{inteiro ? value : (value / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</Typography>
       <Typography sx={{ fontSize: 13, color: '#aaa', fontWeight: 500 }}>{label}</Typography>
     </Box>
   );

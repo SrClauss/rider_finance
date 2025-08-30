@@ -111,7 +111,7 @@ export default function PerfilPage() {
 
   function normalizeCurrencyValue(raw: unknown) {
     if (raw == null) return '';
-    if (typeof raw === 'number') return raw.toFixed(2);
+    if (typeof raw === 'number') return (raw / 100).toFixed(2);
     if (typeof raw !== 'string' && typeof raw !== 'number') return '';
     let s = String(raw).trim();
     if (!s) return '';
@@ -129,7 +129,7 @@ export default function PerfilPage() {
     }
     const n = parseFloat(s);
     if (Number.isNaN(n)) return '';
-    return n.toFixed(2);
+    return (n / 100).toFixed(2);
   }
 
   const initials = usuario?.nome_completo

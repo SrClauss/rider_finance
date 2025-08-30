@@ -39,7 +39,6 @@ struct Claims {
 }
 
 pub async fn request_password_reset_handler(Json(payload): Json<RequestPasswordResetPayload>) -> Json<String> {
-    println!("[request_password_reset] entrada: email={}", payload.email);
     let conn = &mut db::establish_connection();
     // Buscar usuário pelo email
     let usuario_result = usuarios
@@ -48,11 +47,9 @@ pub async fn request_password_reset_handler(Json(payload): Json<RequestPasswordR
 
     match usuario_result {
         Ok(usuario) => {
-            println!("[request_password_reset] usuário encontrado: id={} email={}", usuario.id, usuario.email);
             let now = Utc::now().naive_utc();
             let pode_reenviar = now - usuario.ultima_tentativa_redefinicao > Duration::hours(4);
             if !pode_reenviar {
-                println!("[request_password_reset] tentativa recente detectada para user={}", usuario.id);
                 return Json("Já foi solicitado recentemente. Aguarde 4 horas para nova tentativa.".to_string());
             }
             // Gerar JWT expira em 1h
@@ -62,11 +59,7 @@ pub async fn request_password_reset_handler(Json(payload): Json<RequestPasswordR
                 sub: usuario.id.clone(),
                 exp,
             };
-            println!("[request_password_reset] gerando token JWT (exp={}s)", exp);
-            let token = match encode(&Header::default(), &claims, &EncodingKey::from_secret(secret.as_bytes())) {
-                Ok(t) => t,
                 Err(e) => {
-                    println!("[request_password_reset] erro ao gerar token JWT: {:?}", e);
                     return Json(format!("Erro ao gerar token: {}", e));
                 }
             };
@@ -97,10 +90,8 @@ pub async fn request_password_reset_handler(Json(payload): Json<RequestPasswordR
                 .build();
             match mailer.send(&email_msg) {
                 Ok(response) => {
-                    println!("[request_password_reset] email enviado com sucesso para {}: {:?}", email_to, response);
                 }
                 Err(e) => {
-                    println!("[request_password_reset] erro ao enviar email para {}: {:?}", email_to, e);
                     return Json(format!("Erro ao enviar e-mail: {}", e));
                 }
             }

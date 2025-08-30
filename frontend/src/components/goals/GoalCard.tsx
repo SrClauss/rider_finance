@@ -119,7 +119,7 @@ const GoalCard: React.FC<GoalCardProps> = ({ goal, onEdit, onDelete, sx }) => {
         {/* Valor alvo e datas */}
         <Box display="flex" flexDirection="column" gap={1} mb={2}>
           <Typography variant="body2" color="text.secondary">
-            <strong>Valor alvo:</strong> R$ {localGoal.valor_alvo.toLocaleString('pt-BR')}
+            <strong>Valor alvo:</strong> {(localGoal.valor_alvo / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
           </Typography>
           <Box>
             <Typography variant="body2" color="text.secondary">

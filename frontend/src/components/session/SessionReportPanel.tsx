@@ -84,9 +84,9 @@ const SessionReportPanel: React.FC<SessionReportPanelProps> = ({ sessaoId, onClo
               <Box>
                 <Typography variant="body2">Movimentações: {stats.total_movimentacoes}</Typography>
                 <Typography variant="body2">Entradas: {stats.entradas_count} • Saídas: {stats.saidas_count}</Typography>
-                <Typography variant="body2">Ganhos: R$ {Number(stats.total_ganhos).toFixed(2)}</Typography>
-                <Typography variant="body2">Gastos: R$ {Number(stats.total_gastos).toFixed(2)}</Typography>
-                <Typography variant="body2">Net: R$ {Number(stats.net).toFixed(2)}</Typography>
+                <Typography variant="body2">Ganhos: R$ {(Number(stats.total_ganhos) / 100).toFixed(2)}</Typography>
+                <Typography variant="body2">Gastos: R$ {(Number(stats.total_gastos) / 100).toFixed(2)}</Typography>
+                <Typography variant="body2">Net: R$ {(Number(stats.net) / 100).toFixed(2)}</Typography>
               </Box>
             ) : (
               <Typography variant="body2">Nenhuma estatística disponível.</Typography>
@@ -110,7 +110,7 @@ const SessionReportPanel: React.FC<SessionReportPanelProps> = ({ sessaoId, onClo
                       </Box>
                     </Box>
                     <Box sx={{ textAlign: "right" }}>
-                      <Typography variant="body2" sx={{ color: t.tipo === "receita" || t.tipo === 'entrada' ? "#2BD34F" : "#FF3B30" }}>R$ {Number(t.valor).toFixed(2)}</Typography>
+                      <Typography variant="body2" sx={{ color: t.tipo === "receita" || t.tipo === 'entrada' ? "#2BD34F" : "#FF3B30" }}>R$ {(Number(t.valor) / 100).toFixed(2)}</Typography>
                       <Typography variant="caption">{t.categoria?.nome ?? "—"}</Typography>
                     </Box>
                   </Box>

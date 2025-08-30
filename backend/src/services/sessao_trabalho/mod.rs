@@ -1,36 +1,37 @@
-    use crate::db::establish_connection;
-    pub fn create_fake_user() -> String {
-        use crate::models::usuario::NewUsuario;
-        use crate::schema::usuarios::dsl::*;
-        let conn = &mut establish_connection();
-        let now = chrono::Utc::now().naive_utc();
-        let usuario_id = "user_sessao_test".to_string();
-        let new_user = NewUsuario {
-            id: usuario_id.clone(),
-            nome_usuario: "user_sessao_test".to_string(),
-            email: "sessao@teste.com".to_string(),
-            senha: "senha123".to_string(),
-            nome_completo: "Sessao Teste".to_string(),
-            telefone: "11999999999".to_string(),
-            veiculo: "Carro".to_string(),
-            criado_em: now,
-            atualizado_em: now,
-            ultima_tentativa_redefinicao: now,
-            address: "Rua Teste".to_string(),
-            address_number: "123".to_string(),
-            complement: "Apto 1".to_string(),
-            postal_code: "01234567".to_string(),
-            province: "Centro".to_string(),
-            city: "São Paulo".to_string(),
-            cpfcnpj: "12345678900".to_string(),
-        };
-        diesel::insert_into(usuarios)
-            .values(&new_user)
-            .execute(conn)
-            .expect("Erro ao inserir usuário");
-        usuario_id
-    }
-    pub use crate::test_utils::user::{create_fake_user_with, create_fake_user_default};
+use crate::db::establish_connection;
+use crate::utils::date_utils::parse_datetime;
+pub fn create_fake_user() -> String {
+    use crate::models::usuario::NewUsuario;
+    use crate::schema::usuarios::dsl::*;
+    let conn = &mut establish_connection();
+    let now = chrono::Utc::now().naive_utc();
+    let usuario_id = "user_sessao_test".to_string();
+    let new_user = NewUsuario {
+        id: usuario_id.clone(),
+        nome_usuario: "user_sessao_test".to_string(),
+        email: "sessao@teste.com".to_string(),
+        senha: "senha123".to_string(),
+        nome_completo: "Sessao Teste".to_string(),
+        telefone: "11999999999".to_string(),
+        veiculo: "Carro".to_string(),
+        criado_em: now,
+        atualizado_em: now,
+        ultima_tentativa_redefinicao: now,
+        address: "Rua Teste".to_string(),
+        address_number: "123".to_string(),
+        complement: "Apto 1".to_string(),
+        postal_code: "01234567".to_string(),
+        province: "Centro".to_string(),
+        city: "São Paulo".to_string(),
+        cpfcnpj: "12345678900".to_string(),
+    };
+    diesel::insert_into(usuarios)
+        .values(&new_user)
+        .execute(conn)
+        .expect("Erro ao inserir usuário");
+    usuario_id
+}
+pub use crate::test_utils::user::{create_fake_user_with, create_fake_user_default};
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -49,7 +50,7 @@ mod tests {
     fn fake_payload() -> NovaSessaoPayload {
         NovaSessaoPayload {
             id_usuario: "user_sessao_test".to_string(),
-            inicio: NaiveDate::from_ymd_opt(2025,8,14).unwrap().and_hms_opt(8,0,0).unwrap(),
+            inicio: "2025-08-14T08:00".to_string(),
             fim: Some(NaiveDate::from_ymd_opt(2025,8,14).unwrap().and_hms_opt(12,0,0).unwrap()),
             total_minutos: Some(240),
             local_inicio: Some("A".to_string()),
@@ -100,7 +101,7 @@ use diesel::prelude::*;
 #[derive(serde::Deserialize, serde::Serialize, Clone)]
 pub struct NovaSessaoPayload {
     pub id_usuario: String,
-    pub inicio: chrono::NaiveDateTime,
+    pub inicio: String, // Alterado para String para aceitar do frontend
     pub fim: Option<chrono::NaiveDateTime>,
     pub total_minutos: Option<i32>,
     pub local_inicio: Option<String>,
@@ -117,10 +118,20 @@ pub struct NovaSessaoPayload {
 pub async fn criar_sessao_handler(Json(payload): Json<NovaSessaoPayload>) -> Json<SessaoTrabalho> {
     let conn = &mut db::establish_connection();
     let now = chrono::Utc::now().naive_utc();
+
+    // Parse da data de início
+    let inicio_dt = match chrono::NaiveDateTime::parse_from_str(&payload.inicio, "%Y-%m-%dT%H:%M") {
+        Ok(dt) => dt,
+        Err(e) => {
+            // Fallback para now se parsing falhar
+            now
+        }
+    };
+
     let nova = crate::models::sessao_trabalho::NewSessaoTrabalho {
         id: ulid::Ulid::new().to_string(),
         id_usuario: payload.id_usuario,
-        inicio: payload.inicio,
+        inicio: inicio_dt,
         fim: payload.fim,
         total_minutos: payload.total_minutos,
         local_inicio: payload.local_inicio,
@@ -203,10 +214,20 @@ pub async fn deletar_sessao_handler(Path(id_param): Path<String>) -> Json<bool> 
 pub async fn iniciar_sessao_handler(Json(payload): Json<NovaSessaoPayload>) -> Json<SessaoTrabalho> {
     let conn = &mut db::establish_connection();
     let now = chrono::Utc::now().naive_utc();
+
+    // Parse da data de início
+    let inicio_dt = match parse_datetime(&payload.inicio) {
+        Ok(dt) => dt,
+        Err(e) => {
+            // Fallback para now se parsing falhar
+            now
+        }
+    };
+
     let nova = crate::models::sessao_trabalho::NewSessaoTrabalho {
         id: ulid::Ulid::new().to_string(),
         id_usuario: payload.id_usuario,
-        inicio: payload.inicio,
+        inicio: inicio_dt,
         fim: None,
         total_minutos: None,
         local_inicio: payload.local_inicio,
@@ -236,35 +257,80 @@ pub async fn iniciar_sessao_handler(Json(payload): Json<NovaSessaoPayload>) -> J
 #[derive(serde::Deserialize)]
 pub struct EncerrarPayload {
     pub id_sessao: String,
-    pub fim: chrono::NaiveDateTime,
+    pub inicio: String, // Data/hora de início da sessão
+    pub fim: String,    // Data/hora de fim da sessão
     pub local_fim: Option<String>,
-    pub observacoes: Option<String>,
 }
 
 pub async fn encerrar_sessao_handler(Json(payload): Json<EncerrarPayload>) -> Json<Option<SessaoTrabalho>> {
     let conn = &mut db::establish_connection();
+    use crate::schema::transacoes::dsl as t_dsl;
+
+    // Converte strings para NaiveDateTime
+    let inicio_dt = match parse_datetime(&payload.inicio) {
+        Ok(dt) => dt,
+        Err(e) => {
+            return Json(None);
+        }
+    };
+
+    let fim_dt = match parse_datetime(&payload.fim) {
+        Ok(dt) => dt,
+        Err(e) => {
+            return Json(None);
+        }
+    };
+
     // Busca sessao
     match sessoes_trabalho.filter(id.eq(&payload.id_sessao)).first::<crate::models::SessaoTrabalho>(conn) {
         Ok(s) => {
-            // calcula totals: transacoes tipo 'entrada' entre s.inicio .. payload.fim
-            use crate::schema::transacoes::dsl as t_dsl;
-            let entradas: Vec<crate::models::transacao::Transacao> = t_dsl::transacoes
-                .filter(t_dsl::id_usuario.eq(&s.id_usuario).and(t_dsl::tipo.eq("receita")).and(t_dsl::data.ge(s.inicio)).and(t_dsl::data.le(payload.fim)))
+            // Busca todas as transações do usuário no período
+            let todas_transacoes: Vec<crate::models::transacao::Transacao> = t_dsl::transacoes
+                .filter(t_dsl::id_usuario.eq(&s.id_usuario)
+                    .and(t_dsl::data.ge(inicio_dt))
+                    .and(t_dsl::data.le(fim_dt)))
                 .load(conn)
                 .unwrap_or_default();
-            let total_ganhos_sum: i32 = entradas.iter().map(|tr| tr.valor).sum();
-            let total_corridas_count: i32 = entradas.len() as i32;
-            let total_gastos_sum = 0; // manter 0 por enquanto
-            // Atualiza sessao
+
+            // Calcula totais baseado nas transações encontradas
+            let entradas: Vec<&crate::models::transacao::Transacao> = todas_transacoes.iter()
+                .filter(|t| t.tipo == "entrada")
+                .collect();
+
+            let saidas: Vec<&crate::models::transacao::Transacao> = todas_transacoes.iter()
+                .filter(|t| t.tipo == "saida")
+                .collect();
+
+            let total_ganhos_calc: i32 = entradas.iter().map(|t| t.valor).sum();
+            let total_gastos_calc: i32 = saidas.iter().map(|t| t.valor).sum();
+            let total_corridas_calc: i32 = entradas.len() as i32; // Corridas = número de entradas
+
+            // Calcula minutos baseado na diferença entre inicio e fim
+            let duracao = fim_dt.signed_duration_since(inicio_dt);
+            let total_minutos_calc = duracao.num_minutes().abs() as i32;
+
+            // Atualiza sessão com os totais calculados
             let _updated = diesel::update(sessoes_trabalho.filter(id.eq(&payload.id_sessao)))
-                .set((fim.eq(Some(payload.fim)), total_ganhos.eq(total_ganhos_sum), total_corridas.eq(total_corridas_count), total_gastos.eq(total_gastos_sum), local_fim.eq(payload.local_fim.clone()), observacoes.eq(payload.observacoes.clone()), eh_ativa.eq(false), atualizado_em.eq(chrono::Utc::now().naive_utc())))
+                .set((
+                    fim.eq(Some(fim_dt)),
+                    local_fim.eq(payload.local_fim),
+                    total_minutos.eq(total_minutos_calc),
+                    total_ganhos.eq(total_ganhos_calc),
+                    total_corridas.eq(total_corridas_calc),
+                    total_gastos.eq(total_gastos_calc),
+                    eh_ativa.eq(false),
+                    atualizado_em.eq(chrono::Utc::now().naive_utc())
+                ))
                 .execute(conn)
                 .ok();
-            // Retorna sessao atualizada
+
+            // Retorna sessão atualizada
             let sessao = sessoes_trabalho.filter(id.eq(&payload.id_sessao)).first::<crate::models::SessaoTrabalho>(conn).ok();
             Json(sessao)
         },
-        Err(_) => Json(None),
+        Err(_) => {
+            Json(None)
+        }
     }
 }
 

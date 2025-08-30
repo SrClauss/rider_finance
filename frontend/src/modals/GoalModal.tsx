@@ -6,6 +6,7 @@ import parseNumberToInt from '@/utils/parseNumber';
 
 import { Goal } from "@/interfaces/goal";
 import { useMetasContext } from "@/context/MetasContext";
+import { getCurrentDateTime, formatForDateTimeLocal, parseDateTime } from '@/utils/dateUtils';
 
 type GoalModalProps = {
   open: boolean;
@@ -47,11 +48,7 @@ export default function GoalModal(props: GoalModalProps) {
   valor_atual: '0,00',
     unidade: "",
     // data_inicio default para agora (local, formato datetime-local)
-    data_inicio: (() => {
-      const now = new Date();
-      const tzOffset = now.getTimezoneOffset() * 60000;
-      return new Date(now.getTime() - tzOffset).toISOString().slice(0, 16);
-    })(),
+    data_inicio: formatForDateTimeLocal(new Date()),
     data_fim: "",
     eh_ativa: true,
     eh_concluida: false,
@@ -79,22 +76,12 @@ export default function GoalModal(props: GoalModalProps) {
         // converte as datas do backend para o formato do input datetime-local (YYYY-MM-DDTHH:mm)
         data_inicio: goal.data_inicio ? (() => {
           try {
-            const s = goal.data_inicio as string;
-            const parsed = new Date((s.includes('T') && !s.includes('Z') && !s.includes('+')) ? s + 'Z' : s);
-            const tzOffset = parsed.getTimezoneOffset() * 60000;
-            return new Date(parsed.getTime() - tzOffset).toISOString().slice(0, 16);
-          } catch { return new Date().toISOString().slice(0, 16); }
-        })() : (() => {
-          const now = new Date();
-          const tzOffset = now.getTimezoneOffset() * 60000;
-          return new Date(now.getTime() - tzOffset).toISOString().slice(0, 16);
-        })(),
+            return formatForDateTimeLocal(parseDateTime(goal.data_inicio as string));
+          } catch { return formatForDateTimeLocal(new Date()); }
+        })() : formatForDateTimeLocal(new Date()),
         data_fim: goal.data_fim ? (() => {
           try {
-            const s = goal.data_fim as string;
-            const parsed = new Date((s.includes('T') && !s.includes('Z') && !s.includes('+')) ? s + 'Z' : s);
-            const tzOffset = parsed.getTimezoneOffset() * 60000;
-            return new Date(parsed.getTime() - tzOffset).toISOString().slice(0, 16);
+            return formatForDateTimeLocal(parseDateTime(goal.data_fim as string));
           } catch { return ""; }
         })() : "",
         eh_ativa: goal.eh_ativa ?? true,
@@ -165,14 +152,13 @@ export default function GoalModal(props: GoalModalProps) {
   valor_alvo: parseNumberToInt(form.valor_alvo),
   valor_atual: parseNumberToInt(form.valor_atual),
         unidade: form.unidade || null,
-        data_inicio: form.data_inicio ? new Date(form.data_inicio).toISOString().slice(0, 19) : null,
-        data_fim: form.data_fim ? new Date(form.data_fim).toISOString().slice(0, 19) : null,
+        data_inicio: form.data_inicio ? getCurrentDateTime() : null,
+        data_fim: form.data_fim ? getCurrentDateTime() : null,
         eh_ativa: form.eh_ativa,
         eh_concluida: form.eh_concluida,
         concluida_em: form.concluida_em || null,
         concluida_com: form.concluida_com ?? null
       };
-      console.log('[GoalModal] Payload:', payload);
       let responseData: Goal;
       if (goal && goal.id) {
         const res = await axios.put(`/api/meta/${goal.id}`, payload, { withCredentials: true });

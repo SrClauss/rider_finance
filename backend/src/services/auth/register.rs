@@ -105,8 +105,6 @@ pub struct RegisterResponse {
 }
 
 pub async fn register_user_handler(Json(payload): Json<RegisterPayload>) -> Json<RegisterResponse> {
-    // Imprime payload recebido para debug conforme solicitado
-    println!("[register handler] payload received: {:?}", payload);
     let usuario = NewUsuario::new(
         None,
         payload.nome_usuario.clone(),

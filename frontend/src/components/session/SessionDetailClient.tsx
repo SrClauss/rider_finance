@@ -33,8 +33,8 @@ export default function SessionDetailClient({ sessaoId }: { sessaoId: string }) 
         <Typography variant="h6">Sessão {s.id}</Typography>
         <Typography>Início: {new Date(s.inicio).toLocaleString()}</Typography>
         <Typography>Fim: {s.fim ? new Date(s.fim).toLocaleString() : 'Em andamento'}</Typography>
-        <Typography>Ganhos: R$ {s.total_ganhos.toFixed(2)}</Typography>
-        <Typography>Gastos: R$ {s.total_gastos.toFixed(2)}</Typography>
+        <Typography>Ganhos: R$ {(s.total_ganhos / 100).toFixed(2)}</Typography>
+        <Typography>Gastos: R$ {(s.total_gastos / 100).toFixed(2)}</Typography>
         <Typography>Corridas: {s.total_corridas}</Typography>
         <Typography>Status: {s.eh_ativa ? 'Ativa' : 'Fechada'}</Typography>
       </Box>
@@ -58,7 +58,7 @@ export default function SessionDetailClient({ sessaoId }: { sessaoId: string }) 
                   <TableCell>{new Date(t.data).toLocaleString()}</TableCell>
                   <TableCell>{t.descricao}</TableCell>
                   <TableCell>{t.categoria ? `${t.categoria.nome}` : '-'}</TableCell>
-                  <TableCell>{(t.valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                  <TableCell>{((t.valor || 0) / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

@@ -32,8 +32,11 @@ async fn main() {
         delete_categoria_handler,
     };
     use backend::services::sessao_trabalho::{
-        criar_sessao_handler, listar_sessoes_handler, deletar_sessao_handler,
-        iniciar_sessao_handler, encerrar_sessao_handler, get_sessao_com_transacoes_handler,
+        encerrar_sessao_handler,
+        iniciar_sessao_handler,
+        listar_sessoes_handler,
+        deletar_sessao_handler,
+        get_sessao_com_transacoes_handler
     };
     use backend::services::configuracao::{ checkout_info_handler, usuario_completo_handler };
     use backend::services::auth::validate_token::validate_token_handler;
@@ -48,7 +51,7 @@ async fn main() {
         .route("/api/metas/ativas-com-transacoes", get(metas_ativas_com_transacoes_handler))
         .route("/api/register", post(register_user_handler))
         // .route("/api/register-pending", post(register_pending_user_handler))
-    .route("/api/reset_password", post(reset_password_handler))
+        .route("/api/reset_password", post(reset_password_handler))
         .route("/api/request-password-reset", post(request_password_reset_handler))
         .route("/api/login", post(login_handler))
         .route("/api/logout", post(logout_handler))
@@ -69,12 +72,11 @@ async fn main() {
         .route("/api/categoria", post(create_categoria_handler))
         .route("/api/categoria/{id}", get(get_categoria_handler))
         .route("/api/categoria/{id}", delete(delete_categoria_handler))
-    .route("/api/sessao", post(criar_sessao_handler))
-    .route("/api/sessao/list/{id_usuario}", get(listar_sessoes_handler))
-    .route("/api/sessao/{id}", delete(deletar_sessao_handler))
-    .route("/api/sessao/start", post(iniciar_sessao_handler))
-    .route("/api/sessao/stop", post(encerrar_sessao_handler))
-    .route("/api/sessao/com-transacoes/{id}", get(get_sessao_com_transacoes_handler))
+        .route("/api/sessao/stop", post(encerrar_sessao_handler))
+        .route("/api/sessao/start", post(iniciar_sessao_handler))
+        .route("/api/sessao/list/{id_usuario}", get(listar_sessoes_handler))
+        .route("/api/sessao/{id}", delete(deletar_sessao_handler))
+        .route("/api/sessao/com-transacoes/{id}", get(get_sessao_com_transacoes_handler))
         .route(
             "/api/configuracao/{id}",
             put(backend::services::configuracao::update_configuracao_axum)
@@ -88,7 +90,10 @@ async fn main() {
         )
         .route("/api/me", get(get_me_handler))
         .route("/api/me", patch(backend::services::usuario::update_me_handler))
-        .route("/api/assinatura/checkout", post(backend::services::assinatura::checkout::criar_checkout_asaas_handler)) // Registrar a rota
+        .route(
+            "/api/assinatura/checkout",
+            post(backend::services::assinatura::checkout::criar_checkout_asaas_handler)
+        ) // Registrar a rota
         .merge(routes());
 
     // Seed automático de configurações iniciais no main
@@ -97,7 +102,6 @@ async fn main() {
 
     // Executa o seed robusto para o usuário fixo
     backend::services::seed::seed_movimentacao_robusta().await;
-    println!("🚀 Servidor rodando em http://127.0.0.1:8000");
 
     use tokio::net::TcpListener;
     let listener = TcpListener::bind("0.0.0.0:8000").await.unwrap();

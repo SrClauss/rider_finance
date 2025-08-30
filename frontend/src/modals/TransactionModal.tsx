@@ -17,6 +17,10 @@ import {
 import CloseIcon from '@mui/icons-material/Close';
 import { Transaction } from '@/interfaces/Transaction';
 import { useCategoriaContext } from '@/context/CategoriaContext';
+import { useMetasContext } from '@/context/MetasContext';
+import { getCurrentDateTime, formatForDateTimeLocal } from '@/utils/dateUtils';
+import { useSession } from '@/context/SessionContext';
+import axios from 'axios';
 
 // Import FontAwesome CSS (certifique-se de que está instalado)
 import '@fortawesome/fontawesome-free/css/all.min.css';
@@ -48,7 +52,10 @@ type FormAction =
   | { type: 'RESET_FORM' }
   | { type: 'LOAD_TRANSACTION'; payload: Transaction };
 
-// Reducer para gerenciar o estado do formulário
+// Função para obter data/hora local no formato correto para datetime-local
+const getCurrentLocalDateTime = () => {
+  return formatForDateTimeLocal(new Date());
+};
 const formReducer = (state: FormState, action: FormAction): FormState => {
   switch (action.type) {
     case 'SET_VALOR':
@@ -67,7 +74,7 @@ const formReducer = (state: FormState, action: FormAction): FormState => {
         tipo: '',
         descricao: '',
         id_categoria: '',
-        data: new Date().toISOString().slice(0, 16), // Formato YYYY-MM-DDTHH:mm para datetime-local
+        data: getCurrentLocalDateTime(), // Usar função que retorna data/hora local correta
       };
     case 'LOAD_TRANSACTION':
       const transaction = action.payload;
@@ -78,7 +85,7 @@ const formReducer = (state: FormState, action: FormAction): FormState => {
         id_categoria: transaction.id_categoria || '',
         data: transaction.data
           ? new Date(transaction.data).toISOString().slice(0, 16) // Formato YYYY-MM-DDTHH:mm para datetime-local
-          : new Date().toISOString().slice(0, 16),
+          : getCurrentLocalDateTime(), // Usar função que retorna data/hora local correta
       };
     default:
       return state;
@@ -103,7 +110,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
     tipo: '',
     descricao: '',
     id_categoria: '',
-    data: new Date().toISOString().slice(0, 16), // Formato YYYY-MM-DDTHH:mm para datetime-local
+    data: getCurrentLocalDateTime(), // Usar função que retorna data/hora local correta
   });
 
   // Carregar transação para edição quando o modal abrir ou quando a transação mudar
@@ -127,10 +134,59 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
     [categorias, formState.id_categoria]
   );
 
+  const { attachTransaction, sessao } = useSession();
+
+  // Verificar se há sessão ativa
+  const hasActiveSession = sessao && sessao.sessao && sessao.sessao.eh_ativa;
+
   // Função para submeter o formulário
-  const handleSubmit = () => {
-    // Aqui você pode adicionar validação e lógica para salvar
-    // TODO: Implementar lógica de salvar
+  const handleSubmit = async () => {
+    // Validações básicas
+    if (!formState.id_categoria) {
+      alert('Categoria inválida');
+      return;
+    }
+
+    try {
+      // Se há sessão ativa, usar a data/hora atual em vez da selecionada
+      const dataToSend = hasActiveSession ? getCurrentDateTime() : formState.data;
+
+      const payload = {
+        id_categoria: formState.id_categoria,
+        valor: Number(Math.round(parseFloat(formState.valor) * 100)), // Garantir que seja number
+        tipo: selectedCategoria?.tipo || '', // Tipo vem da categoria selecionada
+        descricao: formState.descricao || undefined, // Usar undefined em vez de null para Option<String>
+        data: dataToSend, // Usar data atual se sessão ativa, senão usar a selecionada
+      };
+
+      let response;
+      if (isEditing && transaction) {
+        // Update
+        response = await axios.put(`/api/transacao/${transaction.id}`, payload, {
+          withCredentials: true,
+        });
+      } else {
+        // Create
+        response = await axios.post('/api/transacao', payload, {
+          withCredentials: true,
+        });
+      }
+
+      // Sucesso: atualizar contextos e fechar modal
+      const savedTransaction = response.data;
+      if (isEditing) {
+        // TODO: dispatch update
+      } else {
+        // TODO: dispatch add
+        if (attachTransaction) {
+          attachTransaction(savedTransaction); // Anexa à sessão se ativa
+        }
+      }
+      handleClose();
+    } catch (error) {
+      console.error('Erro ao salvar transação:', error);
+      alert('Erro ao salvar transação. Tente novamente.');
+    }
   };
 
   // Função para limpar o formulário

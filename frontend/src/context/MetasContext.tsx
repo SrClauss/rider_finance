@@ -58,9 +58,8 @@ export const MetasProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     fetchData();
   }, []);
 
- useEffect(()=>{
-   console.log('📊 METAS E TRANSAÇÕES ATUALIZADAS:', metasETransacoes);
- }, [metasETransacoes])
+  useEffect(() => {
+  }, [metasETransacoes]);
 
   const dispatchTransacoes = useCallback((transacao: Transacao, action: 'add' | 'update' | 'delete') => {
     setMetasETransacoes(prev => {

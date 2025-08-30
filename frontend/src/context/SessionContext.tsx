@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import axios from 'axios';
 import { SessaoComTransacoes } from '@/interfaces/SessaoComTransacoes';
+import { getCurrentDateTime } from '@/utils/dateUtils';
 
 
 
@@ -11,7 +12,7 @@ export const SessionContext = createContext<{
   elapsedSeconds?: number;
   loading?: boolean;
   start?: (payload?: Partial<SessaoComTransacoes['sessao']>) => Promise<void>;
-  stop?: () => Promise<void>;
+  stop?: (localFim?: string) => Promise<void>;
   attachTransaction?: (tx: SessaoComTransacoes['transacoes'][number]) => void;
   panelOpen?: boolean;
   setPanelOpen?: (v: boolean) => void;
@@ -129,13 +130,13 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
       try {
-        // Corrigir problema de timezone: se a data não tem timezone, assumir UTC
+        // Agora que usamos horário local, não precisamos adicionar 'Z' (UTC)
         let startTime: number;
         const inicioStr = sessao.sessao.inicio;
 
         if (inicioStr.includes('T') && !inicioStr.includes('Z') && !inicioStr.includes('+')) {
-          // Data sem timezone explícito - assumir UTC
-          startTime = new Date(inicioStr + 'Z').getTime();
+          // Data sem timezone explícito - tratar como horário local
+          startTime = new Date(inicioStr).getTime();
         } else {
           startTime = new Date(inicioStr).getTime();
         }
@@ -177,9 +178,11 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       }
       // build body
       type SessaoCreateBody = Partial<SessaoComTransacoes['sessao']>;
+      const currentTime = new Date();
+      const localTime = getCurrentDateTime();
       const body: SessaoCreateBody = {
         id_usuario: userId ?? undefined,
-        inicio: payload?.inicio ?? new Date().toISOString().split('.')[0],
+        inicio: payload?.inicio ?? localTime,
         local_inicio: payload?.local_inicio ?? null,
         plataforma: payload?.plataforma ?? null,
         observacoes: payload?.observacoes ?? null,
@@ -206,10 +209,10 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
         try {
           const inicio = res.data.inicio ?? (res.data.sessao && res.data.sessao.inicio);
           if (inicio) {
-            // Mesma correção de timezone
+            // Agora que usamos horário local, não precisamos adicionar 'Z'
             let startMs: number;
             if (inicio.includes('T') && !inicio.includes('Z') && !inicio.includes('+')) {
-              startMs = new Date(inicio + 'Z').getTime();
+              startMs = new Date(inicio).getTime();
             } else {
               startMs = new Date(inicio).getTime();
             }
@@ -230,11 +233,18 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const stop = async () => {
+  const stop = async (localFim?: string) => {
     if (!sessao || !sessao.sessao || !sessao.sessao.id) return;
     setLoading(true);
     try {
-      const payload = { id_sessao: sessao.sessao.id, fim: new Date().toISOString().split('.')[0], local_fim: null, observacoes: null };
+      const currentTime = new Date();
+      const localTime = getCurrentDateTime();
+      const payload = {
+        id_sessao: sessao.sessao.id,
+        inicio: sessao.sessao.inicio,
+        fim: localTime,
+        ...(localFim && { local_fim: localFim })
+      };
       const res = await axios.post('/api/sessao/stop', payload, { withCredentials: true });
       if (res.data) {
         // server returns updated session

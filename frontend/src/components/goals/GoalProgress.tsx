@@ -127,7 +127,7 @@ export const GoalProgress: React.FC<GoalProgressProps> = ({ meta, isActive }) =>
             textAlign: 'center',
           }}
         >
-          Meta atingida! Valor final: R$ {(meta.concluida_com ?? totalAtingido).toLocaleString('pt-BR')}
+          Meta atingida! Valor final: {((meta.concluida_com ?? totalAtingido) / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
         </Typography>
       </Box>
     );
@@ -154,7 +154,7 @@ export const GoalProgress: React.FC<GoalProgressProps> = ({ meta, isActive }) =>
             textAlign: 'right',
           }}
         >
-          Valor final: R$ {(meta.concluida_com ?? totalAtingido).toLocaleString('pt-BR')}
+          Valor final: {((meta.concluida_com ?? totalAtingido) / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
         </Typography>
       </Box>
     );
@@ -188,7 +188,7 @@ export const GoalProgress: React.FC<GoalProgressProps> = ({ meta, isActive }) =>
             fontWeight: 500,
           }}
         >
-          R$ {totalAtingido.toLocaleString('pt-BR')}
+          {(totalAtingido / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
         </Typography>
       </Box>
 
@@ -217,7 +217,7 @@ export const GoalProgress: React.FC<GoalProgressProps> = ({ meta, isActive }) =>
           }}
         >
           {quantoFalta > 0
-            ? `Falta R$ ${quantoFalta.toLocaleString('pt-BR')} para atingir a meta`
+            ? `Falta ${(quantoFalta / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} para atingir a meta`
             : 'Meta excedida!'
           }
         </Typography>

@@ -1,5 +1,5 @@
 "use client";
-import React from 'react';
+import React, { useState } from 'react';
 import { useSession } from '@/context/SessionContext';
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
@@ -10,12 +10,16 @@ import StopIcon from '@mui/icons-material/Stop';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import { useTheme } from '@mui/material/styles';
+import StartSessionModal from '@/modals/StartSessionModal';
+import StopSessionModal from '@/modals/StopSessionModal';
 
 export default function SessionFloatingPanel() {
   const { sessao, elapsedSeconds, start, stop, loading } = useSession();
   const theme = useTheme();
   const { panelOpen, setPanelOpen } = useSession();
   const open = panelOpen ?? false;
+  const [startModalOpen, setStartModalOpen] = useState(false);
+  const [stopModalOpen, setStopModalOpen] = useState(false);
   // Fixed panel height to keep implementation simple and predictable
   const PANEL_HEIGHT = 180; // px
 
@@ -39,7 +43,7 @@ export default function SessionFloatingPanel() {
     return { entradas, saidas };
   }, [sessao?.transacoes]);
 
-  const fmtCurrency = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+  const fmtCurrency = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v / 100);
 
   return (
     <Box
@@ -157,7 +161,7 @@ export default function SessionFloatingPanel() {
                   <IconButton
                     aria-label="Iniciar sessão"
                     size="medium"
-                    onClick={() => start?.()}
+                    onClick={() => setStartModalOpen(true)}
                     disabled={loading}
                     sx={{
                       width: 50,
@@ -174,7 +178,7 @@ export default function SessionFloatingPanel() {
                   <IconButton
                     aria-label="Parar sessão"
                     size="medium"
-                    onClick={() => stop?.()}
+                    onClick={() => setStopModalOpen(true)}
                     disabled={loading}
                     sx={{
                       width: 50,
@@ -209,6 +213,16 @@ export default function SessionFloatingPanel() {
             </Box>
         </Box>
       </Paper>
+
+      {/* Modais */}
+      <StartSessionModal
+        open={startModalOpen}
+        onClose={() => setStartModalOpen(false)}
+      />
+      <StopSessionModal
+        open={stopModalOpen}
+        onClose={() => setStopModalOpen(false)}
+      />
     </Box>
   );
 }

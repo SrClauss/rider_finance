@@ -65,7 +65,7 @@ export default function SessionsPage() {
                 <ListItemButton onClick={() => router.push(`/sessoes/${s.id}`)}>
                   <ListItemText
                     primary={`Início: ${s.inicio ?? "-"}`}
-                    secondary={`Ganhos: R$ ${((s.total_ganhos || 0)).toFixed(2)} • Gastos: R$ ${((s.total_gastos || 0)).toFixed(2)}`}
+                    secondary={`Ganhos: R$ ${(((s.total_ganhos || 0) / 100)).toFixed(2)} • Gastos: R$ ${(((s.total_gastos || 0) / 100)).toFixed(2)}`}
                   />
                   {s.eh_ativa ? <Chip label="Ativa" color="secondary" /> : <Chip label="Fechada" />}
                 </ListItemButton>

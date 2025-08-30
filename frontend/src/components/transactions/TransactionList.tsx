@@ -29,7 +29,7 @@ export default function TransactionList({ transactions, onEdit, onDelete }: Prop
             <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
               <Chip label={tx.tipo === "entrada" ? "Receita" : "Despesa"} color={tx.tipo === "entrada" ? "success" : "error"} size="small" />
               <Typography fontWeight={700} color={tx.tipo === "entrada" ? "#00e676" : "#ff1744"}>
-                {tx.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                {(tx.valor / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
               </Typography>
             </Box>
           </Box>

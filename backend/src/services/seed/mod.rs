@@ -92,8 +92,10 @@ pub async fn seed_movimentacao_robusta() {
     use crate::services::categoria::{CreateCategoriaPayload, create_categoria_internal};
     use crate::schema::categorias::dsl as categorias_dsl;
     // Função utilitária local para checar existência por nome e id_usuario
-    let id_categoria_entrada: String;
-    let id_categoria_saida: String;
+    let id_categoria_uber: String;
+    let id_categoria_99: String;
+    let id_categoria_abastecimento: String;
+    let id_categoria_alimentacao: String;
 
     // Corrida Uber
     {
@@ -104,7 +106,7 @@ pub async fn seed_movimentacao_robusta() {
             .optional()
             .expect("Erro ao checar categoria Corrida Uber");
         if let Some(cat) = exists {
-            id_categoria_entrada = cat.id.clone();
+            id_categoria_uber = cat.id.clone();
         } else {
             let payload_uber = CreateCategoriaPayload {
                 id_usuario: Some(id_user.clone()),
@@ -114,7 +116,7 @@ pub async fn seed_movimentacao_robusta() {
                 cor: Some("#000000".to_string()),
             };
             let resp_uber = create_categoria_internal(axum::Json(payload_uber)).await;
-            id_categoria_entrada = resp_uber.id.clone();
+            id_categoria_uber = resp_uber.id.clone();
         }
     }
 
@@ -126,7 +128,9 @@ pub async fn seed_movimentacao_robusta() {
             .first::<crate::models::Categoria>(conn)
             .optional()
             .expect("Erro ao checar categoria Corrida 99");
-        if exists.is_none() {
+        if let Some(cat) = exists {
+            id_categoria_99 = cat.id.clone();
+        } else {
             let payload_99 = CreateCategoriaPayload {
                 id_usuario: Some(id_user.clone()),
                 nome: "Corrida 99".to_string(),
@@ -134,7 +138,8 @@ pub async fn seed_movimentacao_robusta() {
                 icone: Some("fas fa-car-side".to_string()),
                 cor: Some("#111111".to_string()),
             };
-            let _ = create_categoria_internal(axum::Json(payload_99)).await;
+            let resp_99 = create_categoria_internal(axum::Json(payload_99)).await;
+            id_categoria_99 = resp_99.id.clone();
         }
     }
 
@@ -147,7 +152,7 @@ pub async fn seed_movimentacao_robusta() {
             .optional()
             .expect("Erro ao checar categoria Abastecimento");
         if let Some(cat) = exists {
-            id_categoria_saida = cat.id.clone();
+            id_categoria_abastecimento = cat.id.clone();
         } else {
             let payload_abastecimento = CreateCategoriaPayload {
                 id_usuario: Some(id_user.clone()),
@@ -157,7 +162,7 @@ pub async fn seed_movimentacao_robusta() {
                 cor: Some("#FF9800".to_string()),
             };
             let resp_abaste = create_categoria_internal(axum::Json(payload_abastecimento)).await;
-            id_categoria_saida = resp_abaste.id.clone();
+            id_categoria_abastecimento = resp_abaste.id.clone();
         }
     }
 
@@ -169,7 +174,9 @@ pub async fn seed_movimentacao_robusta() {
             .first::<crate::models::Categoria>(conn)
             .optional()
             .expect("Erro ao checar categoria Alimentação");
-        if exists.is_none() {
+        if let Some(cat) = exists {
+            id_categoria_alimentacao = cat.id.clone();
+        } else {
             let payload_alim = CreateCategoriaPayload {
                 id_usuario: Some(id_user.clone()),
                 nome: "Alimentação".to_string(),
@@ -177,7 +184,8 @@ pub async fn seed_movimentacao_robusta() {
                 icone: Some("fas fa-utensils".to_string()),
                 cor: Some("#FF5722".to_string()),
             };
-            let _ = create_categoria_internal(axum::Json(payload_alim)).await;
+            let resp_alim = create_categoria_internal(axum::Json(payload_alim)).await;
+            id_categoria_alimentacao = resp_alim.id.clone();
         }
     }
     // Insere uma assinatura válida para o usuário seed
@@ -238,17 +246,19 @@ pub async fn seed_movimentacao_robusta() {
         let token = encode(&Header::default(), &claims, &EncodingKey::from_secret(secret.as_ref())).unwrap();
         let jar = CookieJar::new().add(Cookie::new("auth_token", token));
 
-        for _ in 0..entradas {
+        for i in 0..entradas {
             let base = if is_weekend { media_entrada as f32 * 0.7 } else { media_entrada as f32 };
             let mut valor_val: f32 = base + rng.random_range(-20.0..20.0) as f32 + rng.random_range(-10.0..10.0) as f32;
             valor_val = valor_val.max(15.0).min(220.0);
             soma_entradas_val += valor_val;
+            // Distribui entre as 2 categorias de entrada
+            let categoria_id = if i % 2 == 0 { id_categoria_uber.clone() } else { id_categoria_99.clone() };
             let transacao_payload = CreateTransacaoPayload {
-                id_categoria: id_categoria_entrada.clone(),
-                valor: valor_val.round() as i32,
+                id_categoria: categoria_id,
+                valor: (valor_val * 100.0).round() as i32,
                 tipo: "entrada".to_string(),
                 descricao: Some("Seed entrada".to_string()),
-                data: Some(inicio_val),
+                data: Some(inicio_val.to_string()),
             };
             let _ = create_transacao_handler(jar.clone(), axum::Json(transacao_payload)).await;
         }
@@ -258,17 +268,19 @@ pub async fn seed_movimentacao_robusta() {
         } else {
             rng.random_range(6..((entradas/2).max(6)))
         };
-        for _ in 0..saidas {
+        for i in 0..saidas {
             let base = if is_weekend { media_saida as f32 * 0.8 } else { media_saida as f32 };
             let mut valor_val: f32 = base + rng.random_range(-15.0..15.0) as f32 + rng.random_range(-5.0..10.0) as f32;
             valor_val = valor_val.max(8.0).min(130.0);
             soma_saidas_val += valor_val;
+            // Distribui entre as 2 categorias de saída
+            let categoria_id = if i % 2 == 0 { id_categoria_abastecimento.clone() } else { id_categoria_alimentacao.clone() };
             let transacao_payload = CreateTransacaoPayload {
-                id_categoria: id_categoria_saida.clone(),
-                valor: valor_val.round() as i32,
+                id_categoria: categoria_id,
+                valor: (valor_val * 100.0).round() as i32,
                 tipo: "saida".to_string(),
                 descricao: Some("Seed saida".to_string()),
-                data: Some(inicio_val),
+                data: Some(inicio_val.to_string()),
             };
             let _ = create_transacao_handler(jar.clone(), axum::Json(transacao_payload)).await;
         }
@@ -293,8 +305,8 @@ pub async fn seed_movimentacao_robusta() {
             local_inicio: Some("A".to_string()),
             local_fim: Some("B".to_string()),
             total_corridas: total_corridas_val,
-            total_ganhos: soma_entradas_val.round() as i32,
-            total_gastos: soma_saidas_val.round() as i32,
+            total_ganhos: (soma_entradas_val * 100.0).round() as i32,
+            total_gastos: (soma_saidas_val * 100.0).round() as i32,
             plataforma: Some("Uber".to_string()),
             observacoes: Some("Seed".to_string()),
             clima: Some(if is_weekend { "Sol" } else { "Nublado" }.to_string()),

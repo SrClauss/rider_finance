@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/theme/ThemeProvider";
 import { SessionProvider } from '@/context/SessionContext';
 import { MetasProvider } from '@/context/MetasContext';
+import { CategoriaProvider } from '@/context/CategoriaContext';
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -23,7 +24,9 @@ export default function RootLayout({
         <ThemeProvider>
           <SessionProvider>
             <MetasProvider>
-              {children}
+              <CategoriaProvider>
+                {children}
+              </CategoriaProvider>
             </MetasProvider>
           </SessionProvider>
         </ThemeProvider>
