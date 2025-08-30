@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
 import axios from 'axios';
 
 // Interfaces (ajuste conforme seu projeto)
@@ -51,23 +51,25 @@ export const MetasProvider = ({ children }: { children: ReactNode }) => {
     return () => window.removeEventListener('metas:refresh', handler);
   }, []);
 
-  // Atualização otimista de meta
-  const atualizarMeta = (meta: Goal) => {
+  // Atualização otimista de meta (estabilizada com useCallback)
+  const atualizarMeta = useCallback((meta: Goal) => {
     setMetas(prev => prev.map(m => m.id === meta.id ? meta : m));
-  };
+  }, [setMetas]);
 
-  // Função centralizada para add/update/delete
-  const dispatchTransacao = (transacao: Partial<Transacao>, acao: AcaoTransacao) => {
+  // Função centralizada para add/update/delete (estabilizada com useCallback)
+  const dispatchTransacao = useCallback((transacao: Partial<Transacao>, acao: AcaoTransacao) => {
     console.log(`[MetasContext] dispatchTransacao acionado:`, { acao, transacao });
     setTransacoes(prev => {
       const novo = atualizarTransacoesContexto(prev, transacao, acao);
       console.log('[MetasContext] Novo estado de transacoes:', novo);
       return novo;
     });
-  };
+  }, [setTransacoes]);
+
+  const value = useMemo(() => ({ metas, transacoes, setMetas, dispatchTransacao, atualizarMeta }), [metas, transacoes, setMetas, dispatchTransacao, atualizarMeta]);
 
   return (
-    <MetasContext.Provider value={{ metas, transacoes, setMetas, dispatchTransacao, atualizarMeta }}>
+    <MetasContext.Provider value={value}>
       {children}
     </MetasContext.Provider>
   );

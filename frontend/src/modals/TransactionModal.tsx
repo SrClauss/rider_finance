@@ -86,11 +86,10 @@ function TransactionModalInner({ open, onClose, onCreated, onEdited, transaction
     setLoading(true);
     setError(null);
     try {
-      // Garantir que valor seja inteiro (backend espera i32)
+     
       const valorInt = Math.round(Number(form.valor));
-      // Garantir tipo correto
       const tipo = form.tipo === 'entrada' || form.tipo === 'saida' ? form.tipo : 'entrada';
-      // Montar payload compatível
+     
   const payload: { [k: string]: unknown } = {
         valor: valorInt,
         tipo,
@@ -98,8 +97,7 @@ function TransactionModalInner({ open, onClose, onCreated, onEdited, transaction
       };
       if (form.descricao && form.descricao.trim()) payload.descricao = form.descricao.trim();
       if (form.data) {
-        // Garante formato 'YYYY-MM-DDTHH:mm:ss' para o backend Rust
-        // form.data vem como 'YYYY-MM-DDTHH:mm' (datetime-local)
+  
         const [date, time] = form.data.split('T');
         let dataFormatada = form.data;
         if (date && time) {
@@ -126,7 +124,7 @@ function TransactionModalInner({ open, onClose, onCreated, onEdited, transaction
           const res = await axios.post('/api/transacao', payload, { withCredentials: true });
           const json: Transaction = res.data;
           dispatchTransacao(json, 'add');
-          // atualiza contexto de sessão (se houver sessão ativa)
+ 
           try { 
             const sessionTx = {
               id: json.id,

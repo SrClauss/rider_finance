@@ -130,8 +130,8 @@ export default function LoggedLayout({ children }: LoggedLayoutProps) {
 
   return (
     <ThemeProvider>
-      <MetasProvider>
-        <SessionProvider>
+      <SessionProvider>
+        <MetasProvider>
           <Box sx={{ display: "flex" }}>
             <CssBaseline />
             <AppBar
@@ -210,8 +210,8 @@ export default function LoggedLayout({ children }: LoggedLayoutProps) {
               </Box>
             </Box>
           </Box>
-        </SessionProvider>
-      </MetasProvider>
+        </MetasProvider>
+      </SessionProvider>
     </ThemeProvider>
   );
 }

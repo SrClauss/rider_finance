@@ -54,8 +54,8 @@ export const GoalProgress: React.FC<GoalProgressProps> = ({ meta, isActive }) =>
     if (isExpired && meta.eh_ativa) {
       atualizarMeta({ ...meta, eh_ativa: false, concluida_com: total });
     }
-    // atualizarMeta, meta and total are stable enough for this effect; include them to satisfy lint
-  }, [isCompleted, isExpired, atualizarMeta, meta, total]);
+    // Use only stable dependencies to avoid loops: isCompleted/isExpired/total/atualizarMeta/meta.id/meta.eh_concluida/meta.eh_ativa
+  }, [isCompleted, isExpired, total, atualizarMeta, meta.id, meta.eh_concluida, meta.eh_ativa]);
 
   if (meta.eh_concluida) {
     // Só mostra o valor final atingido, centralizado e em verde
@@ -102,6 +102,10 @@ export const GoalProgress: React.FC<GoalProgressProps> = ({ meta, isActive }) =>
           }}
         />
       </div>
+
+      <pre>
+        {JSON.stringify(transacoes, null, 2)}
+      </pre>
     </div>
   );
 };

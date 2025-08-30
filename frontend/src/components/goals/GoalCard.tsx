@@ -68,14 +68,40 @@ const GoalCard: React.FC<GoalCardProps> = ({ goal, onEdit, onDelete, sx }) => {
           Tipo de meta: <strong>{localGoal.tipo.charAt(0).toUpperCase() + localGoal.tipo.slice(1)}</strong>
         </Typography>
         <Divider sx={{ my: 1, bgcolor: 'divider' }} />
-        <Box display="flex" flexDirection="row" gap={2} mb={2}>
+        <Box display="flex" flexDirection="column" gap={1} mb={2}>
           <Typography variant="body2" color="text.secondary">
             <strong>Valor alvo:</strong> R$ {localGoal.valor_alvo.toLocaleString('pt-BR')}
           </Typography>
-          <Typography variant="body2" color="text.secondary">
-            <strong>Período:</strong> {localGoal.data_inicio ? new Date(localGoal.data_inicio).toLocaleDateString('pt-BR') : '-'}
-            {localGoal.data_fim ? ` até ${new Date(localGoal.data_fim).toLocaleDateString('pt-BR')}` : ''}
-          </Typography>
+          <Box>
+            {/* Exibe data e hora de início e fim com formato local */}
+            {localGoal.data_inicio ? (
+              <Typography variant="body2" color="text.secondary">
+                <strong>Início:</strong>{' '}
+                {(() => {
+                  try {
+                    const d = new Date(localGoal.data_inicio);
+                    return `${d.toLocaleDateString('pt-BR')} ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+                  } catch { return localGoal.data_inicio; }
+                })()}
+              </Typography>
+            ) : (
+              <Typography variant="body2" color="text.secondary">Início: -</Typography>
+            )}
+            {localGoal.data_fim ? (
+              <Typography variant="body2" color="text.secondary">
+                <strong>Fim:</strong>{' '}
+                {(() => {
+                  try {
+                    const d = new Date(localGoal.data_fim);
+                    return `${d.toLocaleDateString('pt-BR')} ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+                  } catch { return localGoal.data_fim; }
+                })()}
+              </Typography>
+            ) : (
+              <Typography variant="body2" color="text.secondary">Fim: -</Typography>
+            )}
+            
+          </Box>
         </Box>
   <GoalProgress meta={localGoal} isActive={localGoal.eh_ativa} />
       </CardContent>

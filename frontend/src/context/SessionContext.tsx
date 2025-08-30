@@ -57,10 +57,11 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   const [panelOpen, setPanelOpen] = useState<boolean>(() => {
     try {
       const raw = localStorage.getItem('rf_panel_open');
-      if (raw === null) return true;
-      return raw === '1';
+  // Se não existir preferência salva, padrão será RECOLHIDO (false)
+  if (raw === null) return false;
+  return raw === '1';
     } catch {
-      return true;
+  return false;
     }
   });
 

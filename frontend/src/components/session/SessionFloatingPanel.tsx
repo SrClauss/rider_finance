@@ -15,7 +15,7 @@ export default function SessionFloatingPanel() {
   const { sessao, elapsedSeconds, start, stop, loading } = useSession();
   const theme = useTheme();
   const { panelOpen, setPanelOpen } = useSession();
-  const open = panelOpen ?? true;
+  const open = panelOpen ?? false;
   // Fixed panel height to keep implementation simple and predictable
   const PANEL_HEIGHT = 180; // px
 
@@ -49,7 +49,8 @@ export default function SessionFloatingPanel() {
         bottom: 24,
         zIndex: theme.zIndex.drawer + 2,
         display: 'flex',
-        alignItems: 'stretch',
+        // quando aberto a handle ocupa a altura do painel; quando fechado, alinhamos ao fundo e mostramos um quadrado
+        alignItems: open ? 'stretch' : 'flex-end',
         gap: 0, // sem espaço entre handle e painel para ficarem encostados
       }}
     >
@@ -67,25 +68,27 @@ export default function SessionFloatingPanel() {
     } 
   }}
         sx={{
-          width: 36,
-      height: PANEL_HEIGHT,
+          // quando aberto: barra vertical; quando fechado: quadrado pequeno
+          width: open ? 36 : 40,
+          height: open ? PANEL_HEIGHT : 40,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           bgcolor: theme.palette.mode === 'dark' ? 'rgba(10,14,20,1)' : 'rgba(248,249,250,1)',
-          opacity: open ? 1 : 0.6,
-          // handle arredondado à esquerda, lado direito quadrado para "encaixar" no painel
-          borderRadius: open ? '6px 0 0 6px' : '6px',
+          opacity: open ? 1 : 0.45,
+          // quando aberto, handle arredondado à esquerda; quando fechado, quadrado com cantos arredondados
+          borderRadius: open ? '6px 0 0 6px' : '8px',
           boxShadow: 1,
           cursor: 'pointer',
-          transition: 'all 200ms ease',
+          transition: 'width 200ms ease, height 200ms ease, border-radius 160ms ease, opacity 160ms',
           border: theme.palette.mode === 'dark' ? '1px solid rgba(255,255,255,0.04)' : '1px solid rgba(0,0,0,0.06)',
-          borderRight: 'none', // remove borda direita para evitar dupla borda com o painel
+          // remove borda direita quando estiver encaixado no painel aberto
+          borderRight: open ? 'none' : undefined,
         }}
       >
         <IconButton size="small" aria-label={open ? 'recolher painel' : 'expandir painel'}>
           {/* inverter a rotação: quando aberto mostramos a seta apontando para a direita (expande para fora), quando fechado aponta para a esquerda */}
-          <ChevronRightIcon sx={{ transform: open ? 'rotate(0deg)' : 'rotate(180deg)', transition: 'transform 160ms' }} />
+          <ChevronRightIcon sx={{ transform: open ? 'rotate(0deg)' : 'rotate(180deg)', transition: 'transform 160ms', fontSize: open ? 'default' : 20 }} />
         </IconButton>
       </Box>
 
