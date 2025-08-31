@@ -307,16 +307,6 @@ export default function Page() {
                 <SwiperSlide>
                   <Box sx={{ width: "100%" }}>
                     <DashboardSimpleCard
-                      label="Meta Diária"
-                      value={data?.meta_diaria ?? "-"}
-                      color="#388e3c"
-                      mod="currency"
-                    />
-                  </Box>
-                </SwiperSlide>
-                <SwiperSlide>
-                  <Box sx={{ width: "100%" }}>
-                    <DashboardSimpleCard
                       label="Meta Semanal"
                       value={data?.meta_semanal ?? "-"}
                       color="#1976d2"
