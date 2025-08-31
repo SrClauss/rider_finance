@@ -33,7 +33,7 @@ async fn main() {
         .build();
 
     match mailer.send(&email_msg) {
-        Ok(resp) => (),
-        Err(e) => (),
+        Ok(_resp) => (),
+        Err(_e) => (),
     }
 }

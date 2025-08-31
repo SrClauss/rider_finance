@@ -48,7 +48,7 @@ pub async fn update_me_handler(cookie_jar: CookieJar, Json(payload): Json<Update
                 return (StatusCode::CONFLICT, Json("Email já em uso".to_string())).into_response();
             }
         }
-        if let Err(e) = diesel::update(usuarios.filter(id.eq(&user_id)))
+        if let Err(_e) = diesel::update(usuarios.filter(id.eq(&user_id)))
             .set(email.eq(new_email))
             .execute(conn)
         {
@@ -67,7 +67,7 @@ pub async fn update_me_handler(cookie_jar: CookieJar, Json(payload): Json<Update
         if let Some(estado) = end.estado { changes.push(("province".to_string(), estado)); }
 
         // Aplicar updates individualmente (simplicidade) dentro de transação
-        if let Err(e) = conn.transaction::<_, diesel::result::Error, _>(|conn_tx| {
+        if let Err(_e) = conn.transaction::<_, diesel::result::Error, _>(|conn_tx| {
             for (col, val) in &changes {
                 match col.as_str() {
                     "address" => { diesel::update(usuarios.filter(id.eq(&user_id))).set(address.eq(val)).execute(conn_tx)?; }

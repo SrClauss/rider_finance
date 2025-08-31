@@ -102,6 +102,7 @@ async fn main() {
 
     // Executa o seed robusto para o usuário fixo
     backend::services::seed::seed_movimentacao_robusta().await;
+    println!("🚀 Servidor rodando em http://127.0.0.1:8000");
 
     use tokio::net::TcpListener;
     let listener = TcpListener::bind("0.0.0.0:8000").await.unwrap();

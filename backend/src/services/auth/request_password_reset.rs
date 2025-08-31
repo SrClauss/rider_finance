@@ -59,6 +59,8 @@ pub async fn request_password_reset_handler(Json(payload): Json<RequestPasswordR
                 sub: usuario.id.clone(),
                 exp,
             };
+            let token = match encode(&Header::default(), &claims, &EncodingKey::from_secret(secret.as_ref())) {
+                Ok(t) => t,
                 Err(e) => {
                     return Json(format!("Erro ao gerar token: {}", e));
                 }
@@ -89,7 +91,7 @@ pub async fn request_password_reset_handler(Json(payload): Json<RequestPasswordR
                 .credentials(creds)
                 .build();
             match mailer.send(&email_msg) {
-                Ok(response) => {
+                Ok(_response) => {
                 }
                 Err(e) => {
                     return Json(format!("Erro ao enviar e-mail: {}", e));

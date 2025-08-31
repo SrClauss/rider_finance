@@ -122,7 +122,7 @@ pub async fn criar_sessao_handler(Json(payload): Json<NovaSessaoPayload>) -> Jso
     // Parse da data de início
     let inicio_dt = match chrono::NaiveDateTime::parse_from_str(&payload.inicio, "%Y-%m-%dT%H:%M") {
         Ok(dt) => dt,
-        Err(e) => {
+        Err(_e) => {
             // Fallback para now se parsing falhar
             now
         }
@@ -218,7 +218,7 @@ pub async fn iniciar_sessao_handler(Json(payload): Json<NovaSessaoPayload>) -> J
     // Parse da data de início
     let inicio_dt = match parse_datetime(&payload.inicio) {
         Ok(dt) => dt,
-        Err(e) => {
+        Err(_e) => {
             // Fallback para now se parsing falhar
             now
         }
@@ -269,14 +269,14 @@ pub async fn encerrar_sessao_handler(Json(payload): Json<EncerrarPayload>) -> Js
     // Converte strings para NaiveDateTime
     let inicio_dt = match parse_datetime(&payload.inicio) {
         Ok(dt) => dt,
-        Err(e) => {
+        Err(_e) => {
             return Json(None);
         }
     };
 
     let fim_dt = match parse_datetime(&payload.fim) {
         Ok(dt) => dt,
-        Err(e) => {
+        Err(_e) => {
             return Json(None);
         }
     };

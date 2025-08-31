@@ -2,11 +2,9 @@ import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, B
 import { useEffect } from "react";
 import axios from "axios";
 import useFormReducer from "@/lib/useFormReducer";
-import parseNumberToInt from '@/utils/parseNumber';
-
 import { Goal } from "@/interfaces/goal";
 import { useMetasContext } from "@/context/MetasContext";
-import { getCurrentDateTime, formatForDateTimeLocal, parseDateTime } from '@/utils/dateUtils';
+import { getCurrentDateTime, formatForDateTimeLocal, parseDateTime, formatDateTime } from '@/utils/dateUtils';
 
 type GoalModalProps = {
   open: boolean;
@@ -148,15 +146,23 @@ export default function GoalModal(props: GoalModalProps) {
         descricao: form.descricao || null,
         tipo: form.tipo,
         categoria: form.categoria,
-  // backend espera i32 — enviar números inteiros
-  valor_alvo: parseNumberToInt(form.valor_alvo),
-  valor_atual: parseNumberToInt(form.valor_atual),
+  // backend espera i32 em centavos — converter reais para centavos multiplicando por 100
+  valor_alvo: Math.round(parseFloat(String(form.valor_alvo).replace(',', '.')) * 100),
+  valor_atual: Math.round(parseFloat(String(form.valor_atual).replace(',', '.')) * 100),
         unidade: form.unidade || null,
-        data_inicio: form.data_inicio ? getCurrentDateTime() : null,
-        data_fim: form.data_fim ? getCurrentDateTime() : null,
+        data_inicio: form.data_inicio ? (() => {
+          // Para datetime-local, criar data local sem timezone
+          const [datePart, timePart] = form.data_inicio.split('T');
+          return `${datePart}T${timePart}:00`;
+        })() : null,
+        data_fim: form.data_fim ? (() => {
+          // Para datetime-local, criar data local sem timezone
+          const [datePart, timePart] = form.data_fim.split('T');
+          return `${datePart}T${timePart}:00`;
+        })() : null,
         eh_ativa: form.eh_ativa,
         eh_concluida: form.eh_concluida,
-        concluida_em: form.concluida_em || null,
+        concluida_em: form.concluida_em ? new Date(form.concluida_em).toISOString().replace(/\.\d{3}Z$/, '') : null,
         concluida_com: form.concluida_com ?? null
       };
       let responseData: Goal;

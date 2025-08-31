@@ -103,6 +103,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
 }) => {
   const isEditing = Boolean(transaction);
   const { categorias } = useCategoriaContext();
+  const { dispatchTransacoes } = useMetasContext();
 
   // Estado do formulário usando reducer
   const [formState, dispatch] = useReducer(formReducer, {
@@ -149,7 +150,13 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
 
     try {
       // Se há sessão ativa, usar a data/hora atual em vez da selecionada
-      const dataToSend = hasActiveSession ? getCurrentDateTime() : formState.data;
+      const dataToSend = hasActiveSession
+        ? new Date().toISOString().replace(/\.\d{3}Z$/, '')
+        : (() => {
+            // Para datetime-local, criar data local sem timezone
+            const [datePart, timePart] = formState.data.split('T');
+            return `${datePart}T${timePart}:00`;
+          })();
 
       const payload = {
         id_categoria: formState.id_categoria,
@@ -176,8 +183,10 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
       const savedTransaction = response.data;
       if (isEditing) {
         // TODO: dispatch update
+        dispatchTransacoes(savedTransaction, 'update');
       } else {
-        // TODO: dispatch add
+        // Dispatch add para MetasContext
+        dispatchTransacoes(savedTransaction, 'add');
         if (attachTransaction) {
           attachTransaction(savedTransaction); // Anexa à sessão se ativa
         }

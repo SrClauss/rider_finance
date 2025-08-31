@@ -183,7 +183,7 @@ pub async fn create_transacao_handler(jar: CookieJar, Json(payload): Json<Create
     let nova_data: NaiveDateTime = if let Some(ref data_str) = payload.data {
         match parse_datetime(data_str) {
             Ok(dt) => dt,
-            Err(e) => {
+            Err(_e) => {
                 now // Fallback para now
             }
         }

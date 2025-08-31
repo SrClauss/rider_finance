@@ -48,7 +48,15 @@ export const GoalProgress: React.FC<GoalProgressProps> = ({ meta, isActive }) =>
       return lucro;
     }
 
-    // Para outros tipos: soma simples
+    if (meta.tipo === 'economia') {
+      // Para economia: soma das saídas (valor gasto)
+      const totalGasto = transacoesFiltradas
+        .filter((t) => t.tipo === 'saida')
+        .reduce((acc, t) => acc + t.valor, 0);
+      return totalGasto;
+    }
+
+    // Para outros tipos (faturamento): soma simples das transações filtradas
     const total = transacoesFiltradas.reduce((acc, t) => acc + t.valor, 0);
     return total;
   }, [transacoesFiltradas, meta.tipo]);
@@ -56,30 +64,67 @@ export const GoalProgress: React.FC<GoalProgressProps> = ({ meta, isActive }) =>
   // Calcula progresso em %
   const progressoPercentual = useMemo(() => {
     if (meta.valor_alvo <= 0) return 0;
+
+    if (meta.tipo === 'economia') {
+      // Para economia: progresso = (valor_alvo - total_gasto) / valor_alvo * 100
+      // Barra começa em 100% e diminui conforme gasta
+      const progresso = Math.max(0, ((meta.valor_alvo - totalAtingido) / meta.valor_alvo) * 100);
+      return Math.min(100, progresso);
+    }
+
+    // Para outros tipos: progresso normal (aumenta com valores maiores)
     const progress = Math.min(100, Math.max(0, (totalAtingido / meta.valor_alvo) * 100));
     return progress;
-  }, [totalAtingido, meta.valor_alvo]);
+  }, [totalAtingido, meta.valor_alvo, meta.tipo]);
 
   // Calcula quanto falta para atingir a meta
   const quantoFalta = useMemo(() => {
+    if (meta.tipo === 'economia') {
+      // Para economia: quanto ainda pode gastar (valor_alvo - total_gasto)
+      return Math.max(0, meta.valor_alvo - totalAtingido);
+    }
+    // Para outros tipos: quanto falta para alcançar (valor_alvo - total_atual)
     return Math.max(0, meta.valor_alvo - totalAtingido);
-  }, [meta.valor_alvo, totalAtingido]);
+  }, [meta.valor_alvo, totalAtingido, meta.tipo]);
 
   // Verifica se a meta é positiva (aumenta com valores maiores) ou negativa (diminui)
   const isMetaPositiva = meta.tipo === 'faturamento' || meta.tipo === 'lucro';
 
+  // Verifica se é meta de economia (barra decrescente)
+  const isMetaEconomia = meta.tipo === 'economia';
+
   // Verifica conclusão e expiração
   const isConcluida = useMemo(() => {
+    if (isMetaEconomia) {
+      // Para economia: concluída quando gastou mais que o alvo (ultrapassou o limite)
+      return totalAtingido > meta.valor_alvo;
+    }
     if (isMetaPositiva) {
       return totalAtingido >= meta.valor_alvo;
     }
-    return totalAtingido <= 0; // Para economia, atingir 0 ou negativo
-  }, [totalAtingido, meta.valor_alvo, isMetaPositiva]);
+    return totalAtingido <= 0; // Para outros tipos negativos
+  }, [totalAtingido, meta.valor_alvo, isMetaPositiva, isMetaEconomia]);
 
   const isExpirada = useMemo(() => {
     if (!meta.data_fim) return false;
     return new Date() > new Date(meta.data_fim);
   }, [meta.data_fim]);
+
+  // Calcula excesso para metas de economia concluídas
+  const excessoGastos = useMemo(() => {
+    if (isMetaEconomia && isConcluida) {
+      return Math.max(0, totalAtingido - meta.valor_alvo);
+    }
+    return 0;
+  }, [isMetaEconomia, isConcluida, totalAtingido, meta.valor_alvo]);
+
+  // Calcula porcentagem do excesso
+  const excessoPercentual = useMemo(() => {
+    if (excessoGastos > 0 && meta.valor_alvo > 0) {
+      return (excessoGastos / meta.valor_alvo) * 100;
+    }
+    return 0;
+  }, [excessoGastos, meta.valor_alvo]);
 
   // Atualiza a meta no contexto se concluída ou expirada
   useEffect(() => {
@@ -122,12 +167,15 @@ export const GoalProgress: React.FC<GoalProgressProps> = ({ meta, isActive }) =>
         <Typography
           variant="h6"
           sx={{
-            color: 'success.main',
+            color: isMetaEconomia && totalAtingido > meta.valor_alvo ? 'error.main' : 'success.main',
             fontWeight: 700,
             textAlign: 'center',
           }}
         >
-          Meta atingida! Valor final: {((meta.concluida_com ?? totalAtingido) / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+          {isMetaEconomia && totalAtingido > meta.valor_alvo
+            ? `Limite de gastos ultrapassado! Gasto: ${((meta.concluida_com ?? totalAtingido) / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`
+            : `Meta atingida! Valor final: ${((meta.concluida_com ?? totalAtingido) / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`
+          }
         </Typography>
       </Box>
     );
@@ -175,7 +223,7 @@ export const GoalProgress: React.FC<GoalProgressProps> = ({ meta, isActive }) =>
         <Typography
           variant="body2"
           sx={{
-            color: isMetaPositiva ? 'success.main' : 'error.main',
+            color: isMetaEconomia ? 'warning.main' : (isMetaPositiva ? 'success.main' : 'error.main'),
             fontWeight: 600,
           }}
         >
@@ -188,7 +236,10 @@ export const GoalProgress: React.FC<GoalProgressProps> = ({ meta, isActive }) =>
             fontWeight: 500,
           }}
         >
-          {(totalAtingido / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+          {isMetaEconomia
+            ? `Gasto: ${(totalAtingido / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`
+            : `${(totalAtingido / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`
+          }
         </Typography>
       </Box>
 
@@ -201,11 +252,38 @@ export const GoalProgress: React.FC<GoalProgressProps> = ({ meta, isActive }) =>
           borderRadius: 4,
           bgcolor: 'grey.300',
           '& .MuiLinearProgress-bar': {
-            bgcolor: isMetaPositiva ? 'success.main' : 'error.main',
+            bgcolor: isMetaEconomia ? 'warning.main' : (isMetaPositiva ? 'success.main' : 'error.main'),
             borderRadius: 4,
           },
         }}
       />
+
+      {/* Barra de excesso para metas de economia concluídas */}
+      {isMetaEconomia && excessoGastos > 0 && (
+        <Box sx={{ mt: 1 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+            <Typography variant="caption" sx={{ color: 'error.main', fontWeight: 600 }}>
+              Excesso: {excessoPercentual.toFixed(1)}% acima do limite
+            </Typography>
+            <Typography variant="caption" sx={{ color: 'error.main', fontWeight: 500 }}>
+              +{(excessoGastos / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+            </Typography>
+          </Box>
+          <LinearProgress
+            variant="determinate"
+            value={Math.min(100, excessoPercentual)} // Limita a 100% para não estourar a barra
+            sx={{
+              height: 6,
+              borderRadius: 3,
+              bgcolor: 'grey.200',
+              '& .MuiLinearProgress-bar': {
+                bgcolor: 'error.main',
+                borderRadius: 3,
+              },
+            }}
+          />
+        </Box>
+      )}
 
       {/* Quanto falta */}
       <Box sx={{ mt: 1, textAlign: 'center' }}>
@@ -216,9 +294,17 @@ export const GoalProgress: React.FC<GoalProgressProps> = ({ meta, isActive }) =>
             fontWeight: 500,
           }}
         >
-          {quantoFalta > 0
-            ? `Falta ${(quantoFalta / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} para atingir a meta`
-            : 'Meta excedida!'
+          {isMetaEconomia
+            ? (quantoFalta > 0
+                ? `Pode gastar mais ${(quantoFalta / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`
+                : excessoGastos > 0
+                  ? `Limite ultrapassado em ${(excessoGastos / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`
+                  : 'Limite de gastos atingido!'
+              )
+            : (quantoFalta > 0
+                ? `Falta ${(quantoFalta / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} para atingir a meta`
+                : 'Meta excedida!'
+              )
           }
         </Typography>
       </Box>

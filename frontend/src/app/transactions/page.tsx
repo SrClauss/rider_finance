@@ -76,10 +76,12 @@ function TransactionsPageInner() {
     setModalOpen(true);
   };
 
-  // Ao fechar modal de transação, limpa edição
-  const handleCloseTransactionModal = () => {
+  // Ao fechar modal de transação, limpa edição e atualiza transações
+  const handleCloseTransactionModal = async () => {
     setModalOpen(false);
     setEditTx(null);
+    // Atualiza a lista de transações quando o modal é fechado
+    await fetchTransacoes();
   };
   // Ao salvar edição
   const handleTransactionEdited = async () => {

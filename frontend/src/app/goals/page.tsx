@@ -14,7 +14,7 @@ import GoalCard from "../../components/goals/GoalCard";
 import { useMetasContext } from "@/context/MetasContext";
 
 export default function GoalsPage() {
-  const { dispatchMetas, loading: contextLoading, error: contextError } = useMetasContext();
+  const { dispatchMetas, loading: contextLoading, error: contextError, metas: contextMetas, transacoes: contextTransacoes } = useMetasContext();
   const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -134,30 +134,33 @@ export default function GoalsPage() {
         ) : goals.length === 0 ? (
           <Typography color="#aaa" sx={{ mt: 4, textAlign: "center" }}>Nenhuma meta cadastrada.</Typography>
         ) : (
-          <Box
-            sx={{
-              display: "grid",
-              gridTemplateColumns: {
-                xs: '1fr',
-                sm: '1fr',
-                md: '1fr',
-                lg: '1fr',
-                xl: '1fr',
-              },
-              gap: 3,
-              justifyItems: 'center',
-            }}
-          >
-            {goals.map(goal => (
-              <GoalCard
-                key={goal.id}
-                goal={goal}
-                onEdit={handleEdit}
-                onDelete={g => handleDeleteClick(g.id)}
-                sx={{ width: '100%', maxWidth: 900 }}
-              />
-            ))}
-          </Box>
+          <>
+  
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: '1fr',
+                  sm: '1fr',
+                  md: '1fr',
+                  lg: '1fr',
+                  xl: '1fr',
+                },
+                gap: 3,
+                justifyItems: 'center',
+              }}
+            >
+              {goals.map(goal => (
+                <GoalCard
+                  key={goal.id}
+                  goal={goal}
+                  onEdit={handleEdit}
+                  onDelete={g => handleDeleteClick(g.id)}
+                  sx={{ width: '100%', maxWidth: 900 }}
+                />
+              ))}
+            </Box>
+          </>
         )}
   <GoalModal open={modalOpen} onClose={handleModalClose} onSaved={handleGoalSaved} goal={editGoal} />
         <ConfirmDeleteModal
