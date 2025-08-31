@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/theme/ThemeProvider";
 import { SessionProvider } from '@/context/SessionContext';
 import { MetasProvider } from '@/context/MetasContext';
 import { CategoriaProvider } from '@/context/CategoriaContext';
+import InitialDataLoader from '@/components/InitialDataLoader';
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -26,7 +27,9 @@ export default function RootLayout({
           <SessionProvider>
             <MetasProvider>
               <CategoriaProvider>
-                {children}
+                <InitialDataLoader>
+                  {children}
+                </InitialDataLoader>
               </CategoriaProvider>
             </MetasProvider>
           </SessionProvider>

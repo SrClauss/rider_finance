@@ -35,36 +35,23 @@ export const MetasProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     transacoes: [],
   });
   
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(false); // Começa como false, será controlado pelo InitialDataLoader
   const [error, setError] = useState<string | null>(null);
   
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const response = await axios.get("/api/metas/ativas-com-transacoes", {
-          withCredentials: true
-        });
-        setMetasETransacoes(response.data);
-      } catch (err: any) {
-        const errorMessage = err?.response?.data?.message || err?.message || 'Erro ao carregar dados';
-        setError(errorMessage);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchData();
-  }, []);
+  // Removido o useEffect que fazia fetch automático - agora é feito pelo InitialDataLoader
 
-  useEffect(() => {
-  }, [metasETransacoes]);
+  // Removido o useEffect vazio
 
   const dispatchTransacoes = useCallback((transacao: Transacao, action: 'add' | 'update' | 'delete') => {
     setMetasETransacoes(prev => {
       switch (action) {
         case 'add':
+          // Verificar se a transação já existe para evitar duplicatas
+          const transacaoExists = prev.transacoes.some(t => t.id === transacao.id);
+          if (transacaoExists) {
+            console.log(`Transação com ID ${transacao.id} já existe, ignorando adição`);
+            return prev;
+          }
           return { ...prev, transacoes: [...prev.transacoes, transacao] };
         case 'update':
           return {
@@ -86,6 +73,12 @@ export const MetasProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setMetasETransacoes(prev => {
       switch (action) {
         case 'add':
+          // Verificar se a meta já existe para evitar duplicatas
+          const metaExists = prev.metas.some(m => m.id === meta.id);
+          if (metaExists) {
+            console.log(`Meta com ID ${meta.id} já existe, ignorando adição`);
+            return prev;
+          }
           return { ...prev, metas: [...prev.metas, meta] };
         case 'update':
           return {

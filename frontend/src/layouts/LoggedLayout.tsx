@@ -22,7 +22,7 @@ import InsertChartIcon from "@mui/icons-material/InsertChart";
 import FlagIcon from "@mui/icons-material/Flag";
 import LogoutIcon from "@mui/icons-material/Logout";
 import { useRouter } from "next/navigation";
-import { ThemeProvider } from "@/theme/ThemeProvider"; // Adjust the import path as necessary
+import { ThemeProvider } from "@/theme/ThemeProvider";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import SessionFloatingPanel from '@/components/session/SessionFloatingPanel';
 const drawerWidth = 240;
@@ -35,28 +35,19 @@ export default function LoggedLayout({ children }: LoggedLayoutProps) {
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const router = useRouter();
 
-  useEffect(() => {
-
-    axios.get("/api/validate_token", { withCredentials: true })
-      .then(res => {
-        if (!res.data || !res.data.valid) {
-          router.replace("/login");
-
-
-        }
-      })
-      .catch(() => {
-        router.replace("/login");
-      });
-  }, [router]);
-
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
   };
+
   const handleLogout = () => {
+    // Fazer logout no backend
     axios.post("/api/logout", {}, { withCredentials: true })
       .then(() => {
-        window.location.href = "/login";
+        router.replace("/login");
+      })
+      .catch(() => {
+        // Mesmo se der erro, redirecionar para login
+        router.replace("/login");
       });
   };
 
