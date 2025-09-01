@@ -55,6 +55,8 @@ export default function PerfilPage() {
   const [snackOpen, setSnackOpen] = useState(false);
   const [snackMessage, setSnackMessage] = useState("");
   const [editingConfigs, setEditingConfigs] = useState(false);
+  const [editingSubscription, setEditingSubscription] = useState(false);
+  const [isAnyAccordionExpanded, setIsAnyAccordionExpanded] = useState(false);
   const [projecaoMetodo, setProjecaoMetodo] = useState<string>("media_movel_3");
   const [projecaoPercentualExtremos, setProjecaoPercentualExtremos] = useState<number>(10);
   const [maskMoeda, setMaskMoeda] = useState<string>("brl");
@@ -245,7 +247,7 @@ export default function PerfilPage() {
         sx={{
           display: "flex",
           justifyContent: "center",
-          p: { xs: 2, sm: 3 },
+          p: { xs: 1, sm: 2 },
           bgcolor: "background.default",
           minHeight: "100vh",
         }}
@@ -253,14 +255,17 @@ export default function PerfilPage() {
         <Paper
           elevation={6}
           sx={{
-            width: { xs: "100%", sm: 640, md: 720 },
-            maxWidth: 900,
-            p: { xs: 2, sm: 3 },
+            width: isAnyAccordionExpanded ? { xs: "100%", sm: 700, md: 800 } : { xs: "100%", sm: 500, md: 600 },
+            maxWidth: isAnyAccordionExpanded ? 1000 : 700,
+            p: { xs: 1, sm: 2 },
             bgcolor: "common.black",
             color: "common.white",
             boxShadow: 6,
             borderRadius: 2,
             overflow: "auto",
+            transition: "width 0.3s ease, maxWidth 0.3s ease",
+            height:"fit-content",
+            minHeight: "70vh",
           }}
         >
           {loading ? (
@@ -447,7 +452,7 @@ export default function PerfilPage() {
                 </AccordionDetails>
               </Accordion>
 
-              <Accordion sx={{ bgcolor: "transparent", color: "common.white", boxShadow: "none" }}>
+              <Accordion sx={{ bgcolor: "transparent", color: "common.white", boxShadow: "none" }} expanded={editingSubscription} onChange={() => setEditingSubscription((s) => !s)}>
                 <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ color: "common.white" }} />}>
                   <Typography sx={{ fontSize: { xs: 14, sm: 15 } }}>Assinatura</Typography>
                 </AccordionSummary>

@@ -6,8 +6,8 @@ import { ThemeProvider } from "@/theme/ThemeProvider";
 import { SessionProvider } from '@/context/SessionContext';
 import { MetasProvider } from '@/context/MetasContext';
 import { CategoriaProvider } from '@/context/CategoriaContext';
-import InitialDataLoader from '@/components/InitialDataLoader';
-
+import InitialDataLoader from '@/components/transitions/InitialDataLoader';
+import { Container } from "@mui/material";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
@@ -28,6 +28,7 @@ export default function RootLayout({
             <MetasProvider>
               <CategoriaProvider>
                 <InitialDataLoader>
+                  
                   {children}
                 </InitialDataLoader>
               </CategoriaProvider>

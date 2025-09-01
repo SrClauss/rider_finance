@@ -4,20 +4,12 @@ import axios from "axios";
 import DashboardCardData from "@/components/dashboard/DashboardCardData";
 import { DashboardResponse } from "@/interfaces/DashboardResponse";
 import LoggedLayout from "@/layouts/LoggedLayout";
-import {
-  AttachMoney,
-  MoneyOff,
-  Savings,
-  LocalTaxi,
-  AccessTime,
-} from "@mui/icons-material";
 import { Box, useMediaQuery } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import RouteTransition from "@/components/RouteTransition";
-import { Swiper, SwiperSlide } from "swiper/react";
+import RouteTransition from "@/components/transitions/RouteTransition";
 import "swiper/css";
-import DashboardLineChartCard from "@/components/dashboard/DashboardLineChartCard";
-import DashboardSimpleCard from "@/components/dashboard/DashboardSimpleCard";
+
+import SummarySwiper from "@/components/dashboard/SummarySwiper"; // Importar o SummarySwiper
 
 export default function Page() {
   const theme = useTheme();
@@ -38,9 +30,9 @@ export default function Page() {
 
   return (
     <LoggedLayout>
-
-      <div>dida</div>
- 
+      <SummarySwiper data={data!} /> {/* Substituir SummaryTodayCard por SummarySwiper */}
+      <pre>{JSON.stringify(data, null, 2)}</pre>
     </LoggedLayout>
   );
 }
+     

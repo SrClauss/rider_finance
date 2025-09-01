@@ -38,17 +38,19 @@ export interface DashboardResponse {
   ganhos_7dias: number[];
   gastos_7dias: number[];
   lucro_7dias: number[];
+  corridas_7dias: number[];
+  horas_7dias: number[];
   ultimos_30_dias_labels: string[];
   ganhos_30dias: number[];
   gastos_30dias: number[];
   lucro_30dias: number[];
   corridas_30dias: number[];
+  horas_30dias: number[];
   projecao_mes: number;
   projecao_semana: number;
   ganhos_mes_array?: number[];
   gastos_mes_array?: number[];
   lucro_mes_array?: number[];
-  corridas_7dias: number[];
   corridas_mes_array?: number[];
   trend_method: string;
 }

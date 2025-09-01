@@ -320,11 +320,13 @@ pub struct DashboardStats {
     pub gastos_7dias: Vec<i32>,
     pub lucro_7dias: Vec<i32>,
     pub corridas_7dias: Vec<u32>,
+    pub horas_7dias: Vec<i32>,
     pub ultimos_30_dias_labels: Vec<String>,
     pub ganhos_30dias: Vec<i32>,
     pub gastos_30dias: Vec<i32>,
     pub lucro_30dias: Vec<i32>,
     pub corridas_30dias: Vec<u32>,
+    pub horas_30dias: Vec<i32>,
     pub projecao_mes: Option<i32>,
     pub projecao_semana: Option<i32>,
     pub trend_method: String,
@@ -404,6 +406,7 @@ pub async fn dashboard_stats_handler(
     let mut gastos_7dias = Vec::with_capacity(7);
     let mut lucro_7dias = Vec::with_capacity(7);
     let mut corridas_7dias = Vec::with_capacity(7);
+    let mut horas_7dias = Vec::with_capacity(7);
     for i in (0..7).rev() {
         let dia = now.date() - Duration::days(i);
         let inicio_dia = NaiveDateTime::new(dia, chrono::NaiveTime::from_hms_opt(0,0,0).unwrap());
@@ -428,10 +431,17 @@ pub async fn dashboard_stats_handler(
             .filter(sessao_dsl::inicio.le(fim_dia))
             .select(diesel::dsl::sum(sessao_dsl::total_corridas))
             .first::<Option<i64>>(conn).unwrap_or(Some(0)).unwrap_or(0).try_into().unwrap_or(0);
+        let horas_dia: i32 = sessao_dsl::sessoes_trabalho
+            .filter(sessao_dsl::id_usuario.eq(&id_usuario))
+            .filter(sessao_dsl::inicio.ge(inicio_dia))
+            .filter(sessao_dsl::inicio.le(fim_dia))
+            .select(diesel::dsl::sum(sessao_dsl::total_minutos))
+            .first::<Option<i64>>(conn).unwrap_or(Some(0)).unwrap_or(0) as i32 / 60;
         ganhos_7dias.push(ganhos_dia);
         gastos_7dias.push(gastos_dia);
         lucro_7dias.push(ganhos_dia - gastos_dia);
         corridas_7dias.push(corridas_dia);
+        horas_7dias.push(horas_dia);
     }
 
     // Arrays dos últimos 30 dias corridos
@@ -440,6 +450,7 @@ pub async fn dashboard_stats_handler(
     let mut gastos_30dias = Vec::new();
     let mut lucro_30dias = Vec::new();
     let mut corridas_30dias = Vec::new();
+    let mut horas_30dias = Vec::new();
     for i in (0..30).rev() {
         let data_dia = now.date() - chrono::Duration::days(i);
         ultimos_30_dias_labels.push(data_dia.format("%d/%m").to_string());
@@ -465,10 +476,17 @@ pub async fn dashboard_stats_handler(
             .filter(sessao_dsl::inicio.le(fim_dia))
             .select(diesel::dsl::sum(sessao_dsl::total_corridas))
             .first::<Option<i64>>(conn).unwrap_or(Some(0)).unwrap_or(0).try_into().unwrap_or(0);
+        let horas_dia: i32 = sessao_dsl::sessoes_trabalho
+            .filter(sessao_dsl::id_usuario.eq(&id_usuario))
+            .filter(sessao_dsl::inicio.ge(inicio_dia))
+            .filter(sessao_dsl::inicio.le(fim_dia))
+            .select(diesel::dsl::sum(sessao_dsl::total_minutos))
+            .first::<Option<i64>>(conn).unwrap_or(Some(0)).unwrap_or(0) as i32 / 60;
         ganhos_30dias.push(ganhos_dia);
         gastos_30dias.push(gastos_dia);
         lucro_30dias.push(ganhos_dia - gastos_dia);
         corridas_30dias.push(corridas_dia);
+        horas_30dias.push(horas_dia);
     }
 
     // Projeção do mês corrente
@@ -778,11 +796,13 @@ pub async fn dashboard_stats_handler(
     gastos_7dias,
     lucro_7dias,
     corridas_7dias,
+    horas_7dias,
     ultimos_30_dias_labels,
     ganhos_30dias,
     gastos_30dias,
     lucro_30dias,
     corridas_30dias,
+    horas_30dias,
     projecao_mes,
     projecao_semana,
     trend_method: projecao_metodo,
