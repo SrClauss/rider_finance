@@ -50,7 +50,7 @@ export default function SessionFloatingPanel() {
       sx={{
         position: 'fixed',
         right: 24,
-        bottom: 24,
+        bottom: 100,
         zIndex: theme.zIndex.drawer + 2,
         display: 'flex',
         // quando aberto a handle ocupa a altura do painel; quando fechado, alinhamos ao fundo e mostramos um quadrado
