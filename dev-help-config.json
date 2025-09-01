@@ -1,33 +1,34 @@
 {
   "terminals": [
-    {
-      "name": "backend",
-      "promptName": "🐍 Axum Backend",
-      "command": "cargo run --bin backend",
-      "cwd": "backend",
-      "keepOpen": false
-    },
-    {
-      "name": "frontend",
-      "promptName": "⚛️ Next.js Frontend",
-      "command": "npm run dev",
-      "cwd": "frontend",
-      "keepOpen": false
-    },
-    {
-      "name": "nginx",
-      "promptName": "🌐 Nginx (Proxy)",
-      "command": ".\\nginx.exe -g \"error_log logs/error.log debug;\"",
-      "cwd": "nginx",
-      "closeCommand": "taskkill /IM nginx.exe /F",
-      "keepOpen": false
-    },
-    {
+      {
       "name": "context7",
       "promptName": "⚙️ Context7 Server",
       "command": "npm start",
       "cwd": "context7",
       "keepOpen": true
+    },
+    {
+      "name": "Axum Rust",
+      "promptName": "🦀 Axum Rust Backend",
+      "command": "cargo run --bin backend",
+      "cwd": "backend",
+      "keepOpen": false
+    },
+    {
+      "name": "Next.js Frontend",
+      "promptName": "⚛️ Next.js Frontend",
+      "command": "npm run dev",
+      "cwd": "frontend",
+      "keepOpen": false
+
+    }, 
+    {
+       "name": "Nginx Server",
+       "promptName": "🌐 Nginx Server",
+       "command": "./nginx.exe",
+       "cwd": "nginx",
+       "keepOpen": false,
+       "closeCommand": "./nginx.exe -s stop"
     }
   ]
 }

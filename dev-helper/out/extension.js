@@ -93,13 +93,22 @@ function activate(context) {
     });
     let killDisposable = vscode.commands.registerCommand('dev-helper.killAllTerminals', () => {
         if (loadedConfig && Array.isArray(loadedConfig.terminals)) {
-            const killer = vscode.window.createTerminal({ name: 'dev-helper-killer', cwd: vscode.workspace.rootPath || undefined });
+            // Para cada terminal com closeCommand, criar um killer com o cwd correto
             loadedConfig.terminals.forEach((tc) => {
                 const closeCmd = tc.closeCommand || closeCommandMap[tc.name];
                 if (closeCmd) {
+                    const killerCwd = path.join(vscode.workspace.rootPath || '', tc.cwd);
+                    const killer = vscode.window.createTerminal({ name: `dev-helper-killer-${tc.name}`, cwd: killerCwd });
+                    vscode.window.showInformationMessage(`Enviando closeCommand para ${tc.name}: ${closeCmd} em ${killerCwd}`);
                     killer.sendText(closeCmd);
+                    // Aguardar mais tempo antes de fechar, para o comando executar
+                    setTimeout(() => {
+                        killer.sendText('exit');
+                        setTimeout(() => killer.dispose(), 500); // Pequeno delay adicional para exit
+                    }, 3000); // Aumentado para 3 segundos
                 }
             });
+            // Fechar os terminais criados (se não keepOpen)
             loadedConfig.terminals.forEach((tc) => {
                 const created = createdTerminalsMap[tc.name];
                 if (created && !tc.keepOpen) {
@@ -113,8 +122,6 @@ function activate(context) {
                     catch (e) { }
                 }
             });
-            killer.sendText('exit');
-            killer.dispose();
             const pidLines = Object.keys(createdTerminalPids).map(k => `${k}: ${createdTerminalPids[k]}`);
             vscode.window.showInformationMessage('Dev Helper: comandos de encerramento enviados. Terminais criados (pids): ' + pidLines.join('; '));
         }
@@ -130,7 +137,7 @@ function activate(context) {
                 catch (e) { }
             });
         }
-        vscode.window.showInformationMessage('Comandos para encerrar processos dos terminais enviados (closeCommand executado pelo killer)!');
+        vscode.window.showInformationMessage('Comandos para encerrar processos dos terminais enviados (closeCommand executado em cwd correto)!');
     });
     function openConfigFile() {
         const configPath = path.join(vscode.workspace.rootPath || '', 'dev-help-config.json');

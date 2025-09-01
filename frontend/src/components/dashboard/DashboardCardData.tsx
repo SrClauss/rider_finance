@@ -1,5 +1,6 @@
 import { Box, Divider, Typography } from "@mui/material";
 import { ReactNode } from "react";
+import { formatarMoeda } from "@/utils/currencyUtils";
 
 function getPercentChange(current: number, previous: number | null): { text: string; color: string } | null {
     if (previous === null || previous === 0) return null;
@@ -86,7 +87,7 @@ export default function DashboardCardData({ label, value, color, icon, periodoAn
             <Divider sx={{ width: "100%", my: 0.75, opacity: "0.3" }} />
             <Box sx={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", minHeight: 20 }}>
                 <Typography variant="body2" sx={{ color: "#fff", fontWeight: 700, textAlign: "left", fontSize: 11 }}>
-                    {`Anterior: ${periodoAnterior !== null ? periodoAnterior : "-"}`}
+                    {`Anterior: ${periodoAnterior !== null ? (formatarMoeda(periodoAnterior/100)) : "-"}`}
                 </Typography>
                 {periodoAnterior !== null && percentChange ? (
                     <Typography variant="body2" sx={{ color: percentChange.color, fontWeight: 700, textAlign: "right", fontSize: 11 }}>
