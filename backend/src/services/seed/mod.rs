@@ -112,7 +112,7 @@ pub async fn seed_movimentacao_robusta() {
                 id_usuario: Some(id_user.clone()),
                 nome: "Corrida Uber".to_string(),
                 tipo: "entrada".to_string(),
-                icone: Some("fab fa-uber".to_string()),
+                icone: Some("icon-uber".to_string()),
                 cor: Some("#000000".to_string()),
             };
             let resp_uber = create_categoria_internal(axum::Json(payload_uber)).await;
@@ -135,7 +135,7 @@ pub async fn seed_movimentacao_robusta() {
                 id_usuario: Some(id_user.clone()),
                 nome: "Corrida 99".to_string(),
                 tipo: "entrada".to_string(),
-                icone: Some("fas fa-car-side".to_string()),
+                icone: Some("icon-99".to_string()),
                 cor: Some("#111111".to_string()),
             };
             let resp_99 = create_categoria_internal(axum::Json(payload_99)).await;
@@ -158,7 +158,7 @@ pub async fn seed_movimentacao_robusta() {
                 id_usuario: Some(id_user.clone()),
                 nome: "Abastecimento".to_string(),
                 tipo: "saida".to_string(),
-                icone: Some("fas fa-gas-pump".to_string()),
+                icone: Some("icon-gas-pump".to_string()),
                 cor: Some("#FF9800".to_string()),
             };
             let resp_abaste = create_categoria_internal(axum::Json(payload_abastecimento)).await;
@@ -181,7 +181,7 @@ pub async fn seed_movimentacao_robusta() {
                 id_usuario: Some(id_user.clone()),
                 nome: "Alimentação".to_string(),
                 tipo: "saida".to_string(),
-                icone: Some("fas fa-utensils".to_string()),
+                icone: Some("icon-utensils".to_string()),
                 cor: Some("#FF5722".to_string()),
             };
             let resp_alim = create_categoria_internal(axum::Json(payload_alim)).await;

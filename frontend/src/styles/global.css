@@ -1,0 +1,35 @@
+.icon-large {
+  font-size: 2em;
+  color: inherit;
+}
+
+.icon-fallback {
+  font-size: 2em;
+  color: #bbb;
+}
+
+.icon-dashboard {
+  width: 48px;
+  height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.6);
+  border-radius: 8px;
+}
+
+.theme-dark .icon-dashboard {
+  background: rgba(255,255,255,0.08);
+}
+
+.icon-dashboard i, .icon-dashboard::before {
+  color: inherit;
+  font-size: 24px;
+}
+
+.icon-dashboard img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 6px;
+}

@@ -40,3 +40,40 @@ a {
     color-scheme: dark;
   }
 }
+
+/* Classes para ícones PNG personalizados */
+.icon-uber,
+.icon-99,
+.icon-gas-pump,
+.icon-utensils {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  vertical-align: middle;
+}
+
+.icon-uber {
+  background-image: url('/uber.png');
+
+}
+
+.icon-99 {
+  background-image: url('/99logo.png');
+}
+
+.icon-gas-pump {
+  /* Usando FontAwesome para consistência */
+  font-family: "Font Awesome 6 Free";
+  font-weight: 900;
+  content: "\f52f"; /* fa-gas-pump */
+}
+
+.icon-utensils {
+  /* Usando FontAwesome para consistência */
+  font-family: "Font Awesome 6 Free";
+  font-weight: 400;
+  content: "\f2e7"; /* fa-utensils */
+}

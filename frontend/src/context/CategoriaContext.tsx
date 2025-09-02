@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, ReactNode } from "react";
+import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import axios from "axios";
 import { Categoria } from "../interfaces/Categoria";
 
@@ -13,6 +13,20 @@ const CategoriaContext = createContext<CategoriaContextType | undefined>(undefin
 
 export const CategoriaProvider = ({ children }: { children: ReactNode }) => {
 	const [categorias, setCategorias] = useState<Categoria[]>([]);
+
+	useEffect(() => {
+		// Carrega categorias ao montar o provider para que todos os componentes tenham acesso
+		async function init() {
+			try {
+				const res = await carregarCategorias();
+				setCategorias(res);
+			} catch (e) {
+				console.warn('Falha ao carregar categorias no provider:', e);
+			}
+		}
+		init();
+	}, []);
+
 	return (
 		<CategoriaContext.Provider value={{ categorias, setCategorias }}>
 			{children}
