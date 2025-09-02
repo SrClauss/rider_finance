@@ -25,6 +25,8 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import EditIcon from "@mui/icons-material/Edit";
 import LoggedLayout from "@/layouts/LoggedLayout";
 import EditProfileModal from "@/modals/EditProfileModal";
+import DeleteCategoryModal from '@/modals/DeleteCategoryModal';
+import { carregarCategorias } from '@/context/CategoriaContext';
 import { UsuarioMeResponse } from "@/interfaces/UsuarioMeResponse";
 import { Configuracao } from "@/interfaces/Configuracao";
 import { useRouter } from "next/navigation";
@@ -61,6 +63,9 @@ export default function PerfilPage() {
   const [projecaoPercentualExtremos, setProjecaoPercentualExtremos] = useState<number>(10);
   const [maskMoeda, setMaskMoeda] = useState<string>("brl");
   const [savingConfigs, setSavingConfigs] = useState(false);
+  const [categorias, setCategorias] = useState<any[]>([]);
+  const [manageCatOpen, setManageCatOpen] = useState(false);
+  const [catToDelete, setCatToDelete] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -87,6 +92,8 @@ export default function PerfilPage() {
         setLoading(false);
       }
     })();
+  // carrega categorias disponíveis para gerenciamento
+  carregarCategorias().then((res) => { if (mounted) setCategorias(res); }).catch(() => {});
     return () => {
       mounted = false;
     };
@@ -276,6 +283,20 @@ export default function PerfilPage() {
             <Typography color="error">{erro}</Typography>
           ) : (
             <>
+            <DeleteCategoryModal
+              open={manageCatOpen}
+              onClose={() => setManageCatOpen(false)}
+              categoryId={catToDelete}
+              categorias={categorias}
+              onCompleted={async () => {
+                setManageCatOpen(false);
+                setCatToDelete(null);
+                const novas = await carregarCategorias();
+                setCategorias(novas as any[]);
+                // refresh page data if needed
+                try { const resp = await axios.get('/api/me', { withCredentials: true }); setUsuario(resp.data); } catch {};
+              }}
+            />
               <Box
                 sx={{
                   display: "flex",
@@ -447,6 +468,21 @@ export default function PerfilPage() {
                           setSavingConfigs(false);
                         }
                       }}>{savingConfigs ? 'Salvando...' : 'Salvar configurações'}</Button>
+                    </Box>
+                    <Box sx={{ mt: 3 }}>
+                      <Typography variant="subtitle2">Gerenciar categorias</Typography>
+                      <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 1 }}>
+                        <FormControl sx={{ minWidth: 220 }}>
+                          <InputLabel id="manage-cat-label">Categoria</InputLabel>
+                          <Select labelId="manage-cat-label" label="Categoria" value={catToDelete ?? ''} onChange={(e) => setCatToDelete(String(e.target.value))}>
+                            <MenuItem value="">Selecione</MenuItem>
+                            {categorias.map((c:any) => (
+                              <MenuItem key={c.id} value={c.id}>{c.nome}</MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                        <Button variant="outlined" color="error" disabled={!catToDelete} onClick={() => setManageCatOpen(true)}>Excluir / Migrar</Button>
+                      </Stack>
                     </Box>
                   </Box>
                 </AccordionDetails>

@@ -1,0 +1,124 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, MenuItem, Typography, Stack } from '@mui/material';
+import axios from 'axios';
+import type { Categoria } from '@/interfaces/Categoria';
+
+type Props = {
+  open: boolean;
+  onClose: () => void;
+  categoryId: string | null;
+  categorias: Categoria[];
+  onCompleted: () => void;
+};
+
+export default function DeleteCategoryModal({ open, onClose, categoryId, categorias, onCompleted }: Props) {
+  const [phase, setPhase] = useState<number>(1);
+  const [previewCount, setPreviewCount] = useState<number | null>(null);
+  const [selectedTarget, setSelectedTarget] = useState<string | null>(null);
+  const [method, setMethod] = useState<'migrate' | 'delete'>('migrate');
+  const [confirmText, setConfirmText] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) {
+      setPhase(1);
+      setPreviewCount(null);
+      setSelectedTarget(null);
+      setMethod('migrate');
+      setConfirmText('');
+      setError(null);
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (phase === 1 && categoryId) {
+      // fetch preview
+      (async () => {
+        try {
+          setLoading(true);
+          const res = await axios.get(`/api/categoria/${categoryId}/preview-delete`, { withCredentials: true });
+          setPreviewCount(res.data.transactions_count ?? 0);
+        } catch (e: any) {
+          setError('Falha ao obter contagem de transações');
+        } finally {
+          setLoading(false);
+        }
+      })();
+    }
+  }, [phase, categoryId]);
+
+  const otherCategories = useMemo(() => categorias.filter(c => c.id !== categoryId), [categorias, categoryId]);
+
+  const goNext = () => setPhase(p => Math.min(3, p + 1));
+  const goPrev = () => setPhase(p => Math.max(1, p - 1));
+
+  const execute = async () => {
+    if (!categoryId) return;
+    if (method === 'migrate' && (!selectedTarget || selectedTarget === categoryId)) {
+      setError('Selecione uma categoria alvo diferente');
+      return;
+    }
+    if (confirmText !== 'DELETAR') {
+      setError('Digite DELETAR para confirmar');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await axios.post(`/api/categoria/${categoryId}/execute-delete`, { method, target_id: selectedTarget }, { withCredentials: true });
+      // assume success
+      onCompleted();
+      onClose();
+    } catch (e: any) {
+      setError('Falha ao executar operação');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+      <DialogTitle>Excluir categoria</DialogTitle>
+      <DialogContent>
+        {phase === 1 && (
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <Typography>Serão afetadas <strong>{loading ? '...' : (previewCount ?? 0)}</strong> transações nesta categoria.</Typography>
+            <Typography color="text.secondary">Escolha o que deseja fazer com essas transações na próxima etapa.</Typography>
+          </Stack>
+        )}
+        {phase === 2 && (
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <TextField select label="Ação" value={method} onChange={(e) => setMethod(e.target.value as any)}>
+              <MenuItem value="migrate">Migrar para outra categoria</MenuItem>
+              <MenuItem value="delete">Deletar transações</MenuItem>
+            </TextField>
+
+            {method === 'migrate' && (
+              <TextField select label="Categoria destino" value={selectedTarget ?? ''} onChange={(e) => setSelectedTarget(e.target.value)}>
+                <MenuItem value="">Selecione</MenuItem>
+                {otherCategories.map(c => (
+                  <MenuItem key={c.id} value={c.id}>{c.nome}</MenuItem>
+                ))}
+              </TextField>
+            )}
+
+            <Typography color="text.secondary">Resumo: {method === 'migrate' ? `As transações serão movidas para a categoria selecionada.` : `As transações serão removidas permanentemente.`}</Typography>
+          </Stack>
+        )}
+        {phase === 3 && (
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <Typography color="error">Atenção: esta operação é irreversível.</Typography>
+            <Typography color="text.secondary">Para confirmar, digite <strong>DELETAR</strong> abaixo e clique em Executar.</Typography>
+            <TextField value={confirmText} onChange={(e) => setConfirmText(e.target.value)} placeholder="Digite DELETAR" />
+          </Stack>
+        )}
+        {error && <Typography color="error" sx={{ mt: 2 }}>{error}</Typography>}
+      </DialogContent>
+      <DialogActions>
+        {phase > 1 ? <Button onClick={goPrev}>Voltar</Button> : <Button onClick={onClose}>Cancelar</Button>}
+        {phase < 3 ? <Button onClick={goNext} variant="contained">Próximo</Button> : <Button onClick={execute} variant="contained" color="error" disabled={loading}>{loading ? 'Executando...' : 'Executar'}</Button>}
+      </DialogActions>
+    </Dialog>
+  );
+}

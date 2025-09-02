@@ -29,7 +29,9 @@ async fn main() {
     use backend::services::categoria::{
         create_categoria_handler,
         get_categoria_handler,
-        delete_categoria_handler,
+    delete_categoria_handler,
+    preview_delete_categoria_handler,
+    execute_delete_categoria_handler,
     };
     use backend::services::sessao_trabalho::{
         encerrar_sessao_handler,
@@ -71,7 +73,9 @@ async fn main() {
         .route("/api/meta/cumpridas/{id_usuario}", get(list_metas_cumpridas_handler))
         .route("/api/categoria", post(create_categoria_handler))
         .route("/api/categoria/{id}", get(get_categoria_handler))
-        .route("/api/categoria/{id}", delete(delete_categoria_handler))
+    .route("/api/categoria/{id}", delete(delete_categoria_handler))
+    .route("/api/categoria/{id}/preview-delete", get(preview_delete_categoria_handler))
+    .route("/api/categoria/{id}/execute-delete", post(execute_delete_categoria_handler))
         .route("/api/sessao/stop", post(encerrar_sessao_handler))
         .route("/api/sessao/start", post(iniciar_sessao_handler))
         .route("/api/sessao/list/{id_usuario}", get(listar_sessoes_handler))

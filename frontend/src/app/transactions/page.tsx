@@ -174,7 +174,9 @@ function TransactionsPageInner() {
           >
             <MenuItem value="">Todas</MenuItem>
             {categorias.map(cat => (
-              <MenuItem key={cat.id} value={cat.id}>{cat.nome}</MenuItem>
+              <MenuItem key={cat.id} value={cat.id}>
+                {cat.nome}
+              </MenuItem>
             ))}
           </TextField>
           <Button
@@ -278,7 +280,7 @@ function TransactionsPageInner() {
         title="Confirmar exclusão"
         description="Tem certeza que deseja deletar esta transação? Esta ação não pode ser desfeita."
       />
-      <CategoriaModal open={categoriaModalOpen} onClose={() => setCategoriaModalOpen(false)} onCreated={handleCategoriaCreated} />
+  <CategoriaModal open={categoriaModalOpen} onClose={() => setCategoriaModalOpen(false)} onCreated={handleCategoriaCreated} />
     </Box>
   );
 }
