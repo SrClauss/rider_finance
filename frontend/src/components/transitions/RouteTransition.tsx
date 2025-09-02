@@ -1,24 +1,19 @@
 import React from "react";
 import { ThemeProvider } from "@/theme/ThemeProvider";
-import { Box, Container, Paper, Typography, LinearProgress, Skeleton } from "@mui/material";
+import { Box, Container, Typography } from "@mui/material";
+import AnimatedGpsIcon from "@/components/icons/AnimatedGpsIcon";
 
 export default function RouteTransition({ message = "Carregando conteúdo..." }: { message?: string }) {
   return (
     <ThemeProvider>
-      <Container maxWidth="md">
-        <Box sx={{ minHeight: '70vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Skeleton variant="rectangular" width="100%" height={300} sx={{ position: 'absolute', borderRadius: 2 }} />
-          <Paper elevation={6} sx={{ p: 4, width: '80%', textAlign: 'center', zIndex: 2 }}>
-            <Typography variant="h6" gutterBottom>
-              {message}
-            </Typography>
-            <LinearProgress sx={{ width: '100%', mt: 2 }} />
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-              Por favor, aguarde enquanto preparamos sua visualização.
-            </Typography>
-          </Paper>
+      <Box sx={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 2, zIndex: 1300 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, width: '100%', maxWidth: 640 }}>
+          <AnimatedGpsIcon width={140} height={140} duration={2.5} pauseOnHover />
+          <Typography variant="h6" sx={{ textAlign: 'center' }}>
+            {message}
+          </Typography>
         </Box>
-      </Container>
+      </Box>
     </ThemeProvider>
   );
 }

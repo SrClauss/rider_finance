@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import dayjs from 'dayjs';
 import { Goal } from '@/interfaces/goal';
 import { GoalProgress } from './GoalProgress';
 import {
@@ -40,13 +41,11 @@ const GoalCard: React.FC<GoalCardProps> = ({ goal, onEdit, onDelete, sx }) => {
   const formatDate = (dateString: string | null | undefined): string => {
     if (!dateString) return '-';
     try {
-      const date = new Date(dateString);
-      return `${date.toLocaleDateString('pt-BR')} ${date.toLocaleTimeString('pt-BR', {
-        hour: '2-digit',
-        minute: '2-digit',
-      })}`;
+      const d = dayjs(dateString);
+      if (!d.isValid()) return String(dateString);
+      return d.format('DD/MM/YY HH:mm');
     } catch {
-      return dateString;
+      return String(dateString);
     }
   };
 

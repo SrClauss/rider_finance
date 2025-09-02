@@ -1,7 +1,8 @@
-import React, { useMemo, useEffect } from 'react';
+import React, { useMemo, useEffect, useRef } from 'react';
 import { Goal } from '@/interfaces/goal';
 import { useMetasContext } from '@/context/MetasContext';
 import { Box, Typography, LinearProgress } from '@mui/material';
+import axios from 'axios';
 
 interface GoalProgressProps {
   meta: Goal;
@@ -76,7 +77,6 @@ export const GoalProgress: React.FC<GoalProgressProps> = ({ meta, isActive }) =>
     const progress = Math.min(100, Math.max(0, (totalAtingido / meta.valor_alvo) * 100));
     return progress;
   }, [totalAtingido, meta.valor_alvo, meta.tipo]);
-
   // Calcula quanto falta para atingir a meta
   const quantoFalta = useMemo(() => {
     if (meta.tipo === 'economia') {
@@ -96,8 +96,8 @@ export const GoalProgress: React.FC<GoalProgressProps> = ({ meta, isActive }) =>
   // Verifica conclusão e expiração
   const isConcluida = useMemo(() => {
     if (isMetaEconomia) {
-      // Para economia: concluída quando gastou mais que o alvo (ultrapassou o limite)
-      return totalAtingido > meta.valor_alvo;
+      // Para economia (meta negativa): considerada 'concluída' enquanto NÃO extrapola o limite
+      return totalAtingido <= meta.valor_alvo;
     }
     if (isMetaPositiva) {
       return totalAtingido >= meta.valor_alvo;
@@ -112,7 +112,8 @@ export const GoalProgress: React.FC<GoalProgressProps> = ({ meta, isActive }) =>
 
   // Calcula excesso para metas de economia concluídas
   const excessoGastos = useMemo(() => {
-    if (isMetaEconomia && isConcluida) {
+    if (isMetaEconomia && !isConcluida) {
+      // Excesso é positivo quando ultrapassou o limite
       return Math.max(0, totalAtingido - meta.valor_alvo);
     }
     return 0;
@@ -126,82 +127,92 @@ export const GoalProgress: React.FC<GoalProgressProps> = ({ meta, isActive }) =>
     return 0;
   }, [excessoGastos, meta.valor_alvo]);
 
-  // Atualiza a meta no contexto se concluída ou expirada
+  // Atualiza a meta no contexto se concluída ou expirada e persiste no backend
+  const persistFlags = useRef<Record<string, { concluded?: boolean; expired?: boolean; economia_exceeded?: boolean }>>({});
+
   useEffect(() => {
-    if (isConcluida && !meta.eh_concluida) {
-      dispatchMetas(
-        {
-          ...meta,
-          eh_concluida: true,
-          concluida_com: totalAtingido,
-        },
-        'update'
-      );
+    let mounted = true;
+
+    const persistUpdate = async (payload: any) => {
+      try {
+        const res = await axios.put(`/api/meta/${meta.id}`, payload, { withCredentials: true });
+        if (res?.data && mounted) {
+          // Atualiza o contexto com o que o backend retornou (garante consistência)
+          dispatchMetas(res.data, 'update');
+        }
+      } catch (err) {
+        // Falhas de persistência não devem quebrar a UI; log para diagnóstico
+        // eslint-disable-next-line no-console
+        console.error('Erro ao persistir meta:', err);
+      }
+    };
+
+    // Conclusão/violação detectada no cliente -> atualizar contexto e persistir uma vez
+    // Regras distintas:
+    // - metas positivas (faturamento/lucro): quando atingem alvo -> eh_concluida: true
+    // - metas de economia: consideradas concluídas enquanto NÃO extrapolam; quando extrapolam -> eh_concluida: false
+
+    // Caso metas positivas atinjam o alvo
+    // Para metas positivas: quando atingem o alvo, marcar como concluída e registrar `concluida_em`,
+    // mas NÃO definir `concluida_com` ainda — este campo será preenchido quando a meta expirar (data_fim).
+    if (!isMetaEconomia && isConcluida && !meta.eh_concluida && !persistFlags.current[meta.id]?.concluded) {
+      dispatchMetas({ ...meta, eh_concluida: true, concluida_em: new Date().toISOString().replace(/\.\d{3}Z$/, '') }, 'update');
+      persistFlags.current[meta.id] = { ...(persistFlags.current[meta.id] || {}), concluded: true };
+      const payload: any = { eh_concluida: true, concluida_em: new Date().toISOString().replace(/\.\d{3}Z$/, '') };
+      void persistUpdate(payload);
     }
-    if (isExpirada && meta.eh_ativa) {
-      dispatchMetas(
-        {
-          ...meta,
-          eh_ativa: false,
-          concluida_com: totalAtingido,
-        },
-        'update'
-      );
+
+    // Caso meta de economia extrapole o limite -> marcar como NÃO concluída e persistir (primeira transição)
+    if (isMetaEconomia && totalAtingido > meta.valor_alvo && meta.eh_concluida && !persistFlags.current[meta.id]?.economia_exceeded) {
+      // Atualiza contexto: agora não está concluída (ultrapassou)
+      dispatchMetas({ ...meta, eh_concluida: false, concluida_com: totalAtingido }, 'update');
+      persistFlags.current[meta.id] = { ...(persistFlags.current[meta.id] || {}), economia_exceeded: true };
+      const payload = { eh_concluida: false, concluida_com: totalAtingido, atualizado_em: new Date().toISOString().replace(/\.\d{3}Z$/, '') };
+      void persistUpdate(payload);
     }
-  }, [isConcluida, isExpirada, totalAtingido, dispatchMetas, meta]);
+
+    // Expirada: desativar e persistir no backend (uma vez).
+    // Ao expirar, sempre gravar `concluida_com` com o valor atual (para positivos e negativos).
+    // Para metas negativas, também registrar `concluida_em` (momento do fim) — assim a UI
+    // passa a considerar a meta 'concluída' somente após a data final.
+    if (isExpirada && meta.eh_ativa && !persistFlags.current[meta.id]?.expired) {
+      const nowIso = new Date().toISOString().replace(/\.\d{3}Z$/, '');
+      const updatePayload: any = { eh_ativa: false, concluida_com: totalAtingido, atualizado_em: nowIso };
+      if (isMetaEconomia) {
+        updatePayload.concluida_em = nowIso;
+      }
+      dispatchMetas({ ...meta, eh_ativa: false, concluida_com: totalAtingido, ...(isMetaEconomia ? { concluida_em: updatePayload.concluida_em } : {}) }, 'update');
+      persistFlags.current[meta.id] = { ...(persistFlags.current[meta.id] || {}), expired: true };
+      void persistUpdate(updatePayload);
+    }
+
+    return () => {
+      mounted = false;
+    };
+  }, [isConcluida, isExpirada, totalAtingido, dispatchMetas, meta, isMetaEconomia]);
 
   // Renderização condicional
-  if (meta.eh_concluida) {
-    // Meta concluída: mostra valor final atingido
+  // Para metas negativas (economia), sempre renderizamos a barra de progresso,
+  // mesmo que `meta.eh_concluida` seja true — a conclusão só é mostrada
+  // explicitamente quando a data final chegar (isExpirada).
+
+  // Caso: meta positiva concluída e já marcada como concluída -> mostrar resumo final
+  if (!isMetaEconomia && meta.eh_concluida) {
     return (
-      <Box
-        sx={{
-          width: '100%',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          minHeight: 60,
-          p: 2,
-        }}
-      >
-        <Typography
-          variant="h6"
-          sx={{
-            color: isMetaEconomia && totalAtingido > meta.valor_alvo ? 'error.main' : 'success.main',
-            fontWeight: 700,
-            textAlign: 'center',
-          }}
-        >
-          {isMetaEconomia && totalAtingido > meta.valor_alvo
-            ? `Limite de gastos ultrapassado! Gasto: ${((meta.concluida_com ?? totalAtingido) / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`
-            : `Meta atingida! Valor final: ${((meta.concluida_com ?? totalAtingido) / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`
-          }
+      <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 60, p: 2 }}>
+        <Typography variant="h6" sx={{ color: 'success.main', fontWeight: 700, textAlign: 'center' }}>
+          {`Meta atingida! Valor final: ${((meta.concluida_com ?? totalAtingido) / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`}
         </Typography>
       </Box>
     );
   }
 
-  if (!isActive || isExpirada) {
-    // Meta inativa ou expirada: mostra valor final
+  // Caso: meta inativa/expirada -> para metas NÃO-Economia mostramos o valor final;
+  // para metas de economia, continuamos mostrando a barra de progresso (e excesso) mesmo se expirada.
+  if ((!isActive || isExpirada) && !isMetaEconomia) {
     return (
-      <Box
-        sx={{
-          width: '100%',
-          display: 'flex',
-          justifyContent: 'flex-end',
-          alignItems: 'center',
-          minHeight: 60,
-          p: 2,
-        }}
-      >
-        <Typography
-          variant="body2"
-          sx={{
-            color: 'error.main',
-            fontWeight: 600,
-            textAlign: 'right',
-          }}
-        >
+      <Box sx={{ width: '100%', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', minHeight: 60, p: 2 }}>
+        <Typography variant="body2" sx={{ color: 'error.main', fontWeight: 600, textAlign: 'right' }}>
           Valor final: {((meta.concluida_com ?? totalAtingido) / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
         </Typography>
       </Box>

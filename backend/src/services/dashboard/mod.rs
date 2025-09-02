@@ -666,22 +666,41 @@ pub async fn dashboard_stats_handler(
     }
 
     // Tendência usando média móvel conforme configuração
+    // helper: regressao sobre vetor i32 -> retorna inclinação arredondada como i32
+    let trend_regression_from_i32 = |data: &Vec<i32>| -> Option<i32> {
+        if data.len() < 2 {
+            return None;
+        }
+        let n = data.len();
+        let xs: Vec<f64> = (0..n).map(|i| i as f64).collect();
+        let ys: Vec<f64> = data.iter().map(|&v| v as f64).collect();
+        regressao_linear(&xs, &ys).map(|(a, _b)| a.round() as i32)
+    };
+
     let tendencia_ganhos = match projecao_metodo.as_str() {
         "media_movel_3" => media_movel(&ganhos_7dias, 3),
         "media_movel_7" => media_movel(&ganhos_7dias, 7),
         "media_movel_30" => media_movel(&ganhos_mes, 30),
+        "regressao_linear" => trend_regression_from_i32(&ganhos_7dias),
         _ => None,
     };
+
     let tendencia_gastos = match projecao_metodo.as_str() {
         "media_movel_3" => media_movel(&gastos_7dias, 3),
         "media_movel_7" => media_movel(&gastos_7dias, 7),
         "media_movel_30" => media_movel(&gastos_mes, 30),
+        "regressao_linear" => trend_regression_from_i32(&gastos_7dias),
         _ => None,
     };
+    // converter corridas (Vec<u32>) para Vec<i32> para uso com media_movel/regressao
+    let corridas_7dias_i32: Vec<i32> = corridas_7dias.iter().map(|&v| v as i32).collect();
+    let corridas_30dias_i32: Vec<i32> = corridas_30dias.iter().map(|&v| v as i32).collect();
+
     let tendencia_corridas = match projecao_metodo.as_str() {
-        "media_movel_3" => media_movel(&lucro_7dias, 3),
-        "media_movel_7" => media_movel(&lucro_7dias, 7),
-        "media_movel_30" => media_movel(&lucro_mes, 30),
+        "media_movel_3" => media_movel(&corridas_7dias_i32, 3),
+        "media_movel_7" => media_movel(&corridas_7dias_i32, 7),
+        "media_movel_30" => media_movel(&corridas_30dias_i32, 30),
+        "regressao_linear" => trend_regression_from_i32(&corridas_7dias_i32),
         _ => None,
     };
 

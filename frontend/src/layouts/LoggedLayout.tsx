@@ -22,6 +22,7 @@ import GpsFixedIcon from "@mui/icons-material/GpsFixed";
 import AssessmentIcon from "@mui/icons-material/Assessment";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import LogoutIcon from "@mui/icons-material/Logout";
+import GpsIcon from "@/components/icons/GPSIcon";
 
 const drawerWidth = 240;
 
@@ -71,10 +72,10 @@ export default function LoggedLayout({ children }: LoggedLayoutProps) {
         <Toolbar>
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
             <Box sx={{ display: "flex", alignItems: "center" }}>
-              <img
-                src="/icone.png"
-                alt="Ícone"
-                style={{ height: "10vh", width: "auto" }}
+              <GpsIcon
+                scale={4}
+                gradient={["#d4af37", "#f7e7b6", "#d4af37"]}
+                gradientType="linear"
               />
               <Box>
                 <Typography variant="h6" component="div">
@@ -90,14 +91,14 @@ export default function LoggedLayout({ children }: LoggedLayoutProps) {
               <IconButton
                 color="inherit"
                 onClick={() => router.push("/perfil")}
-                sx={{ color: "success.main" }}
+                sx={{ color: "#fff" }}
               >
                 <AccountCircleIcon />
               </IconButton>
               <IconButton
                 color="inherit"
                 onClick={handleLogout}
-                sx={{ color: "error.main" }}
+                sx={{ color: "#fff" }}
               >
                 <LogoutIcon />
               </IconButton>

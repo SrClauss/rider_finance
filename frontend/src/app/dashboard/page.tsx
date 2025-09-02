@@ -1,7 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import DashboardCardData from "@/components/dashboard/DashboardCardData";
 import { DashboardResponse } from "@/interfaces/DashboardResponse";
 import LoggedLayout from "@/layouts/LoggedLayout";
 import { Box, useMediaQuery, Divider, Typography } from "@mui/material";
@@ -11,10 +10,12 @@ import "swiper/css";
 
 import SummarySwiper from "@/components/dashboard/SummarySwiper"; // Importar o SummarySwiper
 import LastTransactionsCard from '@/components/dashboard/LastTransactionsCard';
+import AnimatedGpsIcon from "@/components/icons/AnimatedGpsIcon";
+import GoalCard from "@/components/goals/GoalCard";
+import GoalsList from "@/components/dashboard/GoalsList";
 
 export default function Page() {
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+
   const [data, setData] = useState<DashboardResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -44,6 +45,12 @@ export default function Page() {
         <Divider sx={{ flex: 1, height: 1, bgcolor: 'white', borderRadius: 1, opacity: 0.95 }} />
       </Box>
       <LastTransactionsCard />
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, my: 3 }}>
+        <Typography variant="h6">Metas Ativas</Typography>
+        <Divider sx={{ flex: 1, height: 1, bgcolor: 'white', borderRadius: 1, opacity: 0.95 }} />
+      </Box>
+      
+      <GoalsList/>
 
       <pre>{JSON.stringify(data, null, 2)}</pre>
     </LoggedLayout>

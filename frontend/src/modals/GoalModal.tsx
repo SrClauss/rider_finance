@@ -99,6 +99,15 @@ export default function GoalModal(props: GoalModalProps) {
       setField(name, value);
       return;
     }
+    // Se o tipo mudar e estivermos criando (não editando) uma meta, ajustar eh_concluida para metas de economia
+    if (name === 'tipo') {
+      setField(name, value);
+      if (!goal) {
+        setField('eh_concluida', value === 'economia');
+      }
+      return;
+    }
+
     setField(name, value);
   };
 
