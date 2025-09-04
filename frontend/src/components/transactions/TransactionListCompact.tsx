@@ -26,13 +26,16 @@ export default function TransactionListCompact({ transactions }: Props) {
               {(tx.valor / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
             </Typography>
             {tx.categoria?.icone && (() => {
-              const ic = tx.categoria.icone || '';
+              const categoriaRec = tx.categoria as Record<string, unknown>;
+              const ic = String(categoriaRec.icone ?? '');
               // Se for classe custom (icon-*) deixamos como está para usar ::before
               const isCustom = ic.startsWith('icon-');
               // Se já contém 'fa-' usamos tal como está, senão assumimos um nome FA simples e adicionamos 'fa-solid'
               const isFaLike = ic.includes('fa-');
               const className = isCustom ? ic : (isFaLike ? ic : `fa-solid ${ic}`);
-              return <i className={className} style={{ fontSize: 20, marginLeft: 10, color: (tx.categoria as any)?.cor || '#fff' }} title={tx.categoria.nome}></i>;
+              const color = String(categoriaRec.cor ?? '#fff');
+              const title = String(categoriaRec.nome ?? '');
+              return <i className={className} style={{ fontSize: 20, marginLeft: 10, color, }} title={title}></i>;
             })()}
           </Paper>
         );

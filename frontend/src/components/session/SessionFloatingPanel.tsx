@@ -14,9 +14,8 @@ import StartSessionModal from '@/modals/StartSessionModal';
 import StopSessionModal from '@/modals/StopSessionModal';
 
 export default function SessionFloatingPanel() {
-  const { sessao, elapsedSeconds, start, stop, loading } = useSession();
+  const { sessao, elapsedSeconds, loading, panelOpen, setPanelOpen } = useSession();
   const theme = useTheme();
-  const { panelOpen, setPanelOpen } = useSession();
   const open = panelOpen ?? false;
   const [startModalOpen, setStartModalOpen] = useState(false);
   const [stopModalOpen, setStopModalOpen] = useState(false);

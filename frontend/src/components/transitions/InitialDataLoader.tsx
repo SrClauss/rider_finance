@@ -7,8 +7,8 @@ import { useRouter } from "next/navigation";
 
 export default function InitialDataLoader({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const sessionContext = useSession();
-  const metasContext = useMetasContext();
+  const { setSessao } = useSession();
+  const { dispatchMetas, dispatchTransacoes } = useMetasContext();
   const hasLoadedRef = useRef(false);
 
   useEffect(() => {
@@ -46,21 +46,23 @@ export default function InitialDataLoader({ children }: { children: React.ReactN
             const sessionsRes = await axios.get(`/api/sessao/list/${userId}`, { withCredentials: true });
             if (sessionsRes.data && Array.isArray(sessionsRes.data)) {
               // Encontrar sessão ativa
-              const activeSession = sessionsRes.data.find((s: any) => s.eh_ativa === true);
-              if (activeSession && sessionContext.setSessao) {
+              const activeSession = sessionsRes.data.find((s: unknown) => {
+                const ss = s as Record<string, unknown> | null;
+                return !!ss && ss.eh_ativa === true;
+              });
+                if (activeSession && setSessao) {
                 // Buscar sessão com transações
-                const sessionWithTx = await axios.get(`/api/sessao/com-transacoes/${activeSession.id}`, { withCredentials: true });
+                  const activeSessionRecord = activeSession as Record<string, unknown>;
+                  const sessionWithTx = await axios.get(`/api/sessao/com-transacoes/${String(activeSessionRecord.id)}`, { withCredentials: true });
                 if (sessionWithTx.data) {
-                  sessionContext.setSessao(sessionWithTx.data);
+                  setSessao(sessionWithTx.data);
                 }
               }
             }
           }
-        } catch (sessionError) {
+        } catch {
           console.log("Nenhuma sessão ativa encontrada");
-          if (sessionContext.setSessao) {
-            sessionContext.setSessao(null);
-          }
+          if (setSessao) setSessao(null);
         }
 
         // Carregar metas com transações
@@ -74,18 +76,22 @@ export default function InitialDataLoader({ children }: { children: React.ReactN
             });
 
             // Popular com dados do backend, verificando duplicatas
-            metasRes.data.metas?.forEach((meta: any, index: number) => {
-              if (metasContext.dispatchMetas) {
-                console.log(`🎯 Adicionando meta ${index + 1}/${metasRes.data.metas.length}:`, meta.id);
-                metasContext.dispatchMetas(meta, 'add');
-              }
-            });
-            metasRes.data.transacoes?.forEach((transacao: any, index: number) => {
-              if (metasContext.dispatchTransacoes) {
-                console.log(`💰 Adicionando transação ${index + 1}/${metasRes.data.transacoes.length}:`, transacao.id);
-                metasContext.dispatchTransacoes(transacao, 'add');
-              }
-            });
+            metasRes.data.metas?.forEach((meta: unknown, index: number) => {
+      if (dispatchMetas) {
+    const m = meta as unknown as import('@/interfaces/goal').Goal;
+    const mid = (m && (m as { id?: string | number }).id) ?? undefined;
+    console.log(`🎯 Adicionando meta ${index + 1}/${metasRes.data.metas.length}:`, mid);
+    dispatchMetas(m, 'add');
+      }
+    });
+  metasRes.data.transacoes?.forEach((transacao: unknown, index: number) => {
+      if (dispatchTransacoes) {
+    const t = transacao as unknown as import('@/interfaces/transacao').Transacao;
+    const tid = (t && (t as { id?: string | number }).id) ?? undefined;
+    console.log(`💰 Adicionando transação ${index + 1}/${metasRes.data.transacoes.length}:`, tid);
+    dispatchTransacoes(t, 'add');
+      }
+    });
           }
         } catch (metasError) {
           console.log("❌ Erro ao carregar metas:", metasError);
@@ -97,7 +103,7 @@ export default function InitialDataLoader({ children }: { children: React.ReactN
     };
 
     validateAndLoadData();
-  }, [router, sessionContext.setSessao, metasContext.dispatchMetas, metasContext.dispatchTransacoes]);
+  }, [router, setSessao, dispatchMetas, dispatchTransacoes]);
 
   return <>{children}</>;
 }

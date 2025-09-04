@@ -1,8 +1,7 @@
 "use client"
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useCallback, useMemo } from 'react';
 import { Goal } from '@/interfaces/goal';
 import { Transacao } from '@/interfaces/transacao';
-import axios from 'axios';
 
 export interface MetasETransacoes{
   metas: Goal[];
@@ -35,8 +34,9 @@ export const MetasProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     transacoes: [],
   });
   
-  const [loading, setLoading] = useState<boolean>(false); // Começa como false, será controlado pelo InitialDataLoader
-  const [error, setError] = useState<string | null>(null);
+  // Loading e error são controlados externamente (InitialDataLoader), aqui expomos valores padrão
+  const loading = false;
+  const error: string | null = null;
   
   // Removido o useEffect que fazia fetch automático - agora é feito pelo InitialDataLoader
 

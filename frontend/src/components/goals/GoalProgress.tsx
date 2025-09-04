@@ -17,18 +17,10 @@ interface GoalProgressProps {
  * Renderiza barra de progresso ou resumo final baseado no estado da meta.
  */
 export const GoalProgress: React.FC<GoalProgressProps> = ({ meta, isActive }) => {
-  const { transacoes, dispatchMetas, transactionsOfMeta, loading } = useMetasContext();
+  const { dispatchMetas, transactionsOfMeta } = useMetasContext();
 
-  // Se estiver carregando, mostrar indicador
-  if (loading) {
-    return (
-      <Box sx={{ width: '100%', p: 2, textAlign: 'center' }}>
-        <Typography variant="body2" color="text.secondary">
-          Carregando progresso...
-        </Typography>
-      </Box>
-    );
-  }
+  // Nota: não retornamos cedo aqui para garantir que Hooks sejam sempre chamados;
+  // renderizamos indicador de loading mais abaixo após a avaliação dos hooks.
 
   // Filtra transações relevantes para a meta usando a função do contexto
   const transacoesFiltradas = useMemo(() => {
@@ -134,7 +126,7 @@ export const GoalProgress: React.FC<GoalProgressProps> = ({ meta, isActive }) =>
   useEffect(() => {
     let mounted = true;
 
-    const persistUpdate = async (payload: any) => {
+  const persistUpdate = async (payload: unknown) => {
       try {
         const res = await axios.put(`/api/meta/${meta.id}`, payload, { withCredentials: true });
         if (res?.data && mounted) {
@@ -143,7 +135,6 @@ export const GoalProgress: React.FC<GoalProgressProps> = ({ meta, isActive }) =>
         }
       } catch (err) {
         // Falhas de persistência não devem quebrar a UI; log para diagnóstico
-        // eslint-disable-next-line no-console
         console.error('Erro ao persistir meta:', err);
       }
     };
@@ -160,7 +151,7 @@ export const GoalProgress: React.FC<GoalProgressProps> = ({ meta, isActive }) =>
       const now = toBackendLocalString(new Date());
       dispatchMetas({ ...meta, eh_concluida: true, concluida_em: now }, 'update');
       persistFlags.current[meta.id] = { ...(persistFlags.current[meta.id] || {}), concluded: true };
-      const payload: any = { eh_concluida: true, concluida_em: now };
+  const payload: { eh_concluida: boolean; concluida_em: string } = { eh_concluida: true, concluida_em: now };
       void persistUpdate(payload);
     }
 
@@ -179,7 +170,7 @@ export const GoalProgress: React.FC<GoalProgressProps> = ({ meta, isActive }) =>
     // passa a considerar a meta 'concluída' somente após a data final.
     if (isExpirada && meta.eh_ativa && !persistFlags.current[meta.id]?.expired) {
       const nowIso = toBackendLocalString(new Date());
-      const updatePayload: any = { eh_ativa: false, concluida_com: totalAtingido, atualizado_em: nowIso };
+  const updatePayload: { eh_ativa: boolean; concluida_com: number; atualizado_em: string; concluida_em?: string } = { eh_ativa: false, concluida_com: totalAtingido, atualizado_em: nowIso };
       if (isMetaEconomia) {
         updatePayload.concluida_em = nowIso;
       }

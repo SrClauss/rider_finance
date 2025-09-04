@@ -14,7 +14,7 @@ import GoalCard from "../../components/goals/GoalCard";
 import { useMetasContext } from "@/context/MetasContext";
 
 export default function GoalsPage() {
-  const { dispatchMetas, loading: contextLoading, error: contextError, metas: contextMetas, transacoes: contextTransacoes } = useMetasContext();
+  const { dispatchMetas } = useMetasContext();
   const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

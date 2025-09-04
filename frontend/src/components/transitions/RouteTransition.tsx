@@ -1,6 +1,6 @@
 import React from "react";
 import { ThemeProvider } from "@/theme/ThemeProvider";
-import { Box, Container, Typography } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 import AnimatedGpsIcon from "@/components/icons/AnimatedGpsIcon";
 
 export default function RouteTransition({ message = "Carregando conteúdo..." }: { message?: string }) {

@@ -1,7 +1,7 @@
 "use client";
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import dayjs from 'dayjs';
-import { Box, Card, CardContent, Typography, Chip, Divider } from '@mui/material';
+import { Box, Card, CardContent, Typography, Chip } from '@mui/material';
 // Swiper for multiple-goal carousel
 import { Swiper, SwiperSlide } from 'swiper/react';
 import 'swiper/css';
@@ -9,7 +9,6 @@ import 'swiper/css/pagination';
 import { Goal } from '@/interfaces/goal';
 import { useMetasContext } from '@/context/MetasContext';
 import { GoalProgress } from '../goals/GoalProgress';
-import axios from 'axios';
 
 interface Props {
   metas?: Goal[];

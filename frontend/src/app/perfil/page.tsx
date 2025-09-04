@@ -33,6 +33,7 @@ import EditProfileModal from "@/modals/EditProfileModal";
 import DeleteCategoryModal from '@/modals/DeleteCategoryModal';
 import CategoriaModal from '@/modals/CategoriaModal';
 import { carregarCategorias } from '@/context/CategoriaContext';
+import type { Categoria } from '@/interfaces/Categoria';
 import { UsuarioMeResponse } from "@/interfaces/UsuarioMeResponse";
 import { Configuracao } from "@/interfaces/Configuracao";
 import { useRouter } from "next/navigation";
@@ -66,18 +67,31 @@ export default function PerfilPage() {
   const [snackMessage, setSnackMessage] = useState("");
   const [editingConfigs, setEditingConfigs] = useState(false);
   const [editingSubscription, setEditingSubscription] = useState(false);
-  const [isAnyAccordionExpanded, setIsAnyAccordionExpanded] = useState(false);
+  // Indica se alguma Accordion controlada está expandida — usado para ajustar largura do container
+  const isAnyAccordionExpanded = editingConfigs || editingSubscription;
   const [projecaoMetodo, setProjecaoMetodo] = useState<string>("media_movel_3");
   const [projecaoPercentualExtremos, setProjecaoPercentualExtremos] = useState<number>(10);
   const [maskMoeda, setMaskMoeda] = useState<string>("brl");
   const [savingConfigs, setSavingConfigs] = useState(false);
-  const [categorias, setCategorias] = useState<any[]>([]);
+  const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [manageCatOpen, setManageCatOpen] = useState(false);
   const [catToDelete, setCatToDelete] = useState<string | null>(null);
   const [editCatOpen, setEditCatOpen] = useState(false);
   const [catToEdit, setCatToEdit] = useState<string | null>(null);
   const [resetModalOpen, setResetModalOpen] = useState(false);
-  const [previewData, setPreviewData] = useState<any | null>(null);
+  type PreviewData = {
+    transactions?: number;
+    transacoes?: number;
+    transacoes_count?: number;
+    sessions?: number;
+    sessoes?: number;
+    metas?: number;
+    assinaturas?: number;
+    categorias?: number;
+    configuracoes?: number;
+    will_delete_assinaturas?: boolean | number;
+  };
+  const [previewData, setPreviewData] = useState<PreviewData | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [confirmText, setConfirmText] = useState('');
   const [resetting, setResetting] = useState(false);
@@ -101,7 +115,7 @@ export default function PerfilPage() {
           configuracoes: Number(d.configuracoes ?? 0) || 0,
         };
         setPreviewData(normalized);
-      } catch (e) {
+  } catch {
         if (!mounted) return;
         setPreviewData({ transactions: 0, sessions: 0, metas: 0, assinaturas: 0, categorias: 0, configuracoes: 0 });
       } finally {
@@ -337,7 +351,7 @@ export default function PerfilPage() {
                 setManageCatOpen(false);
                 setCatToDelete(null);
                 const novas = await carregarCategorias();
-                setCategorias(novas as any[]);
+                setCategorias(novas as Categoria[]);
                 // refresh page data if needed
                 try { const resp = await axios.get('/api/me', { withCredentials: true }); setUsuario(resp.data); } catch {};
               }}
@@ -350,7 +364,7 @@ export default function PerfilPage() {
                 setEditCatOpen(false);
                 setCatToEdit(null);
                 const novas = await carregarCategorias();
-                setCategorias(novas as any[]);
+                setCategorias(novas as Categoria[]);
                 try { const resp = await axios.get('/api/me', { withCredentials: true }); setUsuario(resp.data); } catch {};
               }}
             />
@@ -436,7 +450,7 @@ export default function PerfilPage() {
                                 onChange={(e) => setCatToEdit(String(e.target.value))}
                               >
                                 <MenuItem value="">Selecione</MenuItem>
-                                {categorias.map((c:any) => (
+                                {categorias.map((c: Categoria) => (
                                   <MenuItem key={c.id} value={c.id}>{c.nome}</MenuItem>
                                 ))}
                               </Select>
@@ -461,7 +475,7 @@ export default function PerfilPage() {
                                 onChange={(e) => setCatToDelete(String(e.target.value))}
                               >
                                 <MenuItem value="">Selecione</MenuItem>
-                                {categorias.map((c:any) => (
+                                {categorias.map((c: Categoria) => (
                                   <MenuItem key={c.id} value={c.id}>{c.nome}</MenuItem>
                                 ))}
                               </Select>
@@ -494,7 +508,7 @@ export default function PerfilPage() {
                 <Typography>Transações: <strong>{(previewData.transactions ?? previewData.transacoes ?? previewData.transacoes_count ?? 0)}</strong></Typography>
                 <Typography>Sessões de trabalho: <strong>{previewData.sessions ?? previewData.sessoes ?? 0}</strong></Typography>
                 <Typography>Metas: <strong>{previewData.metas ?? 0}</strong></Typography>
-                <Typography>Assinaturas: <strong>{previewData.assinaturas ?? 0}</strong> <em>({previewData.will_delete_assinaturas === false ? 'preservadas' : 'serão apagadas'})</em></Typography>
+                <Typography>Assinaturas: <strong>{previewData.assinaturas ?? 0}</strong> <em>({(previewData.will_delete_assinaturas === false || previewData.will_delete_assinaturas === 0) ? 'preservadas' : 'serão apagadas'})</em></Typography>
                               <Typography>Categorias: <strong>{previewData.categorias ?? 0}</strong></Typography>
                               <Typography>Configurações do usuário: <strong>{previewData.configuracoes ?? 0}</strong></Typography>
                               <Box sx={{ mt: 2 }}>
@@ -514,11 +528,11 @@ export default function PerfilPage() {
                             setResetting(true);
                             try {
                               const resp = await axios.post('/api/me/reset-all', {}, { withCredentials: true });
-                              if (resp.status === 200) {
+                                if (resp.status === 200) {
                                 setSnackMessage('Conta reiniciada. As configurações e categorias iniciais foram restauradas.');
                                 setSnackOpen(true);
                                 const novas = await carregarCategorias();
-                                setCategorias(novas as any[]);
+                                setCategorias(novas as Categoria[]);
                                 try { const ru = await axios.get('/api/me', { withCredentials: true }); setUsuario(ru.data); } catch {}
                                 setResetModalOpen(false);
                                 setPreviewData(null);
@@ -527,9 +541,15 @@ export default function PerfilPage() {
                                 setSnackMessage('Falha ao resetar conta');
                                 setSnackOpen(true);
                               }
-                            } catch (e:any) {
-                              const msg = (e?.response?.data) || e.message || 'Erro desconhecido';
-                              setSnackMessage(String(msg));
+                            } catch (e: unknown) {
+                              if (e && typeof e === 'object' && 'message' in e) {
+                                const maybeMsg = (e as { message?: unknown }).message;
+                                console.error(maybeMsg ?? e);
+                              } else {
+                                console.error(e);
+                              }
+                              const msg = extractErrorMessage(e) ?? (typeof e === 'object' && e !== null ? JSON.stringify(e) : String(e));
+                              setSnackMessage(String(msg || 'Erro desconhecido'));
                               setSnackOpen(true);
                             } finally {
                               setResetting(false);

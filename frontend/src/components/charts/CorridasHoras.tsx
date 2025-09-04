@@ -45,9 +45,13 @@ export default function CorridasHoras({ data }: Props) {
           <XAxis dataKey="name" />
           <YAxis yAxisId="left" />
           <YAxis yAxisId="right" orientation="right" />
-          <Tooltip formatter={(value: any, name: string, props: any) => {
-            if (name === 'r_por_hora') return [formatCurrency(value), 'R$/hora'];
-            return [value, name];
+          <Tooltip formatter={(value: unknown, name: string) => {
+            // recharts may pass a number or an array; normalize safely
+            let v: number | null = null;
+            if (typeof value === 'number') v = value;
+            if (Array.isArray(value) && typeof value[0] === 'number') v = value[0] as number;
+            if (name === 'r_por_hora') return [formatCurrency(v), 'R$/hora'];
+            return [String(value ?? '—'), name];
           }} />
           <Legend />
           <Bar yAxisId="left" dataKey="corridas" fill="#1976d2" />

@@ -1,7 +1,6 @@
 "use client";
 import React from 'react';
 import { Box, Card, CardContent, Typography } from '@mui/material';
-import SectionTitle from '@/components/ui/SectionTitle';
 import { DashboardResponse } from "@/interfaces/DashboardResponse";
 
 interface Props { data: DashboardResponse }

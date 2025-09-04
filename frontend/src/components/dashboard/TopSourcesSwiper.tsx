@@ -3,9 +3,9 @@ import React from 'react';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import 'swiper/css';
 import { Card, CardContent, Typography, Box, Stack, Divider } from '@mui/material';
+import Image from 'next/image';
 import { formatarMoeda } from '@/utils/currencyUtils';
 import SectionTitle from '../ui/SectionTitle';
-import ProjectionsCard from './ProjectionsCard';
 
 interface TopSourceItem {
   periodo: string;
@@ -33,7 +33,7 @@ export default function TopSourcesSwiper({ topSources }: Props) {
     if (!icone) return <Box sx={{ width: 32, height: 32, bgcolor: 'grey.200', borderRadius: 1 }} />;
     const v = icone.trim();
     if (/^https?:\/\//.test(v) || /\.(svg|png|jpe?g|gif|webp)(\?|$)/i.test(v)) {
-      return <img src={v} alt="icone" style={{ width: 32, height: 32, objectFit: 'cover', borderRadius: 4 }} />;
+      return <Image src={v} alt="icone" width={32} height={32} style={{ objectFit: 'cover', borderRadius: 4 }} unoptimized />;
     }
     return <i className={v} style={{ fontSize: 18, color: cor || undefined }} aria-hidden />;
   };

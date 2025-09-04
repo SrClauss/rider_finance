@@ -13,6 +13,7 @@ import QuickHealthIndicators from '@/components/dashboard/QuickHealthIndicators'
 import TopSourcesSwiper from '@/components/dashboard/TopSourcesSwiper';
 import ProjectionsCard from '@/components/dashboard/ProjectionsCard';
 import GoalsList from "@/components/dashboard/GoalsList";
+import { Goal } from '@/interfaces/goal';
 import Dashboard30Days from '@/components/charts/Dashboard30Days';
 import CorridasHoras from '@/components/charts/CorridasHoras';
 
@@ -24,7 +25,7 @@ export default function Page() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasMetas, setHasMetas] = useState<boolean | null>(null);
-  const [metas, setMetas] = useState<any[]>([]);
+  const [metas, setMetas] = useState<Goal[]>([]);
 
   useEffect(() => {
     axios.get('/api/dashboard/stats', { withCredentials: true })
@@ -37,12 +38,12 @@ export default function Page() {
         const res = await axios.get('/api/meta/a_cumprir', { withCredentials: true });
         if (Array.isArray(res.data) && res.data.length > 0) {
           setHasMetas(true);
-          setMetas(res.data);
+          setMetas(res.data as Goal[]);
         } else {
           setHasMetas(false);
           setMetas([]);
         }
-      } catch (e) {
+  } catch {
         setHasMetas(false);
         setMetas([]);
       }

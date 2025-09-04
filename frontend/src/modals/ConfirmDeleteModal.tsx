@@ -3,6 +3,7 @@ import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Typography, 
 import axios from 'axios';
 import { extractErrorMessage } from '@/lib/errorUtils';
 import { useMetasContext } from '@/context/MetasContext';
+import { Transacao } from '@/interfaces/transacao';
 
 interface ConfirmDeleteModalProps {
   open: boolean;
@@ -36,8 +37,8 @@ export default function ConfirmDeleteModal({ open, onClose, onConfirm, idToDelet
       await axios.delete(`/api/transacao/${idToDelete}`);
       // atualiza MetasContext - cria objeto Transacao mínimo para dispatch
       try { 
-        const transacaoToDelete = { id: idToDelete } as any; // Type assertion necessário
-        dispatchTransacoes(transacaoToDelete, 'delete'); 
+  const transacaoToDelete = { id: idToDelete } as Transacao;
+  dispatchTransacoes(transacaoToDelete, 'delete'); 
       } catch {}
       // SessionContext será atualizado automaticamente quando necessário
       try { if (onDeleted) onDeleted(idToDelete); } catch {}

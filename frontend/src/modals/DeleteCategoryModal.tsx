@@ -39,7 +39,7 @@ export default function DeleteCategoryModal({ open, onClose, categoryId, categor
           setLoading(true);
           const res = await axios.get(`/api/categoria/${categoryId}/preview-delete`, { withCredentials: true });
           setPreviewCount(res.data.transactions_count ?? 0);
-        } catch (e: any) {
+        } catch {
           setError('Falha ao obter contagem de transações');
         } finally {
           setLoading(false);
@@ -66,11 +66,11 @@ export default function DeleteCategoryModal({ open, onClose, categoryId, categor
     setLoading(true);
     setError(null);
     try {
-      const res = await axios.post(`/api/categoria/${categoryId}/execute-delete`, { method, target_id: selectedTarget }, { withCredentials: true });
+      await axios.post(`/api/categoria/${categoryId}/execute-delete`, { method, target_id: selectedTarget }, { withCredentials: true });
       // assume success
       onCompleted();
       onClose();
-    } catch (e: any) {
+    } catch {
       setError('Falha ao executar operação');
     } finally {
       setLoading(false);
@@ -89,7 +89,7 @@ export default function DeleteCategoryModal({ open, onClose, categoryId, categor
         )}
         {phase === 2 && (
           <Stack spacing={2} sx={{ mt: 1 }}>
-            <TextField select label="Ação" value={method} onChange={(e) => setMethod(e.target.value as any)}>
+            <TextField select label="Ação" value={method} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setMethod(e.target.value as 'migrate' | 'delete')}>
               <MenuItem value="migrate">Migrar para outra categoria</MenuItem>
               <MenuItem value="delete">Deletar transações</MenuItem>
             </TextField>

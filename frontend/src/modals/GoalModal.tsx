@@ -4,7 +4,7 @@ import axios from "axios";
 import useFormReducer from "@/lib/useFormReducer";
 import { Goal } from "@/interfaces/goal";
 import { useMetasContext } from "@/context/MetasContext";
-import { getCurrentDateTime, formatForDateTimeLocal, parseDateTime, formatDateTime, toBackendLocalString } from '@/utils/dateUtils';
+import { formatForDateTimeLocal, parseDateTime, toBackendLocalString } from '@/utils/dateUtils';
 
 type GoalModalProps = {
   open: boolean;
@@ -58,8 +58,8 @@ export default function GoalModal(props: GoalModalProps) {
   useEffect(() => {
     if (open && goal) {
       // converte valores em centavos (inteiros) para string com duas casas e vírgula
-      const formatFromCents = (v: any) => {
-        const n = Number(v);
+      const formatFromCents = (v: unknown) => {
+        const n = Number(v as unknown as number);
         if (isNaN(n)) return '0,00';
         return (n / 100).toFixed(2).replace('.', ',');
       };

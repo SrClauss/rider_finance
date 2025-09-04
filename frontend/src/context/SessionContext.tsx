@@ -178,8 +178,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       }
       // build body
       type SessaoCreateBody = Partial<SessaoComTransacoes['sessao']>;
-      const currentTime = new Date();
-      const localTime = getCurrentDateTime();
+  const localTime = getCurrentDateTime();
       const body: SessaoCreateBody = {
         id_usuario: userId ?? undefined,
         inicio: payload?.inicio ?? localTime,
@@ -237,8 +236,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     if (!sessao || !sessao.sessao || !sessao.sessao.id) return;
     setLoading(true);
     try {
-      const currentTime = new Date();
-      const localTime = getCurrentDateTime();
+  const localTime = getCurrentDateTime();
       const payload = {
         id_sessao: sessao.sessao.id,
         inicio: sessao.sessao.inicio,
@@ -319,10 +317,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     setSessao(updated);
   };
 
-  const removeTransaction = async (id: string) => {
-    // Método removido - usar o método de transactions page diretamente
-    console.warn('removeTransaction do SessionProvider foi removido. Use o método de transactions page.');
-  };
+  // removeTransaction was intentionally removed; keep API stable by not exporting it
 
   const value = { sessao, setSessao, elapsedSeconds, loading, start, stop, attachTransaction, panelOpen, setPanelOpen };
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

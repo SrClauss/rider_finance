@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useReducer } from 'react';
+import React, { useMemo, useReducer } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -18,7 +18,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import { Transaction } from '@/interfaces/Transaction';
 import { useCategoriaContext } from '@/context/CategoriaContext';
 import { useMetasContext } from '@/context/MetasContext';
-import { getCurrentDateTime, formatForDateTimeLocal, parseDateTime, toBackendLocalString } from '@/utils/dateUtils';
+import { formatForDateTimeLocal, parseDateTime, toBackendLocalString } from '@/utils/dateUtils';
 import { useSession } from '@/context/SessionContext';
 import axios from 'axios';
 
@@ -123,12 +123,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
     }
   }, [transaction, open]);
 
-  // Efeito adicional para garantir que a transação seja carregada quando o componente montar
-  React.useEffect(() => {
-    if (transaction && open) {
-      dispatch({ type: 'LOAD_TRANSACTION', payload: transaction });
-    }
-  }, []); // Executa apenas uma vez quando o componente montar
+  // (efeito duplicado removido)
 
   const selectedCategoria = useMemo(
     () => categorias.find((c) => c.id === formState.id_categoria) ?? null,

@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useState } from 'react';
+import Image from 'next/image';
 import axios from 'axios';
 import { useCategoriaContext } from '@/context/CategoriaContext';
 import { ThemeProvider } from '@/theme/ThemeProvider';
@@ -38,9 +39,11 @@ const LastTransactionsCard: React.FC = () => {
       <Box sx={{ bgcolor: 'background.default', p: 2, borderRadius: 2, boxShadow: 3 }}>
        
         {transactions.map((transaction) => {
-          // cada transação usa o campo `id_categoria` no projeto
-          const categoria = categorias.find((c) => c.id === (transaction as any).id_categoria || (transaction as any).categoria);
-          const iconName = categoria?.icone || '';
+          // cada transação pode ter id_categoria ou categoria; acessos via unknown->Record
+          const tx = transaction as unknown as Record<string, unknown>;
+          const idCategoria = tx['id_categoria'] ?? tx['categoria'];
+          const categoria = categorias.find((c) => c.id === idCategoria);
+          const iconName = (categoria?.icone as string) ?? '';
           const iconClasses = iconName ? `${iconName}` : '';
 
           return (
@@ -53,7 +56,16 @@ const LastTransactionsCard: React.FC = () => {
                       const iconColor = theme.palette.mode === 'dark' ? theme.palette.text.primary : '#000';
 
                       if (isImage) {
-                        return <img src={iconName} alt={categoria?.nome || 'icon'} style={{ width: 36, height: 36, objectFit: 'contain' }} />;
+                        return (
+                          <Image
+                            src={String(iconName)}
+                            alt={categoria?.nome || 'icon'}
+                            width={36}
+                            height={36}
+                            style={{ objectFit: 'contain' }}
+                            unoptimized
+                          />
+                        );
                       }
 
                       return <i className={iconClasses} style={{ color: iconColor, fontSize: 36, lineHeight: 1 }} aria-hidden />;

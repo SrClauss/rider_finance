@@ -1,5 +1,6 @@
 import React from "react";
 import { Box, Card, CardContent, Typography, Stack } from "@mui/material";
+import Image from 'next/image';
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
 import LocalTaxiIcon from '@mui/icons-material/LocalTaxi';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
@@ -53,7 +54,7 @@ export default function QuickHealthIndicators({ data }: Props) {
     const isImage = /\.(png|jpe?g|svg)$|^https?:\/\//i.test(iconName);
     const iconColor = backendColor || theme.palette.text.primary;
     if (iconName) {
-      if (isImage) return <img src={iconName} alt={fallbackName} style={{ width: 28, height: 28, objectFit: 'contain' }} />;
+      if (isImage) return <Image src={String(iconName)} alt={fallbackName} width={28} height={28} style={{ objectFit: 'contain' }} unoptimized />;
       // classes de FontAwesome ou similares
       return <i className={iconName} style={{ color: iconColor, fontSize: 28, lineHeight: 1 }} aria-hidden />;
     }

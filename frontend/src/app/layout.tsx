@@ -7,7 +7,6 @@ import { SessionProvider } from '@/context/SessionContext';
 import { MetasProvider } from '@/context/MetasContext';
 import { CategoriaProvider } from '@/context/CategoriaContext';
 import InitialDataLoader from '@/components/transitions/InitialDataLoader';
-import { Container } from "@mui/material";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {

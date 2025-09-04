@@ -1,8 +1,7 @@
 "use client";
 import axios from "axios";
-import React, { useEffect } from "react";
+import React from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { ThemeProvider } from "@/theme/ThemeProvider";
 import SessionFloatingPanel from "@/components/session/SessionFloatingPanel";
 import {
   BottomNavigation,
@@ -24,7 +23,7 @@ import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import LogoutIcon from "@mui/icons-material/Logout";
 import GpsIcon from "@/components/icons/GPSIcon";
 
-const drawerWidth = 240;
+// drawerWidth removed as it wasn't used
 
 interface LoggedLayoutProps {
   children: React.ReactNode;
@@ -115,7 +114,7 @@ export default function LoggedLayout({ children }: LoggedLayoutProps) {
         elevation={3}
       >
         <BottomNavigation showLabels value={value} onChange={handleChange}>
-          {tabs.map((tab, idx) => (
+          {tabs.map((tab) => (
             <BottomNavigationAction
               key={tab.path}
               label={tab.label.toUpperCase()}

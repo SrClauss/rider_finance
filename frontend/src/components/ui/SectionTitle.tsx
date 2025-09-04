@@ -1,9 +1,10 @@
 import React from 'react';
 import { Box, Divider, Typography } from '@mui/material';
+import type { SxProps, Theme } from '@mui/material';
 
 type Props = {
   children: React.ReactNode;
-  sx?: any;
+  sx?: SxProps<Theme>;
   mt?: number;
   mb?: number;
 };
