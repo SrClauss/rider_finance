@@ -15,7 +15,7 @@ mod tests {
             .with_body(r#"{"id":"123","paymentUrl":"https://mocked-payment-url.com"}"#)
             .create();
 
-        std::env::set_var("END_POINT_ASSAS", &mockito::server_url());
+    std::env::set_var("END_POINT_ASSAS", mockito::server_url());
         std::env::set_var("ASAAS_API_KEY", "fake-key");
         std::env::set_var("PIX_ENABLED", "false");
 
@@ -133,9 +133,9 @@ pub async fn criar_checkout_asaas(payload: CheckoutPayload) -> Result<CheckoutRe
     .json(&body)
     .send()
         .await
-        .map_err(|e| format!("Erro ao enviar para Asaas: {}", e))?;
+    .map_err(|e| format!("Erro ao enviar para Asaas: {e}"))?;
     let status = res.status();
-    let resp_body: serde_json::Value = res.json().await.map_err(|e| format!("Erro ao ler resposta Asaas: {}", e))?;
+    let resp_body: serde_json::Value = res.json().await.map_err(|e| format!("Erro ao ler resposta Asaas: {e}"))?;
     let payment_url = resp_body.get("paymentUrl").and_then(|v| v.as_str()).map(|s| s.to_string());
     if status.is_success() {
         Ok(CheckoutResponse {

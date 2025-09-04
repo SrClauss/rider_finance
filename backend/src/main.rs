@@ -7,7 +7,7 @@ use backend::services::auth::request_password_reset::request_password_reset_hand
 use backend::services::captcha::generate_captcha_handler;
 use backend::db;
 use backend::services::configuracao;
-use backend::services::webhook::webhook::routes;
+use backend::services::webhook::routes;
 use std::net::SocketAddr;
 
 #[tokio::main]
@@ -90,7 +90,7 @@ async fn main() {
         )
         .route("/api/checkout-info", get(checkout_info_handler))
         .route("/api/usuario/{id}", get(usuario_completo_handler))
-        .route("/api/webhook/asaas", post(backend::services::webhook::webhook::receber_webhook))
+    .route("/api/webhook/asaas", post(backend::services::webhook::receber_webhook))
         .route(
             "/api/categorias",
             get(backend::services::categoria::list_categorias_autenticado_handler)
@@ -105,9 +105,33 @@ async fn main() {
         ) // Registrar a rota
         .merge(routes());
 
+    // Rotas administrativas
+    use backend::services::admin::{admin_login_handler, admin_change_password_handler, list_users_handler, block_user_handler, unblock_user_handler, admin_dashboard_handler};
+    let app = app
+        .route("/api/admin/login", post(admin_login_handler))
+        .route("/api/admin/change-password", post(admin_change_password_handler))
+        .route("/api/admin/users", get(list_users_handler))
+        .route("/api/admin/users/{id}/block", post(block_user_handler))
+        .route("/api/admin/users/{id}/unblock", post(unblock_user_handler))
+        .route("/api/admin/dashboard", get(admin_dashboard_handler));
+
     // Seed automático de configurações iniciais no main
     let conn = &mut db::establish_connection();
     configuracao::seed_configuracoes_padrao(conn);
+
+    // Seed admin padrão se não existir
+    {
+        use diesel::prelude::*;
+        use backend::schema::admins::dsl as admin_dsl;
+        use backend::models::NewAdmin;
+        let maybe: Result<backend::models::Admin, _> = admin_dsl::admins.filter(admin_dsl::username.eq("admin")).first(conn);
+        if maybe.is_err() {
+            let hash = bcrypt::hash("admin", bcrypt::DEFAULT_COST).unwrap();
+            let new = NewAdmin::new("admin".to_string(), hash);
+            diesel::insert_into(admin_dsl::admins).values(&new).execute(conn).ok();
+            println!("Created default admin/admin");
+        }
+    }
 
     // Executa o seed robusto para o usuário fixo
     backend::services::seed::seed_movimentacao_robusta().await;

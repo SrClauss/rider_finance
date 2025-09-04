@@ -20,6 +20,8 @@ mod tests {
             nome_completo: "Teste".to_string(),
             telefone: "11999999999".to_string(),
             veiculo: "Carro".to_string(),
+            blocked: false,
+            blocked_date: None,
             criado_em: now,
             atualizado_em: now,
             ultima_tentativa_redefinicao: now,

@@ -22,6 +22,8 @@ mod tests {
             telefone: "11999999999".to_string(),
             veiculo: "Carro".to_string(),
             criado_em: now,
+            blocked: false,
+            blocked_date: None,
             atualizado_em: now,
             ultima_tentativa_redefinicao: now,
             address: "Rua Teste".to_string(),

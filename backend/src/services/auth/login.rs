@@ -38,6 +38,8 @@ mod tests {
             nome_completo: "Nome Completo".to_string(),
             telefone: "11999999999".to_string(),
             veiculo: "Carro".to_string(),
+            blocked: false,
+            blocked_date: None,
             criado_em: now,
             atualizado_em: now,
             ultima_tentativa_redefinicao: now,
@@ -87,7 +89,7 @@ pub async fn login_handler(Json(payload): Json<LoginPayload>) -> impl IntoRespon
                 Ok(token) => {
                     // Set-Cookie: auth_token=...; HttpOnly; Path=/; Max-Age=86400; SameSite=Lax
                     let mut headers = HeaderMap::new();
-                    let cookie_value = format!("auth_token={}; HttpOnly; Path=/; Max-Age=86400; SameSite=Lax", token);
+                    let cookie_value = format!("auth_token={token}; HttpOnly; Path=/; Max-Age=86400; SameSite=Lax");
                     headers.insert(header::SET_COOKIE, cookie_value.parse().unwrap());
                     let resp = serde_json::json!({
                         "message": format!("Login bem-sucedido: {}", user.nome_usuario)
@@ -140,7 +142,7 @@ pub fn login(usuario: &Usuario, senha_plain: &str) -> Result<String, String> {
         };
         let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "secret".to_string());
         let token = encode(&Header::default(), &claims, &EncodingKey::from_secret(secret.as_ref()))
-            .map_err(|e| format!("Erro ao gerar token: {}", e))?;
+            .map_err(|e| format!("Erro ao gerar token: {e}"))?;
         Ok(token)
     } else {
         Err("Senha incorreta".to_string())

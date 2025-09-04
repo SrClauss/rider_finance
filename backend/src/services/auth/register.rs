@@ -93,7 +93,7 @@ pub fn register_user_test(novo_usuario: NewUsuario) -> Result<(), String> {
         .values(&novo_usuario)
         .execute(conn) {
         Ok(_) => Ok(()),
-        Err(e) => Err(format!("Erro ao registrar usuário de teste: {}", e)),
+    Err(e) => Err(format!("Erro ao registrar usuário de teste: {e}")),
     }
 }
 
@@ -254,6 +254,6 @@ pub fn register_user(novo_usuario: NewUsuario) -> Result<String, String> {
     diesel::insert_into(usuarios)
         .values(&novo_usuario)
         .execute(conn)
-        .map_err(|e| format!("Erro ao inserir usuário: {}", e))?;
+    .map_err(|e| format!("Erro ao inserir usuário: {e}"))?;
     Ok(novo_usuario.id.clone())
 }

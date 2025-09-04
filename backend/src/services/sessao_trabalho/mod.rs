@@ -14,6 +14,8 @@ pub fn create_fake_user() -> String {
         nome_completo: "Sessao Teste".to_string(),
         telefone: "11999999999".to_string(),
         veiculo: "Carro".to_string(),
+    blocked: false,
+    blocked_date: None,
         criado_em: now,
         atualizado_em: now,
         ultima_tentativa_redefinicao: now,

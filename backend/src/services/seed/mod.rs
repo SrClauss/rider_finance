@@ -13,6 +13,8 @@ use crate::db::establish_connection;
             nome_completo: "Teste da silva".to_string(),
             telefone: "11999999999".to_string(),
             veiculo: "Carro".to_string(),
+            blocked: false,
+            blocked_date: None,
             criado_em: now,
             atualizado_em: now,
             ultima_tentativa_redefinicao: now,
@@ -249,7 +251,7 @@ pub async fn seed_movimentacao_robusta() {
         for i in 0..entradas {
             let base = if is_weekend { media_entrada as f32 * 0.7 } else { media_entrada as f32 };
             let mut valor_val: f32 = base + rng.random_range(-20.0..20.0) as f32 + rng.random_range(-10.0..10.0) as f32;
-            valor_val = valor_val.max(15.0).min(220.0);
+            valor_val = valor_val.clamp(15.0, 220.0);
             soma_entradas_val += valor_val;
             // Distribui entre as 2 categorias de entrada
             let categoria_id = if i % 2 == 0 { id_categoria_uber.clone() } else { id_categoria_99.clone() };
@@ -272,7 +274,7 @@ pub async fn seed_movimentacao_robusta() {
         for i in 0..saidas {
             let base = if is_weekend { media_saida as f32 * 0.8 } else { media_saida as f32 };
             let mut valor_val: f32 = base + rng.random_range(-15.0..15.0) as f32 + rng.random_range(-5.0..10.0) as f32;
-            valor_val = valor_val.max(8.0).min(130.0);
+            valor_val = valor_val.clamp(8.0, 130.0);
             soma_saidas_val += valor_val;
             // Distribui entre as 2 categorias de saída
             let categoria_id = if i % 2 == 0 { id_categoria_abastecimento.clone() } else { id_categoria_alimentacao.clone() };

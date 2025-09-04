@@ -94,6 +94,8 @@ CREATE TABLE usuarios (
     nome_completo VARCHAR NOT NULL,
     telefone VARCHAR NOT NULL,
     veiculo VARCHAR NOT NULL,
+    blocked BOOLEAN NOT NULL DEFAULT FALSE,
+    blocked_date TIMESTAMP,
     criado_em TIMESTAMP NOT NULL,
     atualizado_em TIMESTAMP NOT NULL,
     ultima_tentativa_redefinicao TIMESTAMP NOT NULL,
@@ -104,6 +106,14 @@ CREATE TABLE usuarios (
     province VARCHAR NOT NULL,
     city VARCHAR NOT NULL,
     cpfcnpj VARCHAR NOT NULL
+);
+
+CREATE TABLE admins (
+    id VARCHAR PRIMARY KEY,
+    username VARCHAR NOT NULL UNIQUE,
+    password_hash VARCHAR NOT NULL,
+    criado_em TIMESTAMP NOT NULL,
+    atualizado_em TIMESTAMP NOT NULL
 );
 
 -- Definições de chaves estrangeiras

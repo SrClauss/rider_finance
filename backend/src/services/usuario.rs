@@ -63,7 +63,7 @@ pub async fn reset_all_user_data_handler(cookie_jar: CookieJar) -> impl IntoResp
 
     match res {
         Ok(_) => (StatusCode::OK, Json(ResetAllResponse { success: true, message: None })).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(ResetAllResponse { success: false, message: Some(format!("Falha ao resetar dados: {}", e)) })).into_response(),
+    Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(ResetAllResponse { success: false, message: Some(format!("Falha ao resetar dados: {e}")) })).into_response(),
     }
 }
 
@@ -217,6 +217,8 @@ mod tests {
             nome_completo: "Teste".to_string(),
             telefone: "11999999999".to_string(),
             veiculo: "Carro".to_string(),
+            blocked: false,
+            blocked_date: None,
             criado_em: now,
             atualizado_em: now,
             ultima_tentativa_redefinicao: now,
@@ -267,6 +269,8 @@ mod tests {
             nome_completo: "Teste".to_string(),
             telefone: "11999999999".to_string(),
             veiculo: "Moto".to_string(),
+            blocked: false,
+            blocked_date: None,
             criado_em: now,
             atualizado_em: now,
             ultima_tentativa_redefinicao: now,
@@ -307,6 +311,8 @@ mod tests {
             nome_completo: "Teste".to_string(),
             telefone: "11999999999".to_string(),
             veiculo: "Bicicleta".to_string(),
+            blocked: false,
+            blocked_date: None,
             criado_em: now,
             atualizado_em: now,
             ultima_tentativa_redefinicao: now,
@@ -345,6 +351,8 @@ mod tests {
             nome_completo: "A".to_string(),
             telefone: "11999990000".to_string(),
             veiculo: "Carro".to_string(),
+            blocked: false,
+            blocked_date: None,
             criado_em: now,
             atualizado_em: now,
             ultima_tentativa_redefinicao: now,
@@ -364,6 +372,8 @@ mod tests {
             nome_completo: "B".to_string(),
             telefone: "11999990001".to_string(),
             veiculo: "Moto".to_string(),
+            blocked: false,
+            blocked_date: None,
             criado_em: now,
             atualizado_em: now,
             ultima_tentativa_redefinicao: now,
