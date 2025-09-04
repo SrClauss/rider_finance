@@ -124,7 +124,7 @@ pub struct NewTransacao {
 
 impl NewTransacao {
     pub fn new(id_usuario: String, id_categoria: String, valor: i32, tipo: String) -> Self {
-        let now = chrono::Utc::now().naive_utc();
+    let now = chrono::Local::now().naive_local();
         NewTransacao {
             id: Ulid::new().to_string(),
             id_usuario,

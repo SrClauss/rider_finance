@@ -3,6 +3,7 @@ import { Goal } from '@/interfaces/goal';
 import { useMetasContext } from '@/context/MetasContext';
 import { Box, Typography, LinearProgress } from '@mui/material';
 import axios from 'axios';
+import { toBackendLocalString } from '@/utils/dateUtils';
 
 interface GoalProgressProps {
   meta: Goal;
@@ -156,9 +157,10 @@ export const GoalProgress: React.FC<GoalProgressProps> = ({ meta, isActive }) =>
     // Para metas positivas: quando atingem o alvo, marcar como concluída e registrar `concluida_em`,
     // mas NÃO definir `concluida_com` ainda — este campo será preenchido quando a meta expirar (data_fim).
     if (!isMetaEconomia && isConcluida && !meta.eh_concluida && !persistFlags.current[meta.id]?.concluded) {
-      dispatchMetas({ ...meta, eh_concluida: true, concluida_em: new Date().toISOString().replace(/\.\d{3}Z$/, '') }, 'update');
+      const now = toBackendLocalString(new Date());
+      dispatchMetas({ ...meta, eh_concluida: true, concluida_em: now }, 'update');
       persistFlags.current[meta.id] = { ...(persistFlags.current[meta.id] || {}), concluded: true };
-      const payload: any = { eh_concluida: true, concluida_em: new Date().toISOString().replace(/\.\d{3}Z$/, '') };
+      const payload: any = { eh_concluida: true, concluida_em: now };
       void persistUpdate(payload);
     }
 
@@ -167,7 +169,7 @@ export const GoalProgress: React.FC<GoalProgressProps> = ({ meta, isActive }) =>
       // Atualiza contexto: agora não está concluída (ultrapassou)
       dispatchMetas({ ...meta, eh_concluida: false, concluida_com: totalAtingido }, 'update');
       persistFlags.current[meta.id] = { ...(persistFlags.current[meta.id] || {}), economia_exceeded: true };
-      const payload = { eh_concluida: false, concluida_com: totalAtingido, atualizado_em: new Date().toISOString().replace(/\.\d{3}Z$/, '') };
+  const payload = { eh_concluida: false, concluida_com: totalAtingido, atualizado_em: toBackendLocalString(new Date()) };
       void persistUpdate(payload);
     }
 
@@ -176,7 +178,7 @@ export const GoalProgress: React.FC<GoalProgressProps> = ({ meta, isActive }) =>
     // Para metas negativas, também registrar `concluida_em` (momento do fim) — assim a UI
     // passa a considerar a meta 'concluída' somente após a data final.
     if (isExpirada && meta.eh_ativa && !persistFlags.current[meta.id]?.expired) {
-      const nowIso = new Date().toISOString().replace(/\.\d{3}Z$/, '');
+      const nowIso = toBackendLocalString(new Date());
       const updatePayload: any = { eh_ativa: false, concluida_com: totalAtingido, atualizado_em: nowIso };
       if (isMetaEconomia) {
         updatePayload.concluida_em = nowIso;

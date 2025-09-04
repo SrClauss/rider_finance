@@ -11,65 +11,14 @@ import { useMetasContext } from '@/context/MetasContext';
 import { GoalProgress } from '../goals/GoalProgress';
 import axios from 'axios';
 
-export default function GoalsList() {
+interface Props {
+  metas?: Goal[];
+}
+
+export default function GoalsList({ metas }: Props) {
   const { dispatchMetas } = useMetasContext();
-  const [metas, setMetas] = useState<Goal[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
 
-  const fetchGoals = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await axios.get('/api/meta/a_cumprir', { withCredentials: true });
-      if (Array.isArray(res.data)) {
-        const parsed = res.data.map((goal: any) => ({
-          ...goal,
-          valor_alvo: parseInt(goal.valor_alvo, 10) || 0,
-          valor_atual: parseInt(goal.valor_atual, 10) || 0,
-          data_inicio: goal.data_inicio ? String(goal.data_inicio) : '',
-          data_fim: goal.data_fim ? String(goal.data_fim) : '',
-          descricao: goal.descricao ?? '',
-          tipo: goal.tipo ?? '',
-          categoria: goal.categoria ?? '',
-          unidade: goal.unidade ?? '',
-          concluida_em: goal.concluida_em ?? '',
-          frequencia_lembrete: goal.frequencia_lembrete ?? '',
-        }));
-        setMetas(parsed);
-        // atualiza o contexto também
-        parsed.forEach((m: Goal) => dispatchMetas(m, 'update'));
-      } else {
-        setMetas([]);
-      }
-    } catch (err) {
-      setError('Erro ao buscar metas');
-      setMetas([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    void fetchGoals();
-  }, []);
-
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-        <Typography>Carregando metas...</Typography>
-      </Box>
-    );
-  }
-
-  if (error) {
-    return (
-      <Box sx={{ p: 4, textAlign: 'center' }}>
-        <Typography color="error">{error}</Typography>
-      </Box>
-    );
-  }
-
+  // Se metas não foram passadas, não renderiza nada
   if (!metas || metas.length === 0) {
     return (
       <Box sx={{ p: 4, textAlign: 'center' }}>
@@ -77,6 +26,9 @@ export default function GoalsList() {
       </Box>
     );
   }
+
+  // Atualiza o contexto com as metas
+  metas.forEach((m: Goal) => dispatchMetas(m, 'update'));
 
   const renderCard = (g: Goal) => (
     <Card key={g.id} elevation={2} sx={{ borderRadius: 2, bgcolor: 'background.paper', height: 240, display: 'flex', flexDirection: 'column' }}>

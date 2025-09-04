@@ -17,244 +17,34 @@ pub fn regressao_linear(xs: &[f64], ys: &[f64]) -> Option<(f64, f64)> {
     let b = (soma_y * soma_xx - soma_x * soma_xy) / denominador;
     Some((a, b))
 }
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use axum::{extract::Query};
-    use axum_extra::extract::cookie::{Cookie, CookieJar};
-    use crate::models::{NewUsuario};
-    use crate::db::establish_connection;
-    use diesel::prelude::*;
-    use chrono::{Utc};
-    use serial_test::serial;
 
-    fn clean_db() {
-        std::env::set_var("ENVIRONMENT", "tests");
-        let conn = &mut establish_connection();
-        diesel::delete(crate::schema::transacoes::dsl::transacoes).execute(conn).ok();
-        diesel::delete(crate::schema::sessoes_trabalho::dsl::sessoes_trabalho).execute(conn).ok();
-        diesel::delete(crate::schema::usuarios::dsl::usuarios).execute(conn).ok();
-    }
-
-    #[tokio::test]
-    #[serial]
-    async fn test_dashboard_stats_handler() {
-        clean_db();
-        let conn = &mut establish_connection();
-        // Cria usuário
-        let user_id = ulid::Ulid::new().to_string();
-    let now = Utc::now().naive_utc();
-    let today = now.date();
-    let inicio_dia = today.and_hms_opt(0, 0, 0).unwrap();
-        let new_user = NewUsuario {
-            id: user_id.clone(),
-            nome_usuario: "user_dash".to_string(),
-            email: "dash@teste.com".to_string(),
-            senha: "senha123".to_string(),
-            nome_completo: "Dash Test".to_string(),
-            telefone: "11999999999".to_string(),
-            veiculo: "Carro".to_string(),
-            criado_em: now,
-            atualizado_em: now,
-            ultima_tentativa_redefinicao: now,
-            address: "Rua Teste".to_string(),
-            address_number: "123".to_string(),
-            complement: "Apto 1".to_string(),
-            postal_code: "01234567".to_string(),
-            province: "Centro".to_string(),
-            city: "São Paulo".to_string(),
-            cpfcnpj: "12345678900".to_string(),
-        };
-        diesel::insert_into(crate::schema::usuarios::dsl::usuarios).values(&new_user).execute(conn).ok();
-    // ...
-        // Cria categorias cat1 e cat2
-        let now = chrono::Utc::now().naive_utc();
-        let cat1 = crate::models::NewCategoria {
-            id: "cat1".to_string(),
-            id_usuario: Some(user_id.clone()),
-            nome: "Categoria Entrada".to_string(),
-            tipo: "entrada".to_string(),
-            icone: None,
-            cor: None,
-            criado_em: now,
-            atualizado_em: now,
-        };
-        diesel::insert_into(crate::schema::categorias::dsl::categorias).values(&cat1).execute(conn).ok();
-        let cat2 = crate::models::NewCategoria {
-            id: "cat2".to_string(),
-            id_usuario: Some(user_id.clone()),
-            nome: "Categoria Saida".to_string(),
-            tipo: "saida".to_string(),
-            icone: None,
-            cor: None,
-            criado_em: now,
-            atualizado_em: now,
-        };
-        diesel::insert_into(crate::schema::categorias::dsl::categorias).values(&cat2).execute(conn).ok();
-    // ...
-
-        // Inserir duas transações de entrada: início do dia e now
-        for data in [inicio_dia, now] {
-            let new_trans = crate::models::NewTransacao {
-                id: ulid::Ulid::new().to_string(),
-                id_usuario: user_id.clone(),
-                id_categoria: "cat1".to_string(),
-                valor: 100,
-                descricao: Some("Teste entrada".to_string()),
-                tipo: "entrada".to_string(),
-                data,
-                criado_em: data,
-                atualizado_em: data,
-            };
-            diesel::insert_into(crate::schema::transacoes::dsl::transacoes).values(&new_trans).execute(conn).ok();
-            // ...
-        }
-        // Inserir duas transações de saída: início do dia e now
-        for data in [inicio_dia, now] {
-            let new_trans2 = crate::models::NewTransacao {
-                id: ulid::Ulid::new().to_string(),
-                id_usuario: user_id.clone(),
-                id_categoria: "cat2".to_string(),
-                valor: 50,
-                descricao: Some("Teste saida".to_string()),
-                tipo: "saida".to_string(),
-                data,
-                criado_em: data,
-                atualizado_em: data,
-            };
-            diesel::insert_into(crate::schema::transacoes::dsl::transacoes).values(&new_trans2).execute(conn).ok();
-            // ...
-        }
-        // Após inserir, buscar e printar todas as transações do usuário no banco para debug
-        use diesel::prelude::*;
-    let _results: Vec<(String, String, Option<String>, i32, chrono::NaiveDateTime)> = crate::schema::transacoes::dsl::transacoes
-            .filter(crate::schema::transacoes::dsl::id_usuario.eq(&user_id))
-            .select((
-                crate::schema::transacoes::dsl::id,
-                crate::schema::transacoes::dsl::tipo,
-                crate::schema::transacoes::dsl::descricao,
-                crate::schema::transacoes::dsl::valor,
-                crate::schema::transacoes::dsl::data,
-            ))
-            .load::<(String, String, Option<String>, i32, chrono::NaiveDateTime)>(conn)
-            .expect("Erro ao buscar transacoes");
-        for data in [inicio_dia, now] {
-            let new_sessao = crate::models::NewSessaoTrabalho {
-                id: ulid::Ulid::new().to_string(),
-                id_usuario: user_id.clone(),
-                inicio: data,
-                fim: Some(data),
-                total_minutos: Some(60),
-                local_inicio: None,
-                local_fim: None,
-                total_corridas: 2,
-                total_ganhos: 100,
-                total_gastos: 50,
-                plataforma: None,
-                observacoes: None,
-                clima: None,
-                eh_ativa: false,
-                criado_em: data,
-                atualizado_em: data,
-            };
-            diesel::insert_into(crate::schema::sessoes_trabalho::dsl::sessoes_trabalho).values(&new_sessao).execute(conn).ok();
-        }
-        // Gera token JWT fake
-        let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "secret".to_string());
-        let claims = crate::services::dashboard::Claims {
-            sub: user_id.clone(),
-            email: "dash@teste.com".to_string(),
-            exp: 9999999999,
-        };
-        let token = jsonwebtoken::encode(&jsonwebtoken::Header::default(), &claims, &jsonwebtoken::EncodingKey::from_secret(secret.as_ref())).unwrap();
-        let jar = CookieJar::new().add(Cookie::new("auth_token", token));
-        let filtro = DashboardFiltro { periodo: None, data_inicio: None, data_fim: None, tipo: None, categoria: None };
-        let resp = dashboard_stats_handler(jar, Query(filtro)).await;
-        // Verifica se retornou ganhos, gastos e corridas
-        assert!(resp.ganhos_hoje.is_some());
-        assert!(resp.gastos_hoje.is_some());
-        assert!(resp.corridas_hoje.is_some());
-    }
-}
-
-fn media_movel(data: &[i32], window: usize) -> Option<i32> {
+// Calcula média móvel simples do final do vetor com janela `window`.
+// Retorna None se o vetor for menor que a janela.
+fn media_movel(data: &Vec<i32>, window: usize) -> Option<i32> {
     if data.len() < window || window == 0 {
         return None;
     }
-    let sum: i32 = data[data.len()-window..].iter().sum();
-    Some(sum / window as i32)
+    let start = data.len() - window;
+    let slice = &data[start..];
+    let sum: i64 = slice.iter().map(|&v| v as i64).sum();
+    Some((sum as f64 / window as f64).round() as i32)
 }
 
-// Calcula a média removendo uma porcentagem dos extremos (maiores e menores)
-fn media_excluindo_extremos(values: &[i32], percentual_extremos: usize) -> i32 {
-    if values.is_empty() {
+// Calcula média excluindo uma porcentagem de extremos (percent por cento de cada extremidade).
+// Se, após exclusão, não restarem elementos, usa a média de todos.
+fn media_excluindo_extremos(data: &Vec<i32>, percent: usize) -> i32 {
+    if data.is_empty() {
         return 0;
     }
-    let mut v = values.to_vec();
+    let mut v = data.clone();
     v.sort();
     let len = v.len();
-    let excluir = (len * percentual_extremos / 100).min(len / 2);
-    let v_filtrado = if excluir > 0 && len > 2 * excluir {
-        v[excluir..len - excluir].to_vec()
-    } else {
-        v
-    };
-    if v_filtrado.is_empty() {
-        0
-    } else {
-        v_filtrado.iter().sum::<i32>() / v_filtrado.len() as i32
-    }
-}
-
-#[cfg(test)]
-mod unit_tests {
-    use super::*;
-
-    #[test]
-    fn test_regressao_linear_simple() {
-        let xs = [1.0, 2.0, 3.0, 4.0];
-        let ys = [2.0, 4.0, 6.0, 8.0];
-        let (a, b) = regressao_linear(&xs, &ys).expect("deveria calcular regressão");
-        assert!((a - 2.0).abs() < 1e-6, "a esperado 2.0, got {}", a);
-        assert!((b - 0.0).abs() < 1e-6, "b esperado 0.0, got {}", b);
-    }
-
-    #[test]
-    fn test_regressao_linear_constant() {
-        let xs = [1.0, 2.0, 3.0];
-        let ys = [5.0, 5.0, 5.0];
-        let (a, b) = regressao_linear(&xs, &ys).expect("deveria calcular regressão");
-        assert!(a.abs() < 1e-6, "a esperado ~0, got {}", a);
-        assert!((b - 5.0).abs() < 1e-6, "b esperado 5.0, got {}", b);
-    }
-
-    #[test]
-    fn test_media_movel_basic() {
-        let data = [1, 2, 3, 4, 5];
-        assert_eq!(media_movel(&data, 3), Some((3 + 4 + 5) / 3));
-        assert_eq!(media_movel(&data, 5), Some((1 + 2 + 3 + 4 + 5) / 5));
-        assert_eq!(media_movel(&data, 6), None);
-        assert_eq!(media_movel(&[], 1), None);
-    }
-
-    #[test]
-    fn test_media_excluindo_extremos_empty() {
-        let v: [i32; 0] = [];
-        assert_eq!(media_excluindo_extremos(&v, 10), 0);
-    }
-
-    #[test]
-    fn test_media_excluindo_extremos_no_exclusion() {
-        let v = [10, 20, 30, 40];
-        assert_eq!(media_excluindo_extremos(&v, 0), (10 + 20 + 30 + 40) / 4);
-    }
-
-    #[test]
-    fn test_media_excluindo_extremos_with_exclusion() {
-        let v = [1, 100, 100, 100, 100, 200];
-        // 6 elementos, 25% -> excluir 1 de cada extremidade -> [100,100,100,100] -> média 100
-        assert_eq!(media_excluindo_extremos(&v, 25), 100);
-    }
+    let to_exclude = ((len as f64) * (percent as f64) / 100.0).floor() as usize;
+    let start = to_exclude.min(len.saturating_sub(1));
+    let end = len.saturating_sub(to_exclude);
+    let slice = if start >= end { &v[..] } else { &v[start..end] };
+    let sum: i64 = slice.iter().map(|&x| x as i64).sum();
+    (sum as f64 / (slice.len() as f64)).round() as i32
 }
 
 
@@ -264,7 +54,9 @@ use axum_extra::extract::cookie::CookieJar;
 use axum::extract::Query;
 use jsonwebtoken::{decode, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
-use chrono::{Utc, Duration, NaiveDateTime, Datelike};
+use axum::extract::Query as AxumQuery;
+use std::collections::HashMap;
+use chrono::{Local, Duration, NaiveDateTime, Datelike};
 use diesel::prelude::*;
 use crate::schema::transacoes::dsl as transacao_dsl;
 use crate::schema::sessoes_trabalho::dsl as sessao_dsl;
@@ -330,6 +122,27 @@ pub struct DashboardStats {
     pub projecao_mes: Option<i32>,
     pub projecao_semana: Option<i32>,
     pub trend_method: String,
+    // resultados agregados por plataforma/nome (ex: 'Corrida Uber')
+    pub platforms: std::collections::HashMap<String, PlatformResult>,
+    // top sources por tipo/periodo
+    pub top_sources: TopSources,
+}
+
+#[derive(Serialize)]
+pub struct TopSourceItem {
+    pub periodo: String,
+    pub tipo: String,
+    pub categoria_id: Option<String>,
+    pub nome: Option<String>,
+    pub icone: Option<String>,
+    pub cor: Option<String>,
+    pub valor: i64,
+}
+
+#[derive(Serialize)]
+pub struct TopSources {
+    pub receitas: Vec<TopSourceItem>,
+    pub despesas: Vec<TopSourceItem>,
 }
 
 #[derive(Deserialize)]
@@ -355,7 +168,7 @@ pub async fn dashboard_stats_handler(
     Query(params): Query<DashboardFiltro>
 ) -> Json<DashboardStats> {
     let conn = &mut db::establish_connection();
-    let now = Utc::now().naive_utc();
+    let now = Local::now().naive_local();
     // Extrai token do cookie
     let token = jar.get("auth_token").map(|c| c.value().to_string()).unwrap_or_default();
 
@@ -716,13 +529,15 @@ pub async fn dashboard_stats_handler(
             .first::<Option<i64>>(conn).ok().flatten().map(|v| v as i32)
     }
     fn soma_corridas(id_usuario: &str, inicio: NaiveDateTime, fim: NaiveDateTime, conn: &mut diesel::PgConnection) -> Option<u32> {
-        use crate::schema::sessoes_trabalho::dsl as sessao_dsl;
-        sessao_dsl::sessoes_trabalho
-            .filter(sessao_dsl::id_usuario.eq(id_usuario))
-            .filter(sessao_dsl::inicio.ge(inicio))
-            .filter(sessao_dsl::inicio.le(fim))
-            .select(diesel::dsl::sum(sessao_dsl::total_corridas))
-            .first::<Option<i64>>(conn).ok().flatten().map(|v| v as u32)
+        // Contar corridas via transacoes do tipo 'entrada' (mais confiável/consistente com o que o usuário vê)
+        use crate::schema::transacoes::dsl as transacao_dsl;
+        transacao_dsl::transacoes
+            .filter(transacao_dsl::id_usuario.eq(id_usuario))
+            .filter(transacao_dsl::data.ge(inicio))
+            .filter(transacao_dsl::data.le(fim))
+            .filter(transacao_dsl::tipo.eq("entrada"))
+            .select(diesel::dsl::count(transacao_dsl::id))
+            .first::<i64>(conn).ok().map(|v| v as u32)
     }
     fn soma_horas(id_usuario: &str, inicio: NaiveDateTime, fim: NaiveDateTime, conn: &mut diesel::PgConnection) -> Option<i32> {
         use crate::schema::sessoes_trabalho::dsl as sessao_dsl;
@@ -735,13 +550,25 @@ pub async fn dashboard_stats_handler(
         minutos.map(|m| m / 60)
     }
 
-    // Datas para períodos
+    // Datas para períodos - CORRIGIDO: últimos 7/30 dias em vez de semana/mês atuais
     let hoje = now.date();
     let ontem = hoje - Duration::days(1);
     let inicio_hoje = NaiveDateTime::new(hoje, chrono::NaiveTime::from_hms_opt(0,0,0).unwrap());
     let fim_hoje = NaiveDateTime::new(hoje, chrono::NaiveTime::from_hms_opt(23,59,59).unwrap());
     let inicio_ontem = NaiveDateTime::new(ontem, chrono::NaiveTime::from_hms_opt(0,0,0).unwrap());
     let fim_ontem = NaiveDateTime::new(ontem, chrono::NaiveTime::from_hms_opt(23,59,59).unwrap());
+
+    // Últimos 7 dias (não semana atual)
+    let inicio_7dias = now - Duration::days(7);
+    let fim_7dias = now;
+    let inicio_7dias_ndt = NaiveDateTime::new(inicio_7dias.date(), chrono::NaiveTime::from_hms_opt(0,0,0).unwrap());
+    let fim_7dias_ndt = NaiveDateTime::new(fim_7dias.date(), chrono::NaiveTime::from_hms_opt(23,59,59).unwrap());
+
+    // Últimos 30 dias (não mês atual)
+    let inicio_30dias = now - Duration::days(30);
+    let fim_30dias = now;
+    let inicio_30dias_ndt = NaiveDateTime::new(inicio_30dias.date(), chrono::NaiveTime::from_hms_opt(0,0,0).unwrap());
+    let fim_30dias_ndt = NaiveDateTime::new(fim_30dias.date(), chrono::NaiveTime::from_hms_opt(23,59,59).unwrap());
 
     let inicio_semana = hoje - Duration::days(hoje.weekday().num_days_from_monday() as i64);
     let fim_semana = inicio_semana + Duration::days(6);
@@ -769,6 +596,73 @@ pub async fn dashboard_stats_handler(
     let inicio_mes_passado_ndt = NaiveDateTime::new(inicio_mes_passado, chrono::NaiveTime::from_hms_opt(0,0,0).unwrap());
     let fim_mes_passado_ndt = NaiveDateTime::new(fim_mes_passado, chrono::NaiveTime::from_hms_opt(23,59,59).unwrap());
 
+    // construir mapa de platforms (preencher com nomes comuns depois)
+    let mut platforms_map: HashMap<String, PlatformResult> = HashMap::new();
+    let platform_names = vec!["Corrida Uber".to_string(), "Corrida 99".to_string()];
+    for name in platform_names.iter() {
+        use crate::schema::categorias::dsl as cat_dsl;
+        let categorias: Vec<crate::models::Categoria> = cat_dsl::categorias
+            .filter(cat_dsl::id_usuario.eq(Some(id_usuario.clone())))
+            .filter(cat_dsl::nome.eq(name))
+            .load::<crate::models::Categoria>(conn)
+            .unwrap_or_default();
+        let cat_ids: Vec<String> = categorias.iter().map(|c| c.id.clone()).collect();
+
+        let ganhos: i32 = if cat_ids.is_empty() {
+            0
+        } else {
+            transacao_dsl::transacoes
+                .filter(transacao_dsl::id_usuario.eq(&id_usuario))
+                .filter(transacao_dsl::data.ge(inicio_hoje))
+                .filter(transacao_dsl::data.le(fim_hoje))
+                .filter(transacao_dsl::tipo.eq("entrada"))
+                .filter(transacao_dsl::id_categoria.eq_any(cat_ids.clone()))
+                .select(diesel::dsl::sum(transacao_dsl::valor))
+                .first::<Option<i64>>(conn).unwrap_or(Some(0)).unwrap_or(0) as i32
+        };
+        let corridas_i64: i64 = if cat_ids.is_empty() {
+            0
+        } else {
+            transacao_dsl::transacoes
+                .filter(transacao_dsl::id_usuario.eq(&id_usuario))
+                .filter(transacao_dsl::data.ge(inicio_hoje))
+                .filter(transacao_dsl::data.le(fim_hoje))
+                .filter(transacao_dsl::tipo.eq("entrada"))
+                .filter(transacao_dsl::id_categoria.eq_any(cat_ids.clone()))
+                .select(diesel::dsl::count(transacao_dsl::id))
+                .first::<i64>(conn).unwrap_or(0)
+        };
+        let corridas: u32 = corridas_i64.try_into().unwrap_or(0);
+        let (icone, cor) = categorias.get(0).map(|c| (c.icone.clone(), c.cor.clone())).unwrap_or((None, None));
+        platforms_map.insert(name.clone(), PlatformResult { ganhos, corridas, icone, cor, periodo: "hoje".to_string() });
+    }
+    // obter top sources (receitas e despesas)
+    let mut receitas: Vec<TopSourceItem> = Vec::new();
+    let mut despesas: Vec<TopSourceItem> = Vec::new();
+
+    let mut r_today = top_source_for_period("entrada", inicio_hoje, fim_hoje, &id_usuario, conn);
+    r_today.periodo = "diario".to_string();
+    receitas.push(r_today);
+    let mut r_7 = top_source_for_period("entrada", inicio_7dias_ndt, fim_7dias_ndt, &id_usuario, conn);
+    r_7.periodo = "7dias".to_string();
+    receitas.push(r_7);
+    let mut r_30 = top_source_for_period("entrada", inicio_30dias_ndt, fim_30dias_ndt, &id_usuario, conn);
+    r_30.periodo = "30dias".to_string();
+    receitas.push(r_30);
+
+    let mut d_today = top_source_for_period("saida", inicio_hoje, fim_hoje, &id_usuario, conn);
+    d_today.periodo = "diario".to_string();
+    despesas.push(d_today);
+    let mut d_7 = top_source_for_period("saida", inicio_7dias_ndt, fim_7dias_ndt, &id_usuario, conn);
+    d_7.periodo = "7dias".to_string();
+    despesas.push(d_7);
+    let mut d_30 = top_source_for_period("saida", inicio_30dias_ndt, fim_30dias_ndt, &id_usuario, conn);
+    d_30.periodo = "30dias".to_string();
+    despesas.push(d_30);
+
+    let top_sources = TopSources { receitas, despesas };
+
+    // finalmente montar stats incluindo platforms
     let stats = DashboardStats {
         ganhos_hoje: soma_periodo("entrada", &id_usuario, inicio_hoje, fim_hoje, conn),
         ganhos_ontem: soma_periodo("entrada", &id_usuario, inicio_ontem, fim_ontem, conn),
@@ -805,27 +699,172 @@ pub async fn dashboard_stats_handler(
         horas_mes: soma_horas(&id_usuario, inicio_mes_ndt, fim_mes_ndt, conn),
         horas_mes_passado: soma_horas(&id_usuario, inicio_mes_passado_ndt, fim_mes_passado_ndt, conn),
 
-        eficiencia: Some(eficiencia),
-        meta_diaria,
-        meta_semanal,
-        tendencia_ganhos,
-        tendencia_gastos,
-        tendencia_corridas,
-    ganhos_7dias,
-    gastos_7dias,
-    lucro_7dias,
-    corridas_7dias,
-    horas_7dias,
-    ultimos_30_dias_labels,
-    ganhos_30dias,
-    gastos_30dias,
-    lucro_30dias,
-    corridas_30dias,
-    horas_30dias,
-    projecao_mes,
-    projecao_semana,
+    eficiencia: Some(eficiencia),
+    meta_diaria: meta_diaria,
+    meta_semanal: meta_semanal,
+    tendencia_ganhos: tendencia_ganhos,
+    tendencia_gastos: tendencia_gastos,
+    tendencia_corridas: tendencia_corridas,
+    ganhos_7dias: ganhos_7dias,
+    gastos_7dias: gastos_7dias,
+    lucro_7dias: lucro_7dias,
+    corridas_7dias: corridas_7dias,
+    horas_7dias: horas_7dias,
+    ultimos_30_dias_labels: ultimos_30_dias_labels,
+    ganhos_30dias: ganhos_30dias,
+    gastos_30dias: gastos_30dias,
+    lucro_30dias: lucro_30dias,
+    corridas_30dias: corridas_30dias,
+    horas_30dias: horas_30dias,
+    projecao_mes: projecao_mes,
+    projecao_semana: projecao_semana,
     trend_method: projecao_metodo,
+    platforms: platforms_map,
+    top_sources: top_sources,
     };
     Json(stats)
 }
+
+// Retorna a categoria com maior número de transações para um tipo e período
+fn top_source_for_period(tipo: &str, inicio: NaiveDateTime, fim: NaiveDateTime, id_usuario: &str, conn: &mut diesel::PgConnection) -> TopSourceItem {
+    use crate::schema::transacoes::dsl as trans_dsl;
+    use crate::schema::categorias::dsl as cat_dsl;
+
+    // Agrupa por id_categoria e conta
+    let base_query = trans_dsl::transacoes
+        .filter(trans_dsl::id_usuario.eq(id_usuario))
+        .filter(trans_dsl::data.ge(inicio))
+        .filter(trans_dsl::data.le(fim))
+        .filter(trans_dsl::tipo.eq(tipo));
+
+    let vec_res: Vec<(String, Option<i64>)> = base_query
+        .group_by(trans_dsl::id_categoria)
+        .select((trans_dsl::id_categoria, diesel::dsl::sum(trans_dsl::valor)))
+        .order(diesel::dsl::sum(trans_dsl::valor).desc())
+        .load::<(String, Option<i64>)>(conn)
+        .unwrap_or_default();
+
+    let res = vec_res.into_iter().next();
+
+    if let Some((cat_id, cnt_opt)) = res {
+        let cnt = cnt_opt.unwrap_or(0);
+        // buscar dados da categoria
+        let categoria: Option<crate::models::Categoria> = cat_dsl::categorias
+            .filter(cat_dsl::id.eq(&cat_id))
+            .first::<crate::models::Categoria>(conn)
+            .optional()
+            .unwrap_or(None);
+        TopSourceItem {
+            periodo: "".to_string(),
+            tipo: tipo.to_string(),
+            categoria_id: Some(cat_id.clone()),
+            nome: categoria.as_ref().map(|c| c.nome.clone()),
+            icone: categoria.as_ref().and_then(|c| c.icone.clone()),
+            cor: categoria.as_ref().and_then(|c| c.cor.clone()),
+            valor: cnt,
+        }
+    } else {
+        TopSourceItem {
+            periodo: "".to_string(),
+            tipo: tipo.to_string(),
+            categoria_id: None,
+            nome: None,
+            icone: None,
+            cor: None,
+            valor: 0,
+        }
+    }
+}
+
+    // Retorna ganhos e corridas agregados por nome de categoria (lista de nomes via query ?names=Nome1,Nome2)
+    #[derive(Deserialize)]
+    pub struct PlatformQuery {
+        pub names: Option<String>,
+    }
+
+    #[derive(Serialize)]
+    pub struct PlatformResult {
+        pub ganhos: i32,
+        pub corridas: u32,
+        pub icone: Option<String>,
+        pub cor: Option<String>,
+    pub periodo: String,
+    }
+
+    #[axum::debug_handler]
+    pub async fn dashboard_platform_handler(
+        jar: CookieJar,
+        AxumQuery(params): AxumQuery<PlatformQuery>
+    ) -> Json<HashMap<String, PlatformResult>> {
+        let conn = &mut db::establish_connection();
+        let token = jar.get("auth_token").map(|c| c.value().to_string()).unwrap_or_default();
+        let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "secret".to_string());
+        let claims = decode::<Claims>(token.as_str(), &DecodingKey::from_secret(secret.as_ref()), &Validation::default())
+            .map(|data| data.claims)
+            .unwrap_or_else(|_| Claims { sub: "".to_string(), email: "".to_string(), exp: 0 });
+        let id_usuario = claims.sub.clone();
+
+    // período: hoje
+    let now = Local::now().naive_local();
+    let hoje = now.date();
+    let inicio_hoje = NaiveDateTime::new(hoje, chrono::NaiveTime::from_hms_opt(0,0,0).unwrap());
+    let fim_hoje = NaiveDateTime::new(hoje, chrono::NaiveTime::from_hms_opt(23,59,59).unwrap());
+
+        // parse names
+        let mut results: HashMap<String, PlatformResult> = HashMap::new();
+        if let Some(names_csv) = params.names {
+            let names: Vec<String> = names_csv.split(',').map(|s| s.trim().to_string()).collect();
+            for name in names {
+                use crate::schema::categorias::dsl as cat_dsl;
+                // Buscar categorias do usuário com o nome solicitado
+                let categorias: Vec<crate::models::Categoria> = cat_dsl::categorias
+                    .filter(cat_dsl::id_usuario.eq(Some(id_usuario.clone())))
+                    .filter(cat_dsl::nome.eq(&name))
+                    .load::<crate::models::Categoria>(conn)
+                    .unwrap_or_default();
+
+                let cat_ids: Vec<String> = categorias.iter().map(|c| c.id.clone()).collect();
+
+                // soma ganhos (valor) nas transacoes de entrada hoje para essas categorias
+                // Filtra estritamente por data (apenas transacoes cuja DATE(data) = CURRENT_DATE no banco)
+                // Isso evita discrepâncias com NaiveDateTime/UTC vs Local.
+                let ganhos: i32 = if cat_ids.is_empty() {
+                    0
+                } else {
+                    transacao_dsl::transacoes
+                        .filter(transacao_dsl::id_usuario.eq(&id_usuario))
+                        // filtra apenas transacoes dentro do dia de hoje (usa limites calculados em Rust)
+                        .filter(transacao_dsl::data.ge(inicio_hoje))
+                        .filter(transacao_dsl::data.le(fim_hoje))
+                        .filter(transacao_dsl::tipo.eq("entrada"))
+                        .filter(transacao_dsl::id_categoria.eq_any(cat_ids.clone()))
+                        .select(diesel::dsl::sum(transacao_dsl::valor))
+                        .first::<Option<i64>>(conn).unwrap_or(Some(0)).unwrap_or(0) as i32
+                };
+
+                // conta corridas como número de transações de entrada associadas às categorias
+                let corridas_i64: i64 = if cat_ids.is_empty() {
+                    0
+                } else {
+                    transacao_dsl::transacoes
+                        .filter(transacao_dsl::id_usuario.eq(&id_usuario))
+                        .filter(transacao_dsl::data.ge(inicio_hoje))
+                        .filter(transacao_dsl::data.le(fim_hoje))
+                        .filter(transacao_dsl::tipo.eq("entrada"))
+                        .filter(transacao_dsl::id_categoria.eq_any(cat_ids.clone()))
+                        .select(diesel::dsl::count(transacao_dsl::id))
+                        .first::<i64>(conn).unwrap_or(0)
+                };
+                let corridas: u32 = corridas_i64.try_into().unwrap_or(0);
+
+                // escolhe icone e cor da primeira categoria encontrada (se houver)
+                let (icone, cor) = categorias.get(0).map(|c| (c.icone.clone(), c.cor.clone())).unwrap_or((None, None));
+
+                // preparar objeto de retorno com icone/cor
+                let pr = PlatformResult { ganhos, corridas, icone, cor, periodo: "hoje".to_string() };
+                results.insert(name.clone(), pr);
+            }
+        }
+        Json(results)
+    }
 

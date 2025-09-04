@@ -173,7 +173,7 @@ pub struct TransacaoResponse {
 
 pub async fn create_transacao_handler(jar: CookieJar, Json(payload): Json<CreateTransacaoPayload>) -> Json<TransacaoResponse> {
     let conn = &mut db::establish_connection();
-    let now: NaiveDateTime = chrono::Utc::now().naive_utc();
+    let now: NaiveDateTime = chrono::Local::now().naive_local();
     let token = jar.get("auth_token").map(|c| c.value().to_string()).unwrap_or_default();
     let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "secret".to_string());
     let claims = decode::<Claims>(token.as_str(), &DecodingKey::from_secret(secret.as_ref()), &Validation::default())

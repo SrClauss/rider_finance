@@ -13,6 +13,7 @@ use std::net::SocketAddr;
 #[tokio::main]
 async fn main() {
     use backend::services::dashboard::dashboard_stats_handler;
+    use backend::services::dashboard::dashboard_platform_handler;
     use backend::services::transacao::{
         create_transacao_handler,
         get_transacao_handler,
@@ -59,6 +60,7 @@ async fn main() {
         .route("/api/logout", post(logout_handler))
         .route("/api/validate_token", get(validate_token_handler))
         .route("/api/dashboard/stats", get(dashboard_stats_handler))
+    .route("/api/dashboard/platform", get(dashboard_platform_handler))
         .route("/api/transacao", post(create_transacao_handler))
         .route("/api/meta", post(create_meta_handler))
         .route("/api/meta/{id}", put(backend::services::meta::update_meta_handler))
@@ -73,6 +75,7 @@ async fn main() {
         .route("/api/meta/cumpridas/{id_usuario}", get(list_metas_cumpridas_handler))
         .route("/api/categoria", post(create_categoria_handler))
         .route("/api/categoria/{id}", get(get_categoria_handler))
+        .route("/api/categoria/{id}", put(backend::services::categoria::update_categoria_handler))
     .route("/api/categoria/{id}", delete(delete_categoria_handler))
     .route("/api/categoria/{id}/preview-delete", get(preview_delete_categoria_handler))
     .route("/api/categoria/{id}/execute-delete", post(execute_delete_categoria_handler))
@@ -93,7 +96,9 @@ async fn main() {
             get(backend::services::categoria::list_categorias_autenticado_handler)
         )
         .route("/api/me", get(get_me_handler))
-        .route("/api/me", patch(backend::services::usuario::update_me_handler))
+    .route("/api/me", patch(backend::services::usuario::update_me_handler))
+    .route("/api/me/reset-all", post(backend::services::usuario::reset_all_user_data_handler))
+    .route("/api/me/preview-reset", get(backend::services::usuario::preview_reset_handler))
         .route(
             "/api/assinatura/checkout",
             post(backend::services::assinatura::checkout::criar_checkout_asaas_handler)

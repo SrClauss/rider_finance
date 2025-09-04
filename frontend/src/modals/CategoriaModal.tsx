@@ -8,7 +8,9 @@ import type { Categoria } from "@/interfaces/Categoria";
 interface Props {
   open: boolean;
   onClose: () => void;
-  onCreated: (cat: Categoria) => void;
+  onCreated?: (cat: Categoria) => void;
+  categoria?: Categoria | null;
+  onUpdated?: (cat: Categoria) => void;
 }
 
 // Form initial state
@@ -37,13 +39,26 @@ const ICON_SUGGESTIONS = [
 // normaliza espaços e remove duplicatas
 const ICON_LIST = Array.from(new Set(ICON_SUGGESTIONS.map(s => s.trim())));
 
-export default function CategoriaModal({ open, onClose, onCreated }: Props) {
+export default function CategoriaModal({ open, onClose, onCreated, categoria, onUpdated }: Props) {
   const { state, setField, reset, setLoading, setError } = useFormReducer(initialState);
   const [search, setSearch] = useState('');
 
   useEffect(() => {
-    if (!open) reset();
+    if (!open) {
+      reset();
+      return;
+    }
   }, [open, reset]);
+
+  // Prefill when categoria prop changes
+  useEffect(() => {
+    if (categoria && open) {
+      setField('nome', categoria.nome || '');
+      setField('tipo', (categoria.tipo as 'entrada' | 'saida') || 'entrada');
+      setField('icone', categoria.icone || '');
+      setField('cor', categoria.cor || '#1976d2');
+    }
+  }, [categoria, open, setField]);
 
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target as HTMLInputElement;
@@ -61,12 +76,20 @@ export default function CategoriaModal({ open, onClose, onCreated }: Props) {
         cor: state.cor,
       };
       try {
-        const res = await axios.post('/api/categoria', payload, { withCredentials: true });
-        const json: Categoria = res.data;
-        onCreated(json);
-        reset();
+        if (categoria && categoria.id) {
+          // update
+          const res = await axios.put(`/api/categoria/${categoria.id}`, payload, { withCredentials: true });
+          const json: Categoria = res.data;
+          if (onUpdated) onUpdated(json);
+          reset();
+        } else {
+          const res = await axios.post('/api/categoria', payload, { withCredentials: true });
+          const json: Categoria = res.data;
+          if (onCreated) onCreated(json);
+          reset();
+        }
       } catch (err: unknown) {
-        const msg = extractErrorMessage(err) ?? (err instanceof Error ? err.message : 'Erro ao criar categoria');
+        const msg = extractErrorMessage(err) ?? (err instanceof Error ? err.message : 'Erro ao criar/editar categoria');
         throw new Error(msg);
       }
     } catch (e: unknown) {

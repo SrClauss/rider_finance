@@ -46,9 +46,12 @@ export default function TransactionList({ transactions, onEdit, onDelete }: Prop
           <Box sx={{ width: '100%', display: 'flex', alignItems: 'center', mt: 0.5 }}>
             {(() => {
               const categoria = categorias.find(c => c.id === tx.id_categoria);
-              return categoria?.icone ? (
-                <i className={categoria.icone} style={{ color: "#fff", fontSize: 24 }}></i>
-              ) : null;
+              if (!categoria?.icone) return null;
+              const ic = categoria.icone || '';
+              const isCustom = ic.startsWith('icon-');
+              const isFaLike = ic.includes('fa-');
+              const className = isCustom ? ic : (isFaLike ? ic : `fa-solid ${ic}`);
+              return <i className={className} style={{ color: categoria.cor || "#fff", fontSize: 24 }} />;
             })()}
             <Divider sx={{ flexGrow: 1, mx: 1, borderColor: '#fff', opacity: 0.3 }} />
             <Box sx={{ display: 'flex', gap: 0.5 }}>

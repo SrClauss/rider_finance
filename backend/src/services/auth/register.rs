@@ -186,6 +186,8 @@ pub async fn register_user_handler(Json(payload): Json<RegisterPayload>) -> Json
                 .unwrap_or_default();
             if existing_cats.is_empty() {
                 let now_cat = now; // já definido acima
+                // Apenas as categorias iniciais essenciais para o fluxo de registro.
+                // Removido: 'Abastecimento' e 'Alimentação' conforme solicitado.
                 let defaults: Vec<NewCat> = vec![
                     NewCat {
                         id: ulid::Ulid::new().to_string(),
@@ -204,26 +206,6 @@ pub async fn register_user_handler(Json(payload): Json<RegisterPayload>) -> Json
                         tipo: "entrada".to_string(),
                         icone: Some("icon-99".to_string()),
                         cor: Some("#111111".to_string()),
-                        criado_em: now_cat,
-                        atualizado_em: now_cat,
-                    },
-                    NewCat {
-                        id: ulid::Ulid::new().to_string(),
-                        id_usuario: Some(user_id.clone()),
-                        nome: "Abastecimento".to_string(),
-                        tipo: "saida".to_string(),
-                        icone: Some("icon-gas-pump".to_string()),
-                        cor: Some("#FF9800".to_string()),
-                        criado_em: now_cat,
-                        atualizado_em: now_cat,
-                    },
-                    NewCat {
-                        id: ulid::Ulid::new().to_string(),
-                        id_usuario: Some(user_id.clone()),
-                        nome: "Alimentação".to_string(),
-                        tipo: "saida".to_string(),
-                        icone: Some("icon-utensils".to_string()),
-                        cor: Some("#FF5722".to_string()),
                         criado_em: now_cat,
                         atualizado_em: now_cat,
                     },

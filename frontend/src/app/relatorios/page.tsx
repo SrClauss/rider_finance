@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import axios from "axios";
+import { toBackendLocalString } from '@/utils/dateUtils';
 import { Box, Button, Card, CardContent, MenuItem, TextField, Typography, Stack } from "@mui/material";
 import LoggedLayout from "@/layouts/LoggedLayout";
 import { RelatorioTransacoesRequest, TransacaoFiltro } from "@/interfaces/RelatorioTransacoesRequest";
@@ -28,7 +29,7 @@ export default function RelatoriosPage() {
   };
 
   const handleDataChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFiltros({ ...filtros, [e.target.name]: e.target.value ? new Date(e.target.value).toISOString() : null });
+    setFiltros({ ...filtros, [e.target.name]: e.target.value ? toBackendLocalString(new Date(e.target.value)) : null });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

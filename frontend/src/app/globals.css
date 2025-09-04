@@ -65,15 +65,34 @@ a {
 }
 
 .icon-gas-pump {
-  /* Usando FontAwesome para consistência */
-  font-family: "Font Awesome 6 Free";
-  font-weight: 900;
-  content: "\f52f"; /* fa-gas-pump */
+  /* Usando FontAwesome para consistência: renderizamos o glyh via ::before */
+  display: inline-block;
+  font-size: 1em;
+  line-height: 1;
 }
 
 .icon-utensils {
-  /* Usando FontAwesome para consistência */
+  /* Usando FontAwesome para consistência: renderizamos o glyh via ::before */
+  display: inline-block;
+  font-size: 1em;
+  line-height: 1;
+}
+
+/* Pseudo-elementos que exibem os glifos do FontAwesome e herdam a cor do elemento pai */
+.icon-gas-pump::before {
+  content: "\f52f"; /* fa-gas-pump */
+  font-family: "Font Awesome 6 Free";
+  font-weight: 900;
+  color: inherit; /* permite que o estilo inline color no elemento funcione */
+  font-size: inherit;
+  display: inline-block;
+}
+
+.icon-utensils::before {
+  content: "\f2e7"; /* fa-utensils */
   font-family: "Font Awesome 6 Free";
   font-weight: 400;
-  content: "\f2e7"; /* fa-utensils */
+  color: inherit; /* permite que o estilo inline color no elemento funcione */
+  font-size: inherit;
+  display: inline-block;
 }

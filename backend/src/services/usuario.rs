@@ -7,6 +7,103 @@ use crate::schema::usuarios::dsl::*;
 use crate::services::auth::login::extract_user_id_from_cookie;
 use hyper::StatusCode;
 
+#[derive(Serialize)]
+struct ResetAllResponse {
+    success: bool,
+    message: Option<String>,
+}
+
+pub async fn reset_all_user_data_handler(cookie_jar: CookieJar) -> impl IntoResponse {
+    let conn = &mut db::establish_connection();
+
+    let user_id = match extract_user_id_from_cookie(&cookie_jar) {
+        Some(uid) => uid,
+        None => return (StatusCode::UNAUTHORIZED, Json(ResetAllResponse { success: false, message: Some("Usuário não autenticado".to_string()) })).into_response(),
+    };
+
+    // Use transaction to ensure atomicity
+    let res = conn.transaction::<(), diesel::result::Error, _>(|conn_tx| {
+        // Delete transactions belonging to user
+        let _ = diesel::delete(crate::schema::transacoes::dsl::transacoes.filter(crate::schema::transacoes::dsl::id_usuario.eq(&user_id))).execute(conn_tx)?;
+        // Delete work sessions
+        let _ = diesel::delete(crate::schema::sessoes_trabalho::dsl::sessoes_trabalho.filter(crate::schema::sessoes_trabalho::dsl::id_usuario.eq(&user_id))).execute(conn_tx)?;
+        // Delete metas
+        let _ = diesel::delete(crate::schema::metas::dsl::metas.filter(crate::schema::metas::dsl::id_usuario.eq(&user_id))).execute(conn_tx)?;
+    // Nota: assinaturas NÃO serão deletadas pelo reset (preservar assinaturas do usuário)
+        // Delete categorias of user
+        let _ = diesel::delete(crate::schema::categorias::dsl::categorias.filter(crate::schema::categorias::dsl::id_usuario.eq(Some(user_id.clone())))).execute(conn_tx)?;
+        // Delete configuracoes of user
+        let _ = diesel::delete(crate::schema::configuracoes::dsl::configuracoes.filter(crate::schema::configuracoes::dsl::id_usuario.eq(Some(user_id.clone())))).execute(conn_tx)?;
+
+        // Recreate initial categories (only Corrida Uber and Corrida 99 as per new seed)
+        let now = chrono::Utc::now().naive_utc();
+        let defaults = vec![
+            crate::models::NewCategoria { id: ulid::Ulid::new().to_string(), id_usuario: Some(user_id.clone()), nome: "Corrida Uber".to_string(), tipo: "entrada".to_string(), icone: Some("icon-uber".to_string()), cor: Some("#000000".to_string()), criado_em: now, atualizado_em: now },
+            crate::models::NewCategoria { id: ulid::Ulid::new().to_string(), id_usuario: Some(user_id.clone()), nome: "Corrida 99".to_string(), tipo: "entrada".to_string(), icone: Some("icon-99".to_string()), cor: Some("#111111".to_string()), criado_em: now, atualizado_em: now },
+        ];
+        let _ = diesel::insert_into(crate::schema::categorias::dsl::categorias).values(&defaults).execute(conn_tx)?;
+
+        // Recreate default public configuracoes (copy from system defaults)
+        use crate::schema::configuracoes::dsl as cfg_dsl;
+        let allowed = vec!["projecao_metodo","projecao_percentual_extremos","mask_moeda"];
+        let padroes: Vec<crate::models::configuracao::Configuracao> = cfg_dsl::configuracoes
+            .filter(cfg_dsl::id_usuario.is_null().and(cfg_dsl::chave.eq_any(&allowed)))
+            .load(conn_tx)
+            .unwrap_or_default();
+        let mut to_insert: Vec<crate::models::configuracao::NewConfiguracao> = Vec::new();
+        for cfg in padroes.into_iter() {
+            to_insert.push(crate::models::configuracao::NewConfiguracao { id: ulid::Ulid::new().to_string(), id_usuario: Some(user_id.clone()), chave: cfg.chave, valor: cfg.valor, categoria: cfg.categoria, descricao: cfg.descricao, tipo_dado: cfg.tipo_dado, eh_publica: cfg.eh_publica, criado_em: now, atualizado_em: now });
+        }
+        if !to_insert.is_empty() {
+            let _ = diesel::insert_into(cfg_dsl::configuracoes).values(&to_insert).execute(conn_tx)?;
+        }
+
+        Ok(())
+    });
+
+    match res {
+        Ok(_) => (StatusCode::OK, Json(ResetAllResponse { success: true, message: None })).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(ResetAllResponse { success: false, message: Some(format!("Falha ao resetar dados: {}", e)) })).into_response(),
+    }
+}
+
+#[derive(Serialize)]
+struct PreviewResetResponse {
+    transactions: i64,
+    sessions: i64,
+    metas: i64,
+    assinaturas: i64,
+    categorias: i64,
+    configuracoes: i64,
+    // indicates whether assinaturas will be deleted by the reset (false = preserved)
+    will_delete_assinaturas: bool,
+}
+
+pub async fn preview_reset_handler(cookie_jar: CookieJar) -> impl IntoResponse {
+    let conn = &mut db::establish_connection();
+
+    let user_id = match extract_user_id_from_cookie(&cookie_jar) {
+        Some(uid) => uid,
+        None => return (StatusCode::UNAUTHORIZED, Json("Usuário não autenticado".to_string())).into_response(),
+    };
+
+    // Count records
+    let transactions: i64 = crate::schema::transacoes::dsl::transacoes
+        .filter(crate::schema::transacoes::dsl::id_usuario.eq(&user_id)).count().get_result(conn).unwrap_or(0);
+    let sessions: i64 = crate::schema::sessoes_trabalho::dsl::sessoes_trabalho
+        .filter(crate::schema::sessoes_trabalho::dsl::id_usuario.eq(&user_id)).count().get_result(conn).unwrap_or(0);
+    let metas: i64 = crate::schema::metas::dsl::metas
+        .filter(crate::schema::metas::dsl::id_usuario.eq(&user_id)).count().get_result(conn).unwrap_or(0);
+    let assinaturas: i64 = crate::schema::assinaturas::dsl::assinaturas
+        .filter(crate::schema::assinaturas::dsl::id_usuario.eq(&user_id)).count().get_result(conn).unwrap_or(0);
+    let categorias: i64 = crate::schema::categorias::dsl::categorias
+        .filter(crate::schema::categorias::dsl::id_usuario.eq(Some(user_id.clone()))).count().get_result(conn).unwrap_or(0);
+    let configuracoes: i64 = crate::schema::configuracoes::dsl::configuracoes
+        .filter(crate::schema::configuracoes::dsl::id_usuario.eq(Some(user_id.clone()))).count().get_result(conn).unwrap_or(0);
+
+    Json(PreviewResetResponse { transactions, sessions, metas, assinaturas, categorias, configuracoes, will_delete_assinaturas: false }).into_response()
+}
+
 #[derive(Deserialize)]
 pub struct EnderecoDTO {
     pub rua: Option<String>,

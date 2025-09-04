@@ -4,7 +4,7 @@ import axios from "axios";
 import useFormReducer from "@/lib/useFormReducer";
 import { Goal } from "@/interfaces/goal";
 import { useMetasContext } from "@/context/MetasContext";
-import { getCurrentDateTime, formatForDateTimeLocal, parseDateTime, formatDateTime } from '@/utils/dateUtils';
+import { getCurrentDateTime, formatForDateTimeLocal, parseDateTime, formatDateTime, toBackendLocalString } from '@/utils/dateUtils';
 
 type GoalModalProps = {
   open: boolean;
@@ -171,7 +171,7 @@ export default function GoalModal(props: GoalModalProps) {
         })() : null,
         eh_ativa: form.eh_ativa,
         eh_concluida: form.eh_concluida,
-        concluida_em: form.concluida_em ? new Date(form.concluida_em).toISOString().replace(/\.\d{3}Z$/, '') : null,
+  concluida_em: form.concluida_em ? toBackendLocalString(new Date(form.concluida_em)) : null,
         concluida_com: form.concluida_com ?? null
       };
       let responseData: Goal;

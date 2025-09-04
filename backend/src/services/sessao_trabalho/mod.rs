@@ -4,7 +4,7 @@ pub fn create_fake_user() -> String {
     use crate::models::usuario::NewUsuario;
     use crate::schema::usuarios::dsl::*;
     let conn = &mut establish_connection();
-    let now = chrono::Utc::now().naive_utc();
+    let now = chrono::Local::now().naive_local();
     let usuario_id = "user_sessao_test".to_string();
     let new_user = NewUsuario {
         id: usuario_id.clone(),
@@ -117,7 +117,7 @@ pub struct NovaSessaoPayload {
 
 pub async fn criar_sessao_handler(Json(payload): Json<NovaSessaoPayload>) -> Json<SessaoTrabalho> {
     let conn = &mut db::establish_connection();
-    let now = chrono::Utc::now().naive_utc();
+    let now = chrono::Local::now().naive_local();
 
     // Parse da data de início
     let inicio_dt = match chrono::NaiveDateTime::parse_from_str(&payload.inicio, "%Y-%m-%dT%H:%M") {
@@ -213,7 +213,7 @@ pub async fn deletar_sessao_handler(Path(id_param): Path<String>) -> Json<bool> 
 // Novo: iniciar sessão (cria sessão ativa com fim = None)
 pub async fn iniciar_sessao_handler(Json(payload): Json<NovaSessaoPayload>) -> Json<SessaoTrabalho> {
     let conn = &mut db::establish_connection();
-    let now = chrono::Utc::now().naive_utc();
+    let now = chrono::Local::now().naive_local();
 
     // Parse da data de início
     let inicio_dt = match parse_datetime(&payload.inicio) {
@@ -319,7 +319,7 @@ pub async fn encerrar_sessao_handler(Json(payload): Json<EncerrarPayload>) -> Js
                     total_corridas.eq(total_corridas_calc),
                     total_gastos.eq(total_gastos_calc),
                     eh_ativa.eq(false),
-                    atualizado_em.eq(chrono::Utc::now().naive_utc())
+                    atualizado_em.eq(chrono::Local::now().naive_local())
                 ))
                 .execute(conn)
                 .ok();

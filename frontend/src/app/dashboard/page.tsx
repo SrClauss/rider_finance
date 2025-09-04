@@ -3,28 +3,50 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { DashboardResponse } from "@/interfaces/DashboardResponse";
 import LoggedLayout from "@/layouts/LoggedLayout";
-import { Box, useMediaQuery, Divider, Typography } from "@mui/material";
-import { useTheme } from "@mui/material/styles";
+import { Box } from "@mui/material";
 import RouteTransition from "@/components/transitions/RouteTransition";
 import "swiper/css";
-
+import SectionTitle from '@/components/ui/SectionTitle';
 import SummarySwiper from "@/components/dashboard/SummarySwiper"; // Importar o SummarySwiper
 import LastTransactionsCard from '@/components/dashboard/LastTransactionsCard';
-import AnimatedGpsIcon from "@/components/icons/AnimatedGpsIcon";
-import GoalCard from "@/components/goals/GoalCard";
+import QuickHealthIndicators from '@/components/dashboard/QuickHealthIndicators';
+import TopSourcesSwiper from '@/components/dashboard/TopSourcesSwiper';
+import ProjectionsCard from '@/components/dashboard/ProjectionsCard';
 import GoalsList from "@/components/dashboard/GoalsList";
+import Dashboard30Days from '@/components/charts/Dashboard30Days';
+import CorridasHoras from '@/components/charts/CorridasHoras';
+
+
 
 export default function Page() {
 
   const [data, setData] = useState<DashboardResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [hasMetas, setHasMetas] = useState<boolean | null>(null);
+  const [metas, setMetas] = useState<any[]>([]);
 
   useEffect(() => {
     axios.get('/api/dashboard/stats', { withCredentials: true })
       .then((res) => setData(res.data))
       .catch(() => setError('Erro ao buscar dados do dashboard'))
       .finally(() => setLoading(false));
+    // checar se existem metas ativas para decidir renderizar a seção
+    (async () => {
+      try {
+        const res = await axios.get('/api/meta/a_cumprir', { withCredentials: true });
+        if (Array.isArray(res.data) && res.data.length > 0) {
+          setHasMetas(true);
+          setMetas(res.data);
+        } else {
+          setHasMetas(false);
+          setMetas([]);
+        }
+      } catch (e) {
+        setHasMetas(false);
+        setMetas([]);
+      }
+    })();
   }, []);
 
   if (loading) return <RouteTransition message="Carregando dash" />;
@@ -33,26 +55,47 @@ export default function Page() {
   return (
     <LoggedLayout>
       {/* título 'Resumo' com divider à direita, conforme modificações do usuário */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1, mt: 4 }}>
-        <Typography variant="h6">Resumo</Typography>
-        <Divider sx={{ flex: 1, height: 1, bgcolor: 'white', borderRadius: 1, opacity: 0.95 }} />
+      <Box sx={{ mb: 1, mt: 4 }}>
+        <SectionTitle>Resumo</SectionTitle>
       </Box>
-      <SummarySwiper data={data!} /> {/* Substituir SummaryTodayCard por SummarySwiper */}
+  <SummarySwiper data={data!} /> {/* Substituir SummaryTodayCard por SummarySwiper */}
+
+  <Box sx={{ mb: 1, mt: 4 }}>
+    <SectionTitle>Indicadores de Saúde</SectionTitle>
+  </Box>
+  <QuickHealthIndicators data={data!} />
+
+  <TopSourcesSwiper topSources={data?.top_sources || null} />
+  <Box sx={{ mt: 2 }}>
+    <ProjectionsCard
+      weekly={data?.projecao_semana ?? 0}
+      monthly={data?.projecao_mes ?? 0}
+      method={data?.trend_method}
+    />
+  </Box>
 
       {/* título com divider à direita, mais destacado */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, my: 3 }}>
-        <Typography variant="h6">Últimas transações</Typography>
-        <Divider sx={{ flex: 1, height: 1, bgcolor: 'white', borderRadius: 1, opacity: 0.95 }} />
-      </Box>
+  <SectionTitle>Últimas transações</SectionTitle>
       <LastTransactionsCard />
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, my: 3 }}>
-        <Typography variant="h6">Metas Ativas</Typography>
-        <Divider sx={{ flex: 1, height: 1, bgcolor: 'white', borderRadius: 1, opacity: 0.95 }} />
-      </Box>
-      
-      <GoalsList/>
+      {hasMetas ? (
+        <>
+          <SectionTitle>Metas Ativas</SectionTitle>
+          <GoalsList metas={metas} />
+        </>
+      ) : null}
 
-      <pre>{JSON.stringify(data, null, 2)}</pre>
+  {/* Charts: 30 dias, corridas/horas, sparklines e waterfall */}
+  
+  <SectionTitle>Ganhos / Gastos / Lucro (30 dias)</SectionTitle>
+  <Dashboard30Days data={data!} />
+
+  <SectionTitle
+
+  >Corridas e Horas (30 dias)</SectionTitle>
+  <CorridasHoras data={data!} />
+
+
+
     </LoggedLayout>
   );
 }

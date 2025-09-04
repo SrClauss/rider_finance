@@ -53,4 +53,25 @@ export interface DashboardResponse {
   lucro_mes_array?: number[];
   corridas_mes_array?: number[];
   trend_method: string;
+  platforms?: { [key: string]: { ganhos: number; corridas: number; icone?: string; cor?: string; periodo?: string } };
+  top_sources?: {
+    receitas: Array<{
+      periodo: string;
+      tipo: string;
+      categoria_id?: string | null;
+      nome?: string | null;
+      icone?: string | null;
+      cor?: string | null;
+      valor: number;
+    }>;
+    despesas: Array<{
+      periodo: string;
+      tipo: string;
+      categoria_id?: string | null;
+      nome?: string | null;
+      icone?: string | null;
+      cor?: string | null;
+      valor: number;
+    }>;
+  };
 }

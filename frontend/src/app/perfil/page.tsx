@@ -16,6 +16,11 @@ import {
   Tooltip,
   Snackbar,
   Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
   FormControl,
   InputLabel,
   Select,
@@ -26,11 +31,14 @@ import EditIcon from "@mui/icons-material/Edit";
 import LoggedLayout from "@/layouts/LoggedLayout";
 import EditProfileModal from "@/modals/EditProfileModal";
 import DeleteCategoryModal from '@/modals/DeleteCategoryModal';
+import CategoriaModal from '@/modals/CategoriaModal';
 import { carregarCategorias } from '@/context/CategoriaContext';
 import { UsuarioMeResponse } from "@/interfaces/UsuarioMeResponse";
 import { Configuracao } from "@/interfaces/Configuracao";
 import { useRouter } from "next/navigation";
 import { extractErrorMessage } from '@/lib/errorUtils';
+import { toBackendLocalString } from '@/utils/dateUtils';
+import { ExpandMore } from "@mui/icons-material";
 
 const allowedProjecaoMetodos = [
   "mediana",
@@ -66,6 +74,43 @@ export default function PerfilPage() {
   const [categorias, setCategorias] = useState<any[]>([]);
   const [manageCatOpen, setManageCatOpen] = useState(false);
   const [catToDelete, setCatToDelete] = useState<string | null>(null);
+  const [editCatOpen, setEditCatOpen] = useState(false);
+  const [catToEdit, setCatToEdit] = useState<string | null>(null);
+  const [resetModalOpen, setResetModalOpen] = useState(false);
+  const [previewData, setPreviewData] = useState<any | null>(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
+  const [confirmText, setConfirmText] = useState('');
+  const [resetting, setResetting] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      if (!resetModalOpen) return;
+      setLoadingPreview(true);
+      try {
+        const r = await axios.get('/api/me/preview-reset', { withCredentials: true });
+        if (!mounted) return;
+        const d = r.data || {};
+        // normalize possible keys (transactions vs transacoes)
+        const normalized = {
+          transactions: Number(d.transactions ?? d.transacoes ?? 0) || 0,
+          sessions: Number(d.sessions ?? 0) || 0,
+          metas: Number(d.metas ?? 0) || 0,
+          assinaturas: Number(d.assinaturas ?? 0) || 0,
+          categorias: Number(d.categorias ?? 0) || 0,
+          configuracoes: Number(d.configuracoes ?? 0) || 0,
+        };
+        setPreviewData(normalized);
+      } catch (e) {
+        if (!mounted) return;
+        setPreviewData({ transactions: 0, sessions: 0, metas: 0, assinaturas: 0, categorias: 0, configuracoes: 0 });
+      } finally {
+        if (!mounted) return;
+        setLoadingPreview(false);
+      }
+    })();
+    return () => { mounted = false; };
+  }, [resetModalOpen]);
 
   useEffect(() => {
     let mounted = true;
@@ -297,6 +342,18 @@ export default function PerfilPage() {
                 try { const resp = await axios.get('/api/me', { withCredentials: true }); setUsuario(resp.data); } catch {};
               }}
             />
+            <CategoriaModal
+              open={editCatOpen}
+              onClose={() => { setEditCatOpen(false); setCatToEdit(null); }}
+              categoria={categorias.find(c => c.id === catToEdit) || null}
+              onUpdated={async () => {
+                setEditCatOpen(false);
+                setCatToEdit(null);
+                const novas = await carregarCategorias();
+                setCategorias(novas as any[]);
+                try { const resp = await axios.get('/api/me', { withCredentials: true }); setUsuario(resp.data); } catch {};
+              }}
+            />
               <Box
                 sx={{
                   display: "flex",
@@ -357,6 +414,131 @@ export default function PerfilPage() {
                   </Box>
                 </AccordionDetails>
               </Accordion>
+
+                  {/* Danger Zone Accordion */}
+                  <Accordion sx={{ mt: 2 }}>
+                    <AccordionSummary expandIcon={<ExpandMore />}>
+                      <Typography color="error">Danger Zone</Typography>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                      <Typography variant="body2" color="error">Atenção: ações nesta seção podem apagar dados. Seja cuidadoso.</Typography>
+
+                      <Box sx={{ mt: 2 }}>
+                        <Typography variant="subtitle2">Gerenciar categorias</Typography>
+                        <Stack direction="column" spacing={2} sx={{ mt: 1 }}>
+                          <Stack direction="row" spacing={2} alignItems="center">
+                            <FormControl sx={{ minWidth: 220 }}>
+                              <InputLabel id="dz-edit-cat-label">Categoria</InputLabel>
+                              <Select
+                                labelId="dz-edit-cat-label"
+                                label="Categoria"
+                                value={catToEdit ?? ''}
+                                onChange={(e) => setCatToEdit(String(e.target.value))}
+                              >
+                                <MenuItem value="">Selecione</MenuItem>
+                                {categorias.map((c:any) => (
+                                  <MenuItem key={c.id} value={c.id}>{c.nome}</MenuItem>
+                                ))}
+                              </Select>
+                            </FormControl>
+                            <Button
+                              variant="outlined"
+                              color="inherit"
+                              disabled={!catToEdit}
+                              onClick={() => setEditCatOpen(true)}
+                            >
+                              Editar
+                            </Button>
+                          </Stack>
+
+                          <Stack direction="row" spacing={2} alignItems="center">
+                            <FormControl sx={{ minWidth: 220 }}>
+                              <InputLabel id="dz-manage-cat-label">Categoria</InputLabel>
+                              <Select
+                                labelId="dz-manage-cat-label"
+                                label="Categoria"
+                                value={catToDelete ?? ''}
+                                onChange={(e) => setCatToDelete(String(e.target.value))}
+                              >
+                                <MenuItem value="">Selecione</MenuItem>
+                                {categorias.map((c:any) => (
+                                  <MenuItem key={c.id} value={c.id}>{c.nome}</MenuItem>
+                                ))}
+                              </Select>
+                            </FormControl>
+                            <Button
+                              variant="outlined"
+                              color="error"
+                              disabled={!catToDelete}
+                              onClick={() => setManageCatOpen(true)}
+                            >
+                              Excluir / Migrar
+                            </Button>
+                          </Stack>
+                        </Stack>
+                      </Box>
+
+                      <Box sx={{ mt: 3, display: 'flex', gap: 2, alignItems: 'center' }}>
+                        <Button variant="outlined" color="error" onClick={() => setResetModalOpen(true)}>Resetar conta (apagar todos os registros)</Button>
+                      </Box>
+
+                      {/* Reset modal - mostra preview e exige frase exata para confirmar */}
+                      <Dialog open={resetModalOpen} onClose={() => { if (!resetting) { setResetModalOpen(false); setPreviewData(null); setConfirmText(''); } }} fullWidth maxWidth="sm">
+                        <DialogTitle>Resetar Minha Conta</DialogTitle>
+                        <DialogContent>
+                          {loadingPreview ? (
+                            <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}><CircularProgress /></Box>
+              ) : previewData ? (
+                            <Box>
+                              <Typography variant="body1" sx={{ mb: 1 }}>Esta ação irá apagar os seguintes registros da sua conta:</Typography>
+                <Typography>Transações: <strong>{(previewData.transactions ?? previewData.transacoes ?? previewData.transacoes_count ?? 0)}</strong></Typography>
+                <Typography>Sessões de trabalho: <strong>{previewData.sessions ?? previewData.sessoes ?? 0}</strong></Typography>
+                <Typography>Metas: <strong>{previewData.metas ?? 0}</strong></Typography>
+                <Typography>Assinaturas: <strong>{previewData.assinaturas ?? 0}</strong> <em>({previewData.will_delete_assinaturas === false ? 'preservadas' : 'serão apagadas'})</em></Typography>
+                              <Typography>Categorias: <strong>{previewData.categorias ?? 0}</strong></Typography>
+                              <Typography>Configurações do usuário: <strong>{previewData.configuracoes ?? 0}</strong></Typography>
+                              <Box sx={{ mt: 2 }}>
+                                <Typography variant="body2" color="error">Para confirmar, digite exatamente: <strong>Resetar Minha Conta</strong></Typography>
+                                <TextField fullWidth value={confirmText} onChange={(e) => setConfirmText(e.target.value)} placeholder="Digite a frase de confirmação" sx={{ mt: 1 }} />
+                              </Box>
+                            </Box>
+                          ) : (
+                            <Box sx={{ py: 2 }}>
+                              <Typography variant="body2">A obter contagem de registros...</Typography>
+                            </Box>
+                          )}
+                        </DialogContent>
+                        <DialogActions>
+                          <Button onClick={() => { setResetModalOpen(false); setPreviewData(null); setConfirmText(''); }} disabled={resetting}>Cancelar</Button>
+                          <Button color="error" variant="contained" disabled={confirmText !== 'Resetar Minha Conta' || resetting} onClick={async () => {
+                            setResetting(true);
+                            try {
+                              const resp = await axios.post('/api/me/reset-all', {}, { withCredentials: true });
+                              if (resp.status === 200) {
+                                setSnackMessage('Conta reiniciada. As configurações e categorias iniciais foram restauradas.');
+                                setSnackOpen(true);
+                                const novas = await carregarCategorias();
+                                setCategorias(novas as any[]);
+                                try { const ru = await axios.get('/api/me', { withCredentials: true }); setUsuario(ru.data); } catch {}
+                                setResetModalOpen(false);
+                                setPreviewData(null);
+                                setConfirmText('');
+                              } else {
+                                setSnackMessage('Falha ao resetar conta');
+                                setSnackOpen(true);
+                              }
+                            } catch (e:any) {
+                              const msg = (e?.response?.data) || e.message || 'Erro desconhecido';
+                              setSnackMessage(String(msg));
+                              setSnackOpen(true);
+                            } finally {
+                              setResetting(false);
+                            }
+                          }}>Confirmar Reset</Button>
+                        </DialogActions>
+                      </Dialog>
+                    </AccordionDetails>
+                  </Accordion>
 
               <Accordion sx={{ bgcolor: "transparent", color: "common.white", boxShadow: "none" }} expanded={editingConfigs} onChange={() => setEditingConfigs((s) => !s)}>
                 <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ color: "common.white" }} />}>
@@ -434,7 +616,7 @@ export default function PerfilPage() {
                         setSavingConfigs(true);
                         try {
                           // salvar apenas as configs alteradas
-                          const now = new Date().toISOString();
+                          const now = toBackendLocalString(new Date());
                           const payload: { configuracoes: Configuracao[] } = { configuracoes: [
                             { id: 'new-projecao_metodo', id_usuario: usuario!.id, chave: 'projecao_metodo', valor: projecaoMetodo, eh_publica: false, criado_em: now, atualizado_em: now },
                             { id: 'new-projecao_percentual_extremos', id_usuario: usuario!.id, chave: 'projecao_percentual_extremos', valor: String(projecaoPercentualExtremos), eh_publica: false, criado_em: now, atualizado_em: now },
@@ -450,7 +632,7 @@ export default function PerfilPage() {
                               if (idx >= 0) {
                                 prev[idx] = { ...prev[idx], valor };
                               } else {
-                                prev.push({ id: 'new-'+chave, id_usuario: u.id, chave, valor, eh_publica: false, criado_em: new Date().toISOString(), atualizado_em: new Date().toISOString() } as Configuracao);
+                                prev.push({ id: 'new-'+chave, id_usuario: u.id, chave, valor, eh_publica: false, criado_em: toBackendLocalString(new Date()), atualizado_em: toBackendLocalString(new Date()) } as Configuracao);
                               }
                             };
                             upsert('projecao_metodo', projecaoMetodo);
@@ -469,21 +651,7 @@ export default function PerfilPage() {
                         }
                       }}>{savingConfigs ? 'Salvando...' : 'Salvar configurações'}</Button>
                     </Box>
-                    <Box sx={{ mt: 3 }}>
-                      <Typography variant="subtitle2">Gerenciar categorias</Typography>
-                      <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 1 }}>
-                        <FormControl sx={{ minWidth: 220 }}>
-                          <InputLabel id="manage-cat-label">Categoria</InputLabel>
-                          <Select labelId="manage-cat-label" label="Categoria" value={catToDelete ?? ''} onChange={(e) => setCatToDelete(String(e.target.value))}>
-                            <MenuItem value="">Selecione</MenuItem>
-                            {categorias.map((c:any) => (
-                              <MenuItem key={c.id} value={c.id}>{c.nome}</MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
-                        <Button variant="outlined" color="error" disabled={!catToDelete} onClick={() => setManageCatOpen(true)}>Excluir / Migrar</Button>
-                      </Stack>
-                    </Box>
+                    {/* Gerenciamento de categorias e ações perigosas movidas para Danger Zone Accordion */}
                   </Box>
                 </AccordionDetails>
               </Accordion>

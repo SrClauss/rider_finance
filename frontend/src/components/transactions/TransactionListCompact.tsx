@@ -25,9 +25,15 @@ export default function TransactionListCompact({ transactions }: Props) {
             <Typography fontWeight={700} color={isEntrada ? "#00e676" : "#ff1744"} sx={{ fontSize: 15, minWidth: 90, textAlign: 'right' }}>
               {(tx.valor / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
             </Typography>
-            {tx.categoria?.icone && (
-              <i className={`fa-solid ${tx.categoria.icone}`} style={{ fontSize: 20, marginLeft: 10, color: '#fff' }} title={tx.categoria.nome}></i>
-            )}
+            {tx.categoria?.icone && (() => {
+              const ic = tx.categoria.icone || '';
+              // Se for classe custom (icon-*) deixamos como está para usar ::before
+              const isCustom = ic.startsWith('icon-');
+              // Se já contém 'fa-' usamos tal como está, senão assumimos um nome FA simples e adicionamos 'fa-solid'
+              const isFaLike = ic.includes('fa-');
+              const className = isCustom ? ic : (isFaLike ? ic : `fa-solid ${ic}`);
+              return <i className={className} style={{ fontSize: 20, marginLeft: 10, color: (tx.categoria as any)?.cor || '#fff' }} title={tx.categoria.nome}></i>;
+            })()}
           </Paper>
         );
       })}

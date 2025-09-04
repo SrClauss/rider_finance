@@ -18,7 +18,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import { Transaction } from '@/interfaces/Transaction';
 import { useCategoriaContext } from '@/context/CategoriaContext';
 import { useMetasContext } from '@/context/MetasContext';
-import { getCurrentDateTime, formatForDateTimeLocal } from '@/utils/dateUtils';
+import { getCurrentDateTime, formatForDateTimeLocal, parseDateTime, toBackendLocalString } from '@/utils/dateUtils';
 import { useSession } from '@/context/SessionContext';
 import axios from 'axios';
 
@@ -84,7 +84,7 @@ const formReducer = (state: FormState, action: FormAction): FormState => {
         descricao: transaction.descricao || '',
         id_categoria: transaction.id_categoria || '',
         data: transaction.data
-          ? new Date(transaction.data).toISOString().slice(0, 16) // Formato YYYY-MM-DDTHH:mm para datetime-local
+          ? formatForDateTimeLocal(parseDateTime(transaction.data)) // Formato YYYY-MM-DDTHH:mm para datetime-local sem shift
           : getCurrentLocalDateTime(), // Usar função que retorna data/hora local correta
       };
     default:
@@ -151,7 +151,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
     try {
       // Se há sessão ativa, usar a data/hora atual em vez da selecionada
       const dataToSend = hasActiveSession
-        ? new Date().toISOString().replace(/\.\d{3}Z$/, '')
+        ? toBackendLocalString(new Date())
         : (() => {
             // Para datetime-local, criar data local sem timezone
             const [datePart, timePart] = formState.data.split('T');
@@ -205,7 +205,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
   };
 
   // Função para renderizar ícone FontAwesome
-  const renderIcon = (icone: string | undefined, size: string = '1.2em') => {
+  const renderIcon = (icone: string | undefined, color?: string, size: string = '1.2em') => {
     if (!icone) return null;
 
     return (
@@ -218,6 +218,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
           minWidth: size,
           display: 'inline-block',
           textAlign: 'center',
+          color: color || 'inherit'
         }}
       />
     );
@@ -327,7 +328,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
                 if (!cat) return <Typography color="text.secondary">Selecione uma categoria</Typography>;
                 return (
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    {renderIcon(cat.icone || undefined)}
+                    {renderIcon(cat.icone || undefined, cat.cor || undefined)}
                     <Typography sx={{ ml: 1 }}>{cat.nome}</Typography>
                     {renderTipo(cat.tipo)}
                   </Box>
@@ -342,7 +343,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
                 <MenuItem key={categoria.id} value={categoria.id}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
                     {/* Ícone FontAwesome antes do nome */}
-                    {renderIcon(categoria.icone || undefined)}
+                    {renderIcon(categoria.icone || undefined, categoria.cor || undefined)}
                     
                     {/* Nome da categoria */}
                     <Typography sx={{ ml: 1 }}>{categoria.nome}</Typography>
