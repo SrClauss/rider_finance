@@ -96,6 +96,7 @@ pub struct UpdateTransacaoPayload {
     pub tipo: Option<String>,
     pub descricao: Option<String>,
     pub data: Option<String>, // Mantém como String para aceitar do frontend
+    pub eventos: Option<i32>,
 }
 
 use crate::schema::transacoes;
@@ -107,6 +108,7 @@ pub struct TransacaoChangeset {
     pub tipo: Option<String>,
     pub descricao: Option<String>,
     pub data: Option<chrono::NaiveDateTime>, // Mantém como NaiveDateTime para o Diesel
+    pub eventos: Option<i32>,
 }
 
 pub async fn update_transacao_handler(Path(id_param): Path<String>, Json(payload): Json<UpdateTransacaoPayload>) -> Json<Option<TransacaoResponse>> {
@@ -124,6 +126,7 @@ pub async fn update_transacao_handler(Path(id_param): Path<String>, Json(payload
         tipo: payload.tipo,
         descricao: payload.descricao,
         data: parsed_data,
+    eventos: payload.eventos,
     };
     diesel::update(transacoes.filter(id.eq(&id_param)))
         .set(changeset)
@@ -135,6 +138,7 @@ pub async fn update_transacao_handler(Path(id_param): Path<String>, Json(payload
             id_usuario: t.id_usuario,
             id_categoria: t.id_categoria,
             valor: t.valor,
+            eventos: t.eventos,
             tipo: t.tipo,
             descricao: t.descricao,
             data: t.data,
@@ -157,6 +161,7 @@ pub struct CreateTransacaoPayload {
     pub tipo: String,
     pub descricao: Option<String>,
     pub data: Option<String>, // Alterado para String para aceitar formato do frontend
+    pub eventos: Option<i32>,
 }
 
 #[derive(Serialize)]
@@ -166,6 +171,7 @@ pub struct TransacaoResponse {
     pub id_usuario: String,
     pub id_categoria: String,
     pub valor: i32,
+    pub eventos: i32,
     pub tipo: String,
     pub descricao: Option<String>,
     pub data: chrono::NaiveDateTime,
@@ -196,6 +202,7 @@ pub async fn create_transacao_handler(jar: CookieJar, Json(payload): Json<Create
         id_usuario: user_id.clone(),
         id_categoria: payload.id_categoria,
         valor: payload.valor,
+    eventos: payload.eventos.unwrap_or(1),
         tipo: payload.tipo,
         descricao: payload.descricao,
         data: nova_data,
@@ -212,6 +219,7 @@ pub async fn create_transacao_handler(jar: CookieJar, Json(payload): Json<Create
         id_usuario: nova_transacao.id_usuario,
         id_categoria: nova_transacao.id_categoria,
         valor: nova_transacao.valor,
+    eventos: nova_transacao.eventos,
         tipo: nova_transacao.tipo,
         descricao: nova_transacao.descricao,
         data: nova_transacao.data,
@@ -226,6 +234,7 @@ pub async fn get_transacao_handler(Path(id_param): Path<String>) -> Json<Option<
             id_usuario: t.id_usuario,
             id_categoria: t.id_categoria,
             valor: t.valor,
+            eventos: t.eventos,
             tipo: t.tipo,
             descricao: t.descricao,
             data: t.data,
@@ -323,10 +332,11 @@ pub async fn list_transacoes_handler(
         id: t.id,
         id_usuario: t.id_usuario,
         id_categoria: t.id_categoria,
-        valor: t.valor,
-        tipo: t.tipo,
-        descricao: t.descricao,
-        data: t.data,
+    valor: t.valor,
+    eventos: t.eventos,
+    tipo: t.tipo,
+    descricao: t.descricao,
+    data: t.data,
     }).collect();
 
     Json(PaginatedTransacoes {

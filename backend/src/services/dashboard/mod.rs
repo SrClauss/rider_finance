@@ -531,13 +531,14 @@ pub async fn dashboard_stats_handler(
     fn soma_corridas(id_usuario: &str, inicio: NaiveDateTime, fim: NaiveDateTime, conn: &mut diesel::PgConnection) -> Option<u32> {
         // Contar corridas via transacoes do tipo 'entrada' (mais confiável/consistente com o que o usuário vê)
         use crate::schema::transacoes::dsl as transacao_dsl;
+        // Agora soma o campo `eventos` em vez de contar linhas, pois uma transação pode representar múltiplos eventos
         transacao_dsl::transacoes
             .filter(transacao_dsl::id_usuario.eq(id_usuario))
             .filter(transacao_dsl::data.ge(inicio))
             .filter(transacao_dsl::data.le(fim))
             .filter(transacao_dsl::tipo.eq("entrada"))
-            .select(diesel::dsl::count(transacao_dsl::id))
-            .first::<i64>(conn).ok().map(|v| v as u32)
+            .select(diesel::dsl::sum(transacao_dsl::eventos))
+            .first::<Option<i64>>(conn).ok().flatten().map(|v| v as u32)
     }
     fn soma_horas(id_usuario: &str, inicio: NaiveDateTime, fim: NaiveDateTime, conn: &mut diesel::PgConnection) -> Option<i32> {
         use crate::schema::sessoes_trabalho::dsl as sessao_dsl;
@@ -620,6 +621,7 @@ pub async fn dashboard_stats_handler(
                 .select(diesel::dsl::sum(transacao_dsl::valor))
                 .first::<Option<i64>>(conn).unwrap_or(Some(0)).unwrap_or(0) as i32
         };
+        // Somar eventos nas transacoes de entrada para estas categorias
         let corridas_i64: i64 = if cat_ids.is_empty() {
             0
         } else {
@@ -629,8 +631,8 @@ pub async fn dashboard_stats_handler(
                 .filter(transacao_dsl::data.le(fim_hoje))
                 .filter(transacao_dsl::tipo.eq("entrada"))
                 .filter(transacao_dsl::id_categoria.eq_any(cat_ids.clone()))
-                .select(diesel::dsl::count(transacao_dsl::id))
-                .first::<i64>(conn).unwrap_or(0)
+                .select(diesel::dsl::sum(transacao_dsl::eventos))
+                .first::<Option<i64>>(conn).unwrap_or(Some(0)).unwrap_or(0)
         };
         let corridas: u32 = corridas_i64.try_into().unwrap_or(0);
         let (icone, cor) = categorias.get(0).map(|c| (c.icone.clone(), c.cor.clone())).unwrap_or((None, None));
@@ -843,6 +845,7 @@ fn top_source_for_period(tipo: &str, inicio: NaiveDateTime, fim: NaiveDateTime, 
                 };
 
                 // conta corridas como número de transações de entrada associadas às categorias
+                // Somar eventos em vez de contar linhas
                 let corridas_i64: i64 = if cat_ids.is_empty() {
                     0
                 } else {
@@ -852,8 +855,8 @@ fn top_source_for_period(tipo: &str, inicio: NaiveDateTime, fim: NaiveDateTime, 
                         .filter(transacao_dsl::data.le(fim_hoje))
                         .filter(transacao_dsl::tipo.eq("entrada"))
                         .filter(transacao_dsl::id_categoria.eq_any(cat_ids.clone()))
-                        .select(diesel::dsl::count(transacao_dsl::id))
-                        .first::<i64>(conn).unwrap_or(0)
+                        .select(diesel::dsl::sum(transacao_dsl::eventos))
+                        .first::<Option<i64>>(conn).unwrap_or(Some(0)).unwrap_or(0)
                 };
                 let corridas: u32 = corridas_i64.try_into().unwrap_or(0);
 

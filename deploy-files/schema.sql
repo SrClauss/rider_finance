@@ -78,6 +78,7 @@ CREATE TABLE transacoes (
     id_usuario VARCHAR NOT NULL,
     id_categoria VARCHAR NOT NULL,
     valor INT NOT NULL,
+    eventos INT NOT NULL DEFAULT 1,
     descricao VARCHAR,
     tipo VARCHAR NOT NULL,
     data TIMESTAMP NOT NULL,

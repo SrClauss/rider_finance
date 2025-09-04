@@ -20,6 +20,7 @@ export interface SessaoComTransacoes {
   transacoes: Array<{
     id: string;
     valor: number;
+  eventos?: number;
     tipo: "entrada" | "saida";
     descricao?: string;
     data: string;

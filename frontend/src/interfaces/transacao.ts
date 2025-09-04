@@ -3,6 +3,7 @@ export interface Transacao {
   id_usuario: string;
   id_categoria: string;
   valor: number;
+  eventos?: number;
   descricao?: string;
   tipo: string;
   data: string; // ISO string

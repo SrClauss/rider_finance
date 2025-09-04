@@ -259,6 +259,7 @@ pub async fn seed_movimentacao_robusta() {
                 tipo: "entrada".to_string(),
                 descricao: Some("Seed entrada".to_string()),
                 data: Some(inicio_val.to_string()),
+                eventos: Some(1),
             };
             let _ = create_transacao_handler(jar.clone(), axum::Json(transacao_payload)).await;
         }
@@ -281,6 +282,7 @@ pub async fn seed_movimentacao_robusta() {
                 tipo: "saida".to_string(),
                 descricao: Some("Seed saida".to_string()),
                 data: Some(inicio_val.to_string()),
+                eventos: Some(1),
             };
             let _ = create_transacao_handler(jar.clone(), axum::Json(transacao_payload)).await;
         }

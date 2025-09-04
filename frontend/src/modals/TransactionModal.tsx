@@ -40,6 +40,7 @@ interface FormState {
   descricao: string;
   id_categoria: string;
   data: string;
+  eventos?: string;
 }
 
 // Ações do reducer
@@ -49,8 +50,10 @@ type FormAction =
   | { type: 'SET_DESCRICAO'; payload: string }
   | { type: 'SET_CATEGORIA'; payload: string }
   | { type: 'SET_DATA'; payload: string }
+  | { type: 'SET_EVENTOS'; payload: string }
   | { type: 'RESET_FORM' }
   | { type: 'LOAD_TRANSACTION'; payload: Transaction };
+// (SET_EVENTOS merged into FormAction above)
 
 // Função para obter data/hora local no formato correto para datetime-local
 const getCurrentLocalDateTime = () => {
@@ -68,13 +71,16 @@ const formReducer = (state: FormState, action: FormAction): FormState => {
       return { ...state, id_categoria: action.payload };
     case 'SET_DATA':
       return { ...state, data: action.payload };
+    case 'SET_EVENTOS':
+      return { ...state, eventos: action.payload };
     case 'RESET_FORM':
       return {
         valor: '',
         tipo: '',
         descricao: '',
         id_categoria: '',
-        data: getCurrentLocalDateTime(), // Usar função que retorna data/hora local correta
+  data: getCurrentLocalDateTime(), // Usar função que retorna data/hora local correta
+  eventos: '1',
       };
     case 'LOAD_TRANSACTION':
       const transaction = action.payload;
@@ -86,6 +92,7 @@ const formReducer = (state: FormState, action: FormAction): FormState => {
         data: transaction.data
           ? formatForDateTimeLocal(parseDateTime(transaction.data)) // Formato YYYY-MM-DDTHH:mm para datetime-local sem shift
           : getCurrentLocalDateTime(), // Usar função que retorna data/hora local correta
+  eventos: transaction.eventos ? transaction.eventos.toString() : '1',
       };
     default:
       return state;
@@ -112,6 +119,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
     descricao: '',
     id_categoria: '',
     data: getCurrentLocalDateTime(), // Usar função que retorna data/hora local correta
+    eventos: '1',
   });
 
   // Carregar transação para edição quando o modal abrir ou quando a transação mudar
@@ -156,7 +164,8 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
       const payload = {
         id_categoria: formState.id_categoria,
         valor: Number(Math.round(parseFloat(formState.valor) * 100)), // Garantir que seja number
-        tipo: selectedCategoria?.tipo || '', // Tipo vem da categoria selecionada
+  tipo: selectedCategoria?.tipo || '', // Tipo vem da categoria selecionada
+  eventos: Math.max(1, Number(parseInt(formState.eventos || '1', 10) || 1)),
         descricao: formState.descricao || undefined, // Usar undefined em vez de null para Option<String>
         data: dataToSend, // Usar data atual se sessão ativa, senão usar a selecionada
       };
@@ -365,6 +374,23 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
               inputLabel: {
                 shrink: true,
               },
+              input: {
+                sx: { borderRadius: 2 },
+              },
+            }}
+          />
+
+          {/* Campo Eventos */}
+          <TextField
+            label="Eventos (n)"
+            type="number"
+            fullWidth
+            variant="outlined"
+            value={formState.eventos}
+            onChange={(e) => dispatch({ type: 'SET_EVENTOS', payload: e.target.value })}
+            inputProps={{ min: 1 }}
+            helperText="Quantos eventos esse lançamento representa (>=1)"
+            slotProps={{
               input: {
                 sx: { borderRadius: 2 },
               },

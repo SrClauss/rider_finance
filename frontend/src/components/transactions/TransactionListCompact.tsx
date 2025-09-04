@@ -17,8 +17,11 @@ export default function TransactionListCompact({ transactions }: Props) {
         const isEntrada = tx.tipo === 'entrada';
         return (
           <Paper key={tx.id} sx={{ p: 1.2, bgcolor: "#232733", color: "#fff", borderRadius: 2, display: "flex", alignItems: "center", gap: 1, minHeight: 48 }}>
-            <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Typography fontWeight={600} sx={{ fontSize: 15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tx.descricao || "Sem descrição"}</Typography>
+            <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography fontWeight={600} sx={{ fontSize: 15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tx.descricao || "Sem descrição"}</Typography>
+                <Typography variant="caption" color="#aaa" sx={{ fontSize: 11 }}>{(tx.eventos ?? 1) === 1 ? '1 evento' : `${tx.eventos ?? 1} eventos`}</Typography>
+              </Box>
               <Typography variant="body2" color="#aaa" sx={{ fontSize: 12 }}>{new Date(tx.data).toLocaleDateString("pt-BR")}</Typography>
             </Box>
             <Chip label={isEntrada ? "Receita" : "Despesa"} color={isEntrada ? "success" : "error"} size="small" sx={{ fontWeight: 700, fontSize: 12 }} />

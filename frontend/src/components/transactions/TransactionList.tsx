@@ -24,10 +24,15 @@ export default function TransactionList({ transactions, onEdit, onDelete }: Prop
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
       {transactions.map((tx) => (
         <Paper key={tx.id} sx={{ p: 1.5, bgcolor: "#232733", color: "#fff", borderRadius: 2, display: "flex", flexDirection: "column", gap: 0.5 }}>
-          {/* Linha 1: Descrição */}
+          {/* Linha 1: Descrição (esquerda) + divider + eventos (direita) */}
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
-            <Typography variant="h6" fontWeight={700} sx={{ fontSize: '1rem' }}>{tx.descricao || "Sem descrição"}</Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+              <Typography variant="h6" fontWeight={700} sx={{ fontSize: '1rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tx.descricao || "Sem descrição"}</Typography>
+            </Box>
             <Divider sx={{ flexGrow: 1, ml: 2, borderColor: '#fff', opacity: 0.3 }} />
+            <Typography variant="caption" color="#aaa" sx={{ fontSize: 12, ml: 2, whiteSpace: 'nowrap' }}>
+              {(tx.eventos ?? 1) === 1 ? '1 evento' : `${tx.eventos ?? 1} eventos`}
+            </Typography>
           </Box>
           
           {/* Linha 2: Data/hora à esquerda, Receita/Despesa e Valor à direita */}
