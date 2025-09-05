@@ -10,5 +10,7 @@ pub use categoria::*;
 pub use transacao::*;
 pub use sessao_trabalho::*;
 pub use meta::*;
+pub mod admin;
+pub use admin::*;
 
 

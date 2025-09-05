@@ -49,6 +49,8 @@ mod tests {
             nome_usuario: "user_test".to_string(),
             email: "teste@teste.com".to_string(),
             senha: "senha123".to_string(),
+            blocked: false,
+            blocked_date: None,
             nome_completo: "Teste".to_string(),
             telefone: "11999999999".to_string(),
             veiculo: "Carro".to_string(),

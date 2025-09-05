@@ -1,4 +1,5 @@
 pub mod checkout;
+pub mod verify;
 use axum::Json;
 use diesel::{ExpressionMethods, OptionalExtension, QueryDsl, RunQueryDsl};
 use crate::models::assinatura::{Assinatura, NewAssinatura};
@@ -68,19 +69,19 @@ pub async fn renovar_assinatura_por_usuario(id_usuario_param: String, meses: i64
                 a.periodo_inicio = hoje;
                 a.periodo_fim = hoje + delta;
             } else {
-                a.periodo_fim = a.periodo_fim + delta;
+                a.periodo_fim += delta;
             }
             a.atualizado_em = hoje;
 
             diesel::update(assinaturas.filter(assinatura_id.eq(&a.id)))
                 .set((periodo_inicio.eq(a.periodo_inicio), periodo_fim.eq(a.periodo_fim), assinatura_atualizado_em.eq(a.atualizado_em)))
                 .execute(conn)
-                .map_err(|e| format!("Erro ao atualizar assinatura: {:?}", e))?;
+                 .map_err(|e| format!("Erro ao atualizar assinatura: {e:?}"))?;
 
             Ok(())
         }
-        Err(diesel::result::Error::NotFound) => Err(format!("Assinatura não encontrada para usuário: {}", id_usuario_param)),
-        Err(e) => Err(format!("Erro ao buscar assinatura: {:?}", e)),
+               Err(diesel::result::Error::NotFound) => Err(format!("Assinatura não encontrada para usuário: {id_usuario_param}")),
+    Err(e) => Err(format!("Erro ao buscar assinatura: {e:?}")),
     }
 }
 

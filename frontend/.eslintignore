@@ -1,0 +1,11 @@
+.next
+node_modules
+out
+dist
+build
+.vscode
+.env*
+*.log
+
+# Optional: ignore local type generation
+.next/types

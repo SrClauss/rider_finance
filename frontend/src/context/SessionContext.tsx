@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import axios from 'axios';
 import { SessaoComTransacoes } from '@/interfaces/SessaoComTransacoes';
 import { getCurrentDateTime } from '@/utils/dateUtils';
+import { usePathname } from 'next/navigation';
 
 
 
@@ -70,7 +71,12 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     try { localStorage.setItem('rf_panel_open', panelOpen ? '1' : '0'); } catch {}
   }, [panelOpen]);
 
+  const pathname = usePathname();
+
   useEffect(() => {
+    // don't initialize regular user session logic when inside admin UI
+    if (typeof pathname === 'string' && pathname.startsWith('/admin')) return;
+
     let mounted = true;
     const init = async () => {
       try {

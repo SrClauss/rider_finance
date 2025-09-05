@@ -107,6 +107,8 @@ diesel::table! {
         nome_completo -> Varchar,
         telefone -> Varchar,
         veiculo -> Varchar,
+        blocked -> Bool,
+        blocked_date -> Nullable<Timestamp>,
         criado_em -> Timestamp,
         atualizado_em -> Timestamp,
         ultima_tentativa_redefinicao -> Timestamp,
@@ -117,6 +119,16 @@ diesel::table! {
         province -> Varchar,
         city -> Varchar,
         cpfcnpj -> Varchar,
+    }
+}
+
+diesel::table! {
+    admins (id) {
+        id -> Varchar,
+        username -> Varchar,
+        password_hash -> Varchar,
+        criado_em -> Timestamp,
+        atualizado_em -> Timestamp,
     }
 }
 

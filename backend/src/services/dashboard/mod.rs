@@ -20,7 +20,7 @@ pub fn regressao_linear(xs: &[f64], ys: &[f64]) -> Option<(f64, f64)> {
 
 // Calcula média móvel simples do final do vetor com janela `window`.
 // Retorna None se o vetor for menor que a janela.
-fn media_movel(data: &Vec<i32>, window: usize) -> Option<i32> {
+fn media_movel(data: &[i32], window: usize) -> Option<i32> {
     if data.len() < window || window == 0 {
         return None;
     }
@@ -32,11 +32,11 @@ fn media_movel(data: &Vec<i32>, window: usize) -> Option<i32> {
 
 // Calcula média excluindo uma porcentagem de extremos (percent por cento de cada extremidade).
 // Se, após exclusão, não restarem elementos, usa a média de todos.
-fn media_excluindo_extremos(data: &Vec<i32>, percent: usize) -> i32 {
+fn media_excluindo_extremos(data: &[i32], percent: usize) -> i32 {
     if data.is_empty() {
         return 0;
     }
-    let mut v = data.clone();
+    let mut v = data.to_owned();
     v.sort();
     let len = v.len();
     let to_exclude = ((len as f64) * (percent as f64) / 100.0).floor() as usize;
@@ -314,7 +314,7 @@ pub async fn dashboard_stats_handler(
         .num_days();
     let mut soma_ganhos_mes = 0;
     for i in 0..dias_passados_mes {
-        let data_dia = inicio_mes + chrono::Duration::days(i as i64);
+    let data_dia = inicio_mes + chrono::Duration::days(i);
         let inicio_dia = NaiveDateTime::new(data_dia, chrono::NaiveTime::from_hms_opt(0,0,0).unwrap());
         let fim_dia = NaiveDateTime::new(data_dia, chrono::NaiveTime::from_hms_opt(23,59,59).unwrap());
         let ganhos_dia: i32 = transacao_dsl::transacoes
@@ -337,7 +337,7 @@ pub async fn dashboard_stats_handler(
     let dias_passados_semana = (hoje - inicio_semana).num_days() + 1;
     let mut soma_ganhos_semana = 0;
     for i in 0..dias_passados_semana {
-        let data_dia = inicio_semana + chrono::Duration::days(i as i64);
+    let data_dia = inicio_semana + chrono::Duration::days(i);
         let inicio_dia = NaiveDateTime::new(data_dia, chrono::NaiveTime::from_hms_opt(0,0,0).unwrap());
         let fim_dia = NaiveDateTime::new(data_dia, chrono::NaiveTime::from_hms_opt(23,59,59).unwrap());
         let ganhos_dia: i32 = transacao_dsl::transacoes
@@ -599,7 +599,7 @@ pub async fn dashboard_stats_handler(
 
     // construir mapa de platforms (preencher com nomes comuns depois)
     let mut platforms_map: HashMap<String, PlatformResult> = HashMap::new();
-    let platform_names = vec!["Corrida Uber".to_string(), "Corrida 99".to_string()];
+    let platform_names = ["Corrida Uber".to_string(), "Corrida 99".to_string()];
     for name in platform_names.iter() {
         use crate::schema::categorias::dsl as cat_dsl;
         let categorias: Vec<crate::models::Categoria> = cat_dsl::categorias
@@ -635,7 +635,7 @@ pub async fn dashboard_stats_handler(
                 .first::<Option<i64>>(conn).unwrap_or(Some(0)).unwrap_or(0)
         };
         let corridas: u32 = corridas_i64.try_into().unwrap_or(0);
-        let (icone, cor) = categorias.get(0).map(|c| (c.icone.clone(), c.cor.clone())).unwrap_or((None, None));
+    let (icone, cor) = categorias.first().map(|c| (c.icone.clone(), c.cor.clone())).unwrap_or((None, None));
         platforms_map.insert(name.clone(), PlatformResult { ganhos, corridas, icone, cor, periodo: "hoje".to_string() });
     }
     // obter top sources (receitas e despesas)
@@ -702,27 +702,27 @@ pub async fn dashboard_stats_handler(
         horas_mes_passado: soma_horas(&id_usuario, inicio_mes_passado_ndt, fim_mes_passado_ndt, conn),
 
     eficiencia: Some(eficiencia),
-    meta_diaria: meta_diaria,
-    meta_semanal: meta_semanal,
-    tendencia_ganhos: tendencia_ganhos,
-    tendencia_gastos: tendencia_gastos,
-    tendencia_corridas: tendencia_corridas,
-    ganhos_7dias: ganhos_7dias,
-    gastos_7dias: gastos_7dias,
-    lucro_7dias: lucro_7dias,
-    corridas_7dias: corridas_7dias,
-    horas_7dias: horas_7dias,
-    ultimos_30_dias_labels: ultimos_30_dias_labels,
-    ganhos_30dias: ganhos_30dias,
-    gastos_30dias: gastos_30dias,
-    lucro_30dias: lucro_30dias,
-    corridas_30dias: corridas_30dias,
-    horas_30dias: horas_30dias,
-    projecao_mes: projecao_mes,
-    projecao_semana: projecao_semana,
+    meta_diaria,
+    meta_semanal,
+    tendencia_ganhos,
+    tendencia_gastos,
+    tendencia_corridas,
+    ganhos_7dias,
+    gastos_7dias,
+    lucro_7dias,
+    corridas_7dias,
+    horas_7dias,
+    ultimos_30_dias_labels,
+    ganhos_30dias,
+    gastos_30dias,
+    lucro_30dias,
+    corridas_30dias,
+    horas_30dias,
+    projecao_mes,
+    projecao_semana,
     trend_method: projecao_metodo,
     platforms: platforms_map,
-    top_sources: top_sources,
+    top_sources,
     };
     Json(stats)
 }
@@ -861,7 +861,7 @@ fn top_source_for_period(tipo: &str, inicio: NaiveDateTime, fim: NaiveDateTime, 
                 let corridas: u32 = corridas_i64.try_into().unwrap_or(0);
 
                 // escolhe icone e cor da primeira categoria encontrada (se houver)
-                let (icone, cor) = categorias.get(0).map(|c| (c.icone.clone(), c.cor.clone())).unwrap_or((None, None));
+            let (icone, cor) = categorias.first().map(|c| (c.icone.clone(), c.cor.clone())).unwrap_or((None, None));
 
                 // preparar objeto de retorno com icone/cor
                 let pr = PlatformResult { ganhos, corridas, icone, cor, periodo: "hoje".to_string() };

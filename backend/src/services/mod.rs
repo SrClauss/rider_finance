@@ -10,6 +10,7 @@ pub mod seed;
 pub mod assinatura;
 pub mod usuario;
 pub mod sessao_trabalho;
+pub mod admin;
 
 
 

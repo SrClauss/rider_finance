@@ -3,16 +3,22 @@ import axios from "axios";
 import React, { useEffect, useRef } from "react";
 import { useSession } from '@/context/SessionContext';
 import { useMetasContext } from '@/context/MetasContext';
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 
 export default function InitialDataLoader({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { setSessao } = useSession();
   const { dispatchMetas, dispatchTransacoes } = useMetasContext();
   const hasLoadedRef = useRef(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     const validateAndLoadData = async () => {
+      // Skip global validation for admin routes and the public login page so admin login can render
+      if (typeof pathname === 'string' && (pathname.startsWith('/admin') || pathname === '/login')) {
+        console.log('InitialDataLoader: skipping for admin or login route:', pathname);
+        return;
+      }
       if (hasLoadedRef.current) return; // Já carregou, não fazer novamente
 
       try {
@@ -102,8 +108,8 @@ export default function InitialDataLoader({ children }: { children: React.ReactN
       }
     };
 
-    validateAndLoadData();
-  }, [router, setSessao, dispatchMetas, dispatchTransacoes]);
+  validateAndLoadData();
+  }, [router, setSessao, dispatchMetas, dispatchTransacoes, pathname]);
 
   return <>{children}</>;
 }

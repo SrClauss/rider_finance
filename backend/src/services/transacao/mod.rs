@@ -32,7 +32,7 @@ pub async fn relatorio_transacoes_handler(
     }
     if let Some(desc) = filtro.descricao.clone() {
         if !desc.trim().is_empty() {
-            query = query.filter(descricao.ilike(format!("%{}%", desc)));
+            query = query.filter(descricao.ilike(format!("%{desc}%")));
         }
     }
     if let Some(tipo_f) = filtro.tipo.clone() {
@@ -287,7 +287,7 @@ pub async fn list_transacoes_handler(
         count_query = count_query.filter(id_categoria.eq(cat));
     }
     if let Some(ref desc) = filtro.descricao {
-        count_query = count_query.filter(descricao.ilike(format!("%{}%", desc)));
+    count_query = count_query.filter(descricao.ilike(format!("%{desc}%")));
     }
     if let Some(ref tipo_f) = filtro.tipo {
         count_query = count_query.filter(tipo.eq(tipo_f));
@@ -308,7 +308,7 @@ pub async fn list_transacoes_handler(
         data_query = data_query.filter(id_categoria.eq(cat));
     }
     if let Some(ref desc) = filtro.descricao {
-        data_query = data_query.filter(descricao.ilike(format!("%{}%", desc)));
+    data_query = data_query.filter(descricao.ilike(format!("%{desc}%")));
     }
     if let Some(ref tipo_f) = filtro.tipo {
         data_query = data_query.filter(tipo.eq(tipo_f));

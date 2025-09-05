@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::db;
 use diesel::prelude::*;
 use crate::schema::usuarios::dsl::*;
-use crate::services::auth::login::extract_user_id_from_cookie;
+use crate::services::auth::login::extract_active_user_id_from_cookie;
 use hyper::StatusCode;
 
 #[derive(Serialize)]
@@ -16,7 +16,7 @@ struct ResetAllResponse {
 pub async fn reset_all_user_data_handler(cookie_jar: CookieJar) -> impl IntoResponse {
     let conn = &mut db::establish_connection();
 
-    let user_id = match extract_user_id_from_cookie(&cookie_jar) {
+    let user_id = match extract_active_user_id_from_cookie(&cookie_jar) {
         Some(uid) => uid,
         None => return (StatusCode::UNAUTHORIZED, Json(ResetAllResponse { success: false, message: Some("Usuário não autenticado".to_string()) })).into_response(),
     };
@@ -63,7 +63,7 @@ pub async fn reset_all_user_data_handler(cookie_jar: CookieJar) -> impl IntoResp
 
     match res {
         Ok(_) => (StatusCode::OK, Json(ResetAllResponse { success: true, message: None })).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(ResetAllResponse { success: false, message: Some(format!("Falha ao resetar dados: {}", e)) })).into_response(),
+    Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(ResetAllResponse { success: false, message: Some(format!("Falha ao resetar dados: {e}")) })).into_response(),
     }
 }
 
@@ -82,7 +82,7 @@ struct PreviewResetResponse {
 pub async fn preview_reset_handler(cookie_jar: CookieJar) -> impl IntoResponse {
     let conn = &mut db::establish_connection();
 
-    let user_id = match extract_user_id_from_cookie(&cookie_jar) {
+    let user_id = match extract_active_user_id_from_cookie(&cookie_jar) {
         Some(uid) => uid,
         None => return (StatusCode::UNAUTHORIZED, Json("Usuário não autenticado".to_string())).into_response(),
     };
@@ -128,7 +128,7 @@ struct UpdateMeResponse {
 pub async fn update_me_handler(cookie_jar: CookieJar, Json(payload): Json<UpdateMeRequest>) -> impl IntoResponse {
     let conn = &mut db::establish_connection();
 
-    let user_id = match extract_user_id_from_cookie(&cookie_jar) {
+    let user_id = match extract_active_user_id_from_cookie(&cookie_jar) {
         Some(uid) => uid,
         None => return (StatusCode::UNAUTHORIZED, Json("Usuário não autenticado".to_string())).into_response(),
     };
@@ -217,6 +217,8 @@ mod tests {
             nome_completo: "Teste".to_string(),
             telefone: "11999999999".to_string(),
             veiculo: "Carro".to_string(),
+            blocked: false,
+            blocked_date: None,
             criado_em: now,
             atualizado_em: now,
             ultima_tentativa_redefinicao: now,
@@ -267,6 +269,8 @@ mod tests {
             nome_completo: "Teste".to_string(),
             telefone: "11999999999".to_string(),
             veiculo: "Moto".to_string(),
+            blocked: false,
+            blocked_date: None,
             criado_em: now,
             atualizado_em: now,
             ultima_tentativa_redefinicao: now,
@@ -307,6 +311,8 @@ mod tests {
             nome_completo: "Teste".to_string(),
             telefone: "11999999999".to_string(),
             veiculo: "Bicicleta".to_string(),
+            blocked: false,
+            blocked_date: None,
             criado_em: now,
             atualizado_em: now,
             ultima_tentativa_redefinicao: now,
@@ -345,6 +351,8 @@ mod tests {
             nome_completo: "A".to_string(),
             telefone: "11999990000".to_string(),
             veiculo: "Carro".to_string(),
+            blocked: false,
+            blocked_date: None,
             criado_em: now,
             atualizado_em: now,
             ultima_tentativa_redefinicao: now,
@@ -364,6 +372,8 @@ mod tests {
             nome_completo: "B".to_string(),
             telefone: "11999990001".to_string(),
             veiculo: "Moto".to_string(),
+            blocked: false,
+            blocked_date: None,
             criado_em: now,
             atualizado_em: now,
             ultima_tentativa_redefinicao: now,

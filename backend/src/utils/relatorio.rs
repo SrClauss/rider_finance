@@ -19,7 +19,7 @@ fn categorias_map(conn: &mut diesel::PgConnection, usuario_id: &str) -> HashMap<
 /// Busca a configuração de máscara de data do usuário (ou padrão)
 fn buscar_mask_data(conn: &mut diesel::PgConnection, usuario_id: &str) -> String {
     use crate::schema::configuracoes::dsl::*;
-    let mask = configuracoes
+    configuracoes
         .filter(
             (id_usuario.eq(usuario_id).or(id_usuario.is_null()))
             .and(chave.eq("mask_data"))
@@ -28,13 +28,12 @@ fn buscar_mask_data(conn: &mut diesel::PgConnection, usuario_id: &str) -> String
         .first::<Configuracao>(conn)
         .ok()
         .and_then(|c| c.valor)
-        .unwrap_or_else(|| "%Y-%m-%d %H:%M:%S".to_string());
-    mask
+        .unwrap_or_else(|| "%Y-%m-%d %H:%M:%S".to_string())
 }
 
 fn formatar_moeda(valor: i32) -> String {
     let abs = (valor.abs() as f64) / 100.0;
-    let mut s = format!("{:.2}", abs);
+    let mut s = format!("{abs:.2}");
     let parts: Vec<&str> = s.split('.').collect();
     let int_part = parts[0];
     let dec_part = parts.get(1).unwrap_or(&"00");
@@ -47,7 +46,7 @@ fn formatar_moeda(valor: i32) -> String {
         formatted.push(*c);
     }
     let int_final: String = formatted.chars().rev().collect();
-    s = format!("R$ {},{}", int_final, dec_part);
+    s = format!("R$ {int_final},{dec_part}");
     s
 }
 
@@ -71,7 +70,7 @@ pub fn gerar_pdf(transacoes: &[Transacao], usuario_id: &str, conn: &mut diesel::
     for t in transacoes {
         let nome_categoria = cat_map.get(&t.id_categoria).cloned().unwrap_or("-".to_string());
         let valor_fmt = formatar_moeda(t.valor);
-        let valor_final = if t.tipo == "saida" { format!("-{}", valor_fmt) } else { valor_fmt.clone() };
+    let valor_final = if t.tipo == "saida" { format!("-{valor_fmt}") } else { valor_fmt.clone() };
         // Valor em vermelho se saída
         let font_valor = if t.tipo == "saida" { &font_bold } else { &font };
         let data_str = t.data.format(&mask_data).to_string();
@@ -117,7 +116,7 @@ pub fn gerar_xlsx(transacoes: &[Transacao], usuario_id: &str, conn: &mut diesel:
         let row = (i + 2) as u32;
         let nome_categoria = cat_map.get(&t.id_categoria).cloned().unwrap_or("-".to_string());
         let valor_fmt = formatar_moeda(t.valor);
-        let valor_final = if t.tipo == "saida" { format!("-{}", valor_fmt) } else { valor_fmt.clone() };
+    let valor_final = if t.tipo == "saida" { format!("-{valor_fmt}") } else { valor_fmt.clone() };
         let data_str = t.data.format(&mask_data).to_string();
         sheet.get_cell_mut((1, row)).set_value(data_str);
         sheet.get_cell_mut((2, row)).set_value(t.descricao.as_deref().unwrap_or(""));

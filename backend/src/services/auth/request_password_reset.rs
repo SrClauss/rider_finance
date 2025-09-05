@@ -62,12 +62,12 @@ pub async fn request_password_reset_handler(Json(payload): Json<RequestPasswordR
             let token = match encode(&Header::default(), &claims, &EncodingKey::from_secret(secret.as_ref())) {
                 Ok(t) => t,
                 Err(e) => {
-                    return Json(format!("Erro ao gerar token: {}", e));
+                    return Json(format!("Erro ao gerar token: {e}"));
                 }
             };
             let frontend_url = env::var("FRONTEND_URL").unwrap_or_else(|_| "http://localhost:3000".to_string());
-            let link = format!("{}/reset/{}", frontend_url, token);
-            let corpo_email = format!("<html><body><p>Para redefinir sua senha, clique no link abaixo:</p><a href='{}'>Redefinir senha</a></body></html>", link);
+            let link = format!("{frontend_url}/reset/{token}");
+            let corpo_email = format!("<html><body><p>Para redefinir sua senha, clique no link abaixo:</p><a href='{link}'>Redefinir senha</a></body></html>");
 
             // Enviar email real
             let smtp_server = env::var("YAHOO_SMTP_SERVER").unwrap_or_else(|_| "smtp.mail.yahoo.com".to_string());
@@ -94,7 +94,7 @@ pub async fn request_password_reset_handler(Json(payload): Json<RequestPasswordR
                 Ok(_response) => {
                 }
                 Err(e) => {
-                    return Json(format!("Erro ao enviar e-mail: {}", e));
+                    return Json(format!("Erro ao enviar e-mail: {e}"));
                 }
             }
 

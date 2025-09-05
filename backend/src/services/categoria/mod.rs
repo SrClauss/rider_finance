@@ -32,7 +32,8 @@ mod tests {
             criado_em: now,
             atualizado_em: now,
             ultima_tentativa_redefinicao: now,
-
+            blocked: false,
+            blocked_date: None,
             address: "Rua Teste".to_string(),
             address_number: "123".to_string(),
             complement: "Apto 1".to_string(),
@@ -68,6 +69,8 @@ mod tests {
                 nome_completo: "Teste".to_string(),
                 telefone: "11999999999".to_string(),
                 veiculo: "Carro".to_string(),
+                blocked: false,
+                blocked_date: None,
                 criado_em: now,
                 atualizado_em: now,
                 ultima_tentativa_redefinicao: now,
@@ -277,13 +280,10 @@ pub async fn delete_categoria_handler(Path(id_param): Path<String>) -> Json<bool
     let conn = &mut db::establish_connection();
     // Prevent deletion of reserved categories by name (if they belong to user)
     // Try to fetch category and if its name is reserved, disallow
-    match categorias.filter(id.eq(&id_param)).first::<Categoria>(conn).optional() {
-        Ok(Some(cat)) => {
-            if cat.nome == "Corrida Uber" || cat.nome == "Corrida 99" {
-                return Json(false);
-            }
+    if let Ok(Some(cat)) = categorias.filter(id.eq(&id_param)).first::<Categoria>(conn).optional() {
+        if cat.nome == "Corrida Uber" || cat.nome == "Corrida 99" {
+            return Json(false);
         }
-        _ => {}
     }
     let count = diesel::delete(categorias.filter(id.eq(id_param))).execute(conn).unwrap_or(0);
     Json(count > 0)
