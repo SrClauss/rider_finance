@@ -38,6 +38,7 @@ import { UsuarioMeResponse } from "@/interfaces/UsuarioMeResponse";
 import { Configuracao } from "@/interfaces/Configuracao";
 import { useRouter } from "next/navigation";
 import { extractErrorMessage } from '@/lib/errorUtils';
+import useFormReducer from '@/lib/useFormReducer';
 import { toBackendLocalString } from '@/utils/dateUtils';
 import { ExpandMore } from "@mui/icons-material";
 
@@ -69,9 +70,7 @@ export default function PerfilPage() {
   const [editingSubscription, setEditingSubscription] = useState(false);
   // Indica se alguma Accordion controlada está expandida — usado para ajustar largura do container
   const isAnyAccordionExpanded = editingConfigs || editingSubscription;
-  const [projecaoMetodo, setProjecaoMetodo] = useState<string>("media_movel_3");
-  const [projecaoPercentualExtremos, setProjecaoPercentualExtremos] = useState<number>(10);
-  const [maskMoeda, setMaskMoeda] = useState<string>("brl");
+  const { state: cfgForm, setField: setCfgField } = useFormReducer<{ projecaoMetodo: string; projecaoPercentualExtremos: number; maskMoeda: string; confirmText: string }>({ projecaoMetodo: 'media_movel_3', projecaoPercentualExtremos: 10, maskMoeda: 'brl', confirmText: '' });
   const [savingConfigs, setSavingConfigs] = useState(false);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [manageCatOpen, setManageCatOpen] = useState(false);
@@ -93,7 +92,7 @@ export default function PerfilPage() {
   };
   const [previewData, setPreviewData] = useState<PreviewData | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
-  const [confirmText, setConfirmText] = useState('');
+  // confirmText moved into cfgForm.confirmText
   const [resetting, setResetting] = useState(false);
 
   useEffect(() => {
@@ -137,11 +136,11 @@ export default function PerfilPage() {
   const cfgs: Configuracao[] = res.data.configuracoes || [];
   const find = (k: string) => cfgs.find((c) => c.chave === k)?.valor;
   const pm = find("projecao_metodo");
-  if (pm) setProjecaoMetodo(validateProjecaoMetodo(pm));
+  if (pm) setCfgField('projecaoMetodo', validateProjecaoMetodo(pm));
   const ppe = find("projecao_percentual_extremos");
-  if (ppe) setProjecaoPercentualExtremos(validatePercentualExtremos(parseInt(ppe, 10)));
+  if (ppe) setCfgField('projecaoPercentualExtremos', validatePercentualExtremos(parseInt(ppe, 10)));
   const mm = find("mask_moeda");
-  if (mm) setMaskMoeda(normalizeMaskMoeda(mm));
+  if (mm) setCfgField('maskMoeda', normalizeMaskMoeda(mm));
       } catch (err: unknown) {
         if (!mounted) return;
     const msg = extractErrorMessage(err);
@@ -156,6 +155,7 @@ export default function PerfilPage() {
     return () => {
       mounted = false;
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // --- helpers to validate/normalize configuration values ---
@@ -497,7 +497,7 @@ export default function PerfilPage() {
                       </Box>
 
                       {/* Reset modal - mostra preview e exige frase exata para confirmar */}
-                      <Dialog open={resetModalOpen} onClose={() => { if (!resetting) { setResetModalOpen(false); setPreviewData(null); setConfirmText(''); } }} fullWidth maxWidth="sm">
+                      <Dialog open={resetModalOpen} onClose={() => { if (!resetting) { setResetModalOpen(false); setPreviewData(null); setCfgField('confirmText', ''); } }} fullWidth maxWidth="sm">
                         <DialogTitle>Resetar Minha Conta</DialogTitle>
                         <DialogContent>
                           {loadingPreview ? (
@@ -513,7 +513,7 @@ export default function PerfilPage() {
                               <Typography>Configurações do usuário: <strong>{previewData.configuracoes ?? 0}</strong></Typography>
                               <Box sx={{ mt: 2 }}>
                                 <Typography variant="body2" color="error">Para confirmar, digite exatamente: <strong>Resetar Minha Conta</strong></Typography>
-                                <TextField fullWidth value={confirmText} onChange={(e) => setConfirmText(e.target.value)} placeholder="Digite a frase de confirmação" sx={{ mt: 1 }} />
+                                <TextField fullWidth value={cfgForm.confirmText} onChange={(e) => setCfgField('confirmText', e.target.value)} placeholder="Digite a frase de confirmação" sx={{ mt: 1 }} />
                               </Box>
                             </Box>
                           ) : (
@@ -523,8 +523,8 @@ export default function PerfilPage() {
                           )}
                         </DialogContent>
                         <DialogActions>
-                          <Button onClick={() => { setResetModalOpen(false); setPreviewData(null); setConfirmText(''); }} disabled={resetting}>Cancelar</Button>
-                          <Button color="error" variant="contained" disabled={confirmText !== 'Resetar Minha Conta' || resetting} onClick={async () => {
+                          <Button onClick={() => { setResetModalOpen(false); setPreviewData(null); setCfgField('confirmText', ''); }} disabled={resetting}>Cancelar</Button>
+                          <Button color="error" variant="contained" disabled={cfgForm.confirmText !== 'Resetar Minha Conta' || resetting} onClick={async () => {
                             setResetting(true);
                             try {
                               const resp = await axios.post('/api/me/reset-all', {}, { withCredentials: true });
@@ -536,7 +536,7 @@ export default function PerfilPage() {
                                 try { const ru = await axios.get('/api/me', { withCredentials: true }); setUsuario(ru.data); } catch {}
                                 setResetModalOpen(false);
                                 setPreviewData(null);
-                                setConfirmText('');
+                                setCfgField('confirmText', '');
                               } else {
                                 setSnackMessage('Falha ao resetar conta');
                                 setSnackOpen(true);
@@ -574,8 +574,8 @@ export default function PerfilPage() {
                           <Select
                             labelId="projecao-metodo-label"
                             label="Método"
-                            value={projecaoMetodo}
-                            onChange={(e) => setProjecaoMetodo(e.target.value as string)}
+                            value={cfgForm.projecaoMetodo}
+                            onChange={(e) => setCfgField('projecaoMetodo', e.target.value as string)}
                             sx={{ color: 'text.primary' }}
                           >
                             <MenuItem value="mediana">Mediana</MenuItem>
@@ -586,7 +586,7 @@ export default function PerfilPage() {
                           </Select>
                         </FormControl>
                         <Typography variant="body2" sx={{ opacity: 0.8 }}>
-                          Amostra: {projecaoMetodo === 'mediana' ? 'usa mediana dos valores' : projecaoMetodo === 'media' ? 'usa média dos valores' : `média móvel (${projecaoMetodo.split('_').pop()})`}
+                          Amostra: {cfgForm.projecaoMetodo === 'mediana' ? 'usa mediana dos valores' : cfgForm.projecaoMetodo === 'media' ? 'usa média dos valores' : `média móvel (${String(cfgForm.projecaoMetodo).split('_').pop()})`}
                         </Typography>
                       </Stack>
                     </Box>
@@ -595,7 +595,7 @@ export default function PerfilPage() {
                       <Typography variant="subtitle2">Percentual para excluir extremos</Typography>
                       <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 1 }}>
                         <FormControl sx={{ minWidth: 160 }}>
-                          <Select value={projecaoPercentualExtremos} onChange={(e) => setProjecaoPercentualExtremos(Number(e.target.value))}>
+                          <Select value={cfgForm.projecaoPercentualExtremos} onChange={(e) => setCfgField('projecaoPercentualExtremos', Number(e.target.value))}>
                             <MenuItem value={5}>5%</MenuItem>
                             <MenuItem value={10}>10%</MenuItem>
                             <MenuItem value={15}>15%</MenuItem>
@@ -603,7 +603,7 @@ export default function PerfilPage() {
                             <MenuItem value={25}>25%</MenuItem>
                           </Select>
                         </FormControl>
-                        <Typography variant="body2" sx={{ opacity: 0.8 }}>Exclui os {projecaoPercentualExtremos}% maiores/menores antes da projeção</Typography>
+                        <Typography variant="body2" sx={{ opacity: 0.8 }}>Exclui os {cfgForm.projecaoPercentualExtremos}% maiores/menores antes da projeção</Typography>
                       </Stack>
                     </Box>
 
@@ -612,13 +612,13 @@ export default function PerfilPage() {
                       <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 1 }}>
                         <FormControl sx={{ minWidth: 220 }}>
                           <InputLabel id="mask-moeda-label">Máscara</InputLabel>
-                          <Select labelId="mask-moeda-label" label="Máscara" value={maskMoeda} onChange={(e) => setMaskMoeda(e.target.value as string)}>
+                          <Select labelId="mask-moeda-label" label="Máscara" value={cfgForm.maskMoeda} onChange={(e) => setCfgField('maskMoeda', e.target.value as string)}>
                             <MenuItem value="brl">R$ 1.234,56 (BRL)</MenuItem>
                             <MenuItem value="usd">$1,234.56 (USD)</MenuItem>
                             <MenuItem value="eur">€1.234,56 (EUR)</MenuItem>
                           </Select>
                         </FormControl>
-                        <Typography variant="body2" sx={{ opacity: 0.8 }}>Exemplo: {maskMoeda === 'brl' ? 'R$ 1.234,56' : maskMoeda === 'usd' ? '$1,234.56' : '€1.234,56'}</Typography>
+                        <Typography variant="body2" sx={{ opacity: 0.8 }}>Exemplo: {cfgForm.maskMoeda === 'brl' ? 'R$ 1.234,56' : cfgForm.maskMoeda === 'usd' ? '$1,234.56' : '€1.234,56'}</Typography>
                       </Stack>
                     </Box>
 
@@ -627,9 +627,9 @@ export default function PerfilPage() {
                         // reset to values from usuario.configuracoes
                         const cfgs: Configuracao[] = usuario?.configuracoes || [];
                         const find = (k: string) => cfgs.find((c) => c.chave === k)?.valor;
-                        const pm = find('projecao_metodo'); if (pm) setProjecaoMetodo(pm);
-                        const ppe = find('projecao_percentual_extremos'); if (ppe) setProjecaoPercentualExtremos(parseInt(ppe,10) || 10);
-                        const mm = find('mask_moeda'); if (mm) setMaskMoeda(mm);
+                        const pm = find('projecao_metodo'); if (pm) setCfgField('projecaoMetodo', pm as string);
+                        const ppe = find('projecao_percentual_extremos'); if (ppe) setCfgField('projecaoPercentualExtremos', parseInt(ppe as string,10) || 10);
+                        const mm = find('mask_moeda'); if (mm) setCfgField('maskMoeda', mm as string);
                         setEditingConfigs(false);
                       }}>Cancelar</Button>
                       <Button variant="contained" disabled={savingConfigs} onClick={async () => {
@@ -638,9 +638,9 @@ export default function PerfilPage() {
                           // salvar apenas as configs alteradas
                           const now = toBackendLocalString(new Date());
                           const payload: { configuracoes: Configuracao[] } = { configuracoes: [
-                            { id: 'new-projecao_metodo', id_usuario: usuario!.id, chave: 'projecao_metodo', valor: projecaoMetodo, eh_publica: false, criado_em: now, atualizado_em: now },
-                            { id: 'new-projecao_percentual_extremos', id_usuario: usuario!.id, chave: 'projecao_percentual_extremos', valor: String(projecaoPercentualExtremos), eh_publica: false, criado_em: now, atualizado_em: now },
-                            { id: 'new-mask_moeda', id_usuario: usuario!.id, chave: 'mask_moeda', valor: maskMoeda, eh_publica: false, criado_em: now, atualizado_em: now },
+                            { id: 'new-projecao_metodo', id_usuario: usuario!.id, chave: 'projecao_metodo', valor: cfgForm.projecaoMetodo, eh_publica: false, criado_em: now, atualizado_em: now },
+                            { id: 'new-projecao_percentual_extremos', id_usuario: usuario!.id, chave: 'projecao_percentual_extremos', valor: String(cfgForm.projecaoPercentualExtremos), eh_publica: false, criado_em: now, atualizado_em: now },
+                            { id: 'new-mask_moeda', id_usuario: usuario!.id, chave: 'mask_moeda', valor: cfgForm.maskMoeda, eh_publica: false, criado_em: now, atualizado_em: now },
                           ] };
                           await axios.patch('/api/me', payload, { withCredentials: true });
                           // atualizar localmente: aplicar/atualizar as 3 chaves no array de configuracoes
@@ -655,9 +655,9 @@ export default function PerfilPage() {
                                 prev.push({ id: 'new-'+chave, id_usuario: u.id, chave, valor, eh_publica: false, criado_em: toBackendLocalString(new Date()), atualizado_em: toBackendLocalString(new Date()) } as Configuracao);
                               }
                             };
-                            upsert('projecao_metodo', projecaoMetodo);
-                            upsert('projecao_percentual_extremos', String(projecaoPercentualExtremos));
-                            upsert('mask_moeda', maskMoeda);
+                            upsert('projecao_metodo', cfgForm.projecaoMetodo);
+                            upsert('projecao_percentual_extremos', String(cfgForm.projecaoPercentualExtremos));
+                            upsert('mask_moeda', cfgForm.maskMoeda);
                             return { ...u, configuracoes: prev } as UsuarioMeResponse;
                           });
                           setSnackMessage('Configurações atualizadas');

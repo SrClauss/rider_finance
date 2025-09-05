@@ -1,24 +1,26 @@
 "use client";
-import React, { useState } from "react";
+import React from "react";
+import useFormReducer from '@/lib/useFormReducer';
 import { Paper, Typography, TextField, Button } from "@mui/material";
 import { useRouter } from "next/navigation";
 
 export default function ResetForm({ token }: { token: string }) {
-  const [novaSenha, setNovaSenha] = useState("");
-  const [confirmarSenha, setConfirmarSenha] = useState("");
-  const [mensagem, setMensagem] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const { state, setField, setLoading, setError } = useFormReducer({ novaSenha: '', confirmarSenha: '' });
+  const novaSenha = String(state.novaSenha ?? '');
+  const confirmarSenha = String(state.confirmarSenha ?? '');
+  const mensagem = state.error as string | null;
+  const loading = Boolean(state.loading);
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setMensagem(null);
+  setError(null);
     if (novaSenha.length < 6) {
-      setMensagem("A senha deve ter pelo menos 6 caracteres.");
+      setError("A senha deve ter pelo menos 6 caracteres.");
       return;
     }
     if (novaSenha !== confirmarSenha) {
-      setMensagem("As senhas não coincidem.");
+      setError("As senhas não coincidem.");
       return;
     }
     setLoading(true);
@@ -30,14 +32,14 @@ export default function ResetForm({ token }: { token: string }) {
       });
       const data = await resp.json();
       if (resp.ok && typeof data === "string" && data.includes("sucesso")) {
-        setMensagem("Senha redefinida com sucesso! Faça login.");
+        setError("Senha redefinida com sucesso! Faça login.");
         setTimeout(() => router.push("/login"), 2000);
       } else {
-        setMensagem(typeof data === "string" ? data : "Erro ao redefinir senha.");
+        setError(typeof data === "string" ? data : "Erro ao redefinir senha.");
       }
     } catch (err: unknown) {
       console.error('ResetForm error', err);
-      setMensagem("Erro ao conectar ao servidor.");
+      setError("Erro ao conectar ao servidor.");
     } finally {
       setLoading(false);
     }
@@ -53,7 +55,7 @@ export default function ResetForm({ token }: { token: string }) {
           label="Nova senha"
           type="password"
           value={novaSenha}
-          onChange={(e) => setNovaSenha(e.target.value)}
+          onChange={(e) => setField('novaSenha', e.target.value)}
           fullWidth
           required
           margin="normal"
@@ -62,7 +64,7 @@ export default function ResetForm({ token }: { token: string }) {
           label="Confirmar nova senha"
           type="password"
           value={confirmarSenha}
-          onChange={(e) => setConfirmarSenha(e.target.value)}
+          onChange={(e) => setField('confirmarSenha', e.target.value)}
           fullWidth
           required
           margin="normal"

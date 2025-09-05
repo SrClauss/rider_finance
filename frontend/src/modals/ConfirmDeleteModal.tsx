@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React from 'react';
+import useFormReducer from '@/lib/useFormReducer';
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Typography, Box } from "@mui/material";
 import axios from 'axios';
 import { extractErrorMessage } from '@/lib/errorUtils';
@@ -19,8 +20,9 @@ interface ConfirmDeleteModalProps {
 
 export default function ConfirmDeleteModal({ open, onClose, onConfirm, idToDelete = null, onDeleted, title = "Confirmar exclusão", description = "Tem certeza que deseja deletar este item? Esta ação não pode ser desfeita." }: ConfirmDeleteModalProps) {
   const { dispatchTransacoes } = useMetasContext(); // ← Corrigido: dispatchTransacoes (plural)
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { state, setLoading, setError } = useFormReducer({ loading: false, error: null as string | null });
+  const loading = Boolean(state.loading);
+  const error = String(state.error ?? '') || null;
 
   const handleDelete = async () => {
     // preserva antiga chamada externa
@@ -31,8 +33,8 @@ export default function ConfirmDeleteModal({ open, onClose, onConfirm, idToDelet
       setError('ID da transação não informado');
       return;
     }
-    setLoading(true);
-    setError(null);
+  setLoading(true);
+  setError(null);
     try {
       await axios.delete(`/api/transacao/${idToDelete}`);
       // atualiza MetasContext - cria objeto Transacao mínimo para dispatch

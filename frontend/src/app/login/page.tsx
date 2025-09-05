@@ -16,9 +16,11 @@ import Divider from "@mui/material/Divider";
 import NextLink from "next/link";
 import { DirectionsCar, Visibility, VisibilityOff } from "@mui/icons-material";
 import {ThemeProvider} from "@/theme/ThemeProvider";
-import React, { useReducer, useState } from "react";
+import React from "react";
 import { useRouter } from 'next/navigation';
 import axios from "axios";
+import useFormReducer from '@/lib/useFormReducer';
+import { extractErrorMessage } from '@/lib/errorUtils';
 
 type State = {
   usuario: string;
@@ -28,13 +30,6 @@ type State = {
   showPassword: boolean;
 };
 
-type Action =
-  | { type: "SET_USUARIO"; payload: string }
-  | { type: "SET_SENHA"; payload: string }
-  | { type: "SET_LOADING"; payload: boolean }
-  | { type: "SET_ERROR"; payload: string | null }
-  | { type: "SET_SHOW_PASSWORD"; payload: boolean };
-
 const initialState: State = {
   usuario: "",
   senha: "",
@@ -43,34 +38,17 @@ const initialState: State = {
   showPassword: false,
 };
 
-function reducer(state: State, action: Action): State {
-  switch (action.type) {
-    case "SET_USUARIO":
-      return { ...state, usuario: action.payload };
-    case "SET_SENHA":
-      return { ...state, senha: action.payload };
-    case "SET_LOADING":
-      return { ...state, loading: action.payload };
-    case "SET_ERROR":
-      return { ...state, error: action.payload };
-    case "SET_SHOW_PASSWORD":
-      return { ...state, showPassword: action.payload };
-    default:
-      return state;
-  }
-}
-
 export default function Page() {
-  const [state, dispatch] = useReducer(reducer, initialState);
-  const [toastOpen, setToastOpen] = useState(false);
-  const [toastMsg, setToastMsg] = useState<string | null>(null);
-  const [toastSeverity, setToastSeverity] = useState<'error'|'warning'|'info'|'success'>('error');
+  const { state, setField, setLoading, setError } = useFormReducer<State>({ ...initialState });
+  const [toastOpen, setToastOpen] = React.useState(false);
+  const [toastMsg, setToastMsg] = React.useState<string | null>(null);
+  const [toastSeverity, setToastSeverity] = React.useState<'error'|'warning'|'info'|'success'>('error');
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    dispatch({ type: "SET_LOADING", payload: true });
-    dispatch({ type: "SET_ERROR", payload: null });
+  setLoading(true);
+  setError(null);
     try {
       const response = await axios.post(
         "/api/login",
@@ -86,41 +64,16 @@ export default function Page() {
       if (response.status === 200) {
         await router.push('/dashboard');
       } else {
-        dispatch({ type: "SET_ERROR", payload: "Usuário ou senha inválidos" });
+        setError("Usuário ou senha inválidos");
       }
     } catch (err: unknown) {
-      let message = "Erro ao logar";
-      if (axios.isAxiosError(err)) {
-        message = err.response?.data?.message || err.message || message;
-      } else if (err instanceof Error) {
-        message = err.message;
-      }
-  dispatch({ type: "SET_ERROR", payload: message });
-  setToastMsg(message);
-  setToastSeverity('error');
-  setToastOpen(true);
-  // If backend indicates subscription problem, redirect to renewal flow
-    try {
-      const raw = (message || '').toString();
-      const lower = raw.toLowerCase();
-      if (lower.includes('assinatura') || lower.includes('sem assinatura')) {
-        // backend may return a renewal token in the message: "Assinatura expirada|RENEWAL_TOKEN:<token>"
-        const marker = 'renewal_token:';
-        const idx = raw.toLowerCase().indexOf(marker);
-        if (idx !== -1) {
-          const token = raw.substring(idx + marker.length).trim();
-          // redirect to new page that accepts token in query string
-          setTimeout(() => router.push(`/renovacao-com-token?token=${encodeURIComponent(token)}`), 800);
-        } else {
-          // fallback to old renewal page
-          setTimeout(() => router.push('/renovacao-checkout'), 1200);
-        }
-      }
-    } catch (e) {
-      // ignore
-    }
+      const msg = extractErrorMessage(err) ?? 'Erro ao logar';
+      setError(msg);
+      setToastMsg(msg);
+      setToastSeverity('error');
+      setToastOpen(true);
     } finally {
-      dispatch({ type: "SET_LOADING", payload: false });
+      setLoading(false);
     }
   };
 
@@ -184,22 +137,18 @@ export default function Page() {
                   label="E-mail ou usuário"
                   type="text"
                   value={state.usuario}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    dispatch({ type: "SET_USUARIO", payload: e.target.value })
-                  }
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setField('usuario', e.target.value)}
                   sx={{ mb: 2 }}
                   disabled={state.loading}
                 />
 
-                <TextField
+                  <TextField
                   id="senha"
                   fullWidth
                   label="Senha"
                   type={state.showPassword ? "text" : "password"}
                   value={state.senha}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    dispatch({ type: "SET_SENHA", payload: e.target.value })
-                  }
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setField('senha', e.target.value)}
                   sx={{ mb: 3 }}
                   disabled={state.loading}
                   InputProps={{
@@ -209,12 +158,7 @@ export default function Page() {
                           aria-label={
                             state.showPassword ? "Ocultar senha" : "Mostrar senha"
                           }
-                          onClick={() =>
-                            dispatch({
-                              type: "SET_SHOW_PASSWORD",
-                              payload: !state.showPassword,
-                            })
-                          }
+                          onClick={() => setField('showPassword', !state.showPassword)}
                           edge="end"
                           tabIndex={-1}
                         >

@@ -10,9 +10,11 @@ import {
 } from "@mui/material";
 import { DirectionsCar } from "@mui/icons-material";
 import { ThemeProvider } from "@/theme/ThemeProvider";
-import React, { useReducer, useEffect } from "react";
+import React, { useEffect } from "react";
 import axios from "axios";
 import Image from "next/image";
+import useFormReducer from '@/lib/useFormReducer';
+import { extractErrorMessage } from '@/lib/errorUtils';
 
 export default function ForgotPage() {
   type State = {
@@ -26,16 +28,6 @@ export default function ForgotPage() {
     captchaLoading: boolean;
   };
 
-  type Action =
-    | { type: "SET_EMAIL"; payload: string }
-    | { type: "SET_LOADING"; payload: boolean }
-    | { type: "SET_ERROR"; payload: string | null }
-    | { type: "SET_SUCCESS"; payload: string | null }
-    | { type: "SET_CAPTCHA_IMG"; payload: string }
-    | { type: "SET_CAPTCHA_TOKEN"; payload: string }
-    | { type: "SET_CAPTCHA_ANSWER"; payload: string }
-    | { type: "SET_CAPTCHA_LOADING"; payload: boolean };
-
   const initialState: State = {
     email: "",
     loading: false,
@@ -46,58 +38,35 @@ export default function ForgotPage() {
     captchaAnswer: "",
     captchaLoading: false,
   };
+  const { state, setField, setLoading, setError, setState: setFormState } = useFormReducer<State>({ ...initialState });
 
-  function reducer(state: State, action: Action): State {
-    switch (action.type) {
-      case "SET_EMAIL":
-        return { ...state, email: action.payload };
-      case "SET_LOADING":
-        return { ...state, loading: action.payload };
-      case "SET_ERROR":
-        return { ...state, error: action.payload };
-      case "SET_SUCCESS":
-        return { ...state, success: action.payload };
-      case "SET_CAPTCHA_IMG":
-        return { ...state, captchaImg: action.payload };
-      case "SET_CAPTCHA_TOKEN":
-        return { ...state, captchaToken: action.payload };
-      case "SET_CAPTCHA_ANSWER":
-        return { ...state, captchaAnswer: action.payload };
-      case "SET_CAPTCHA_LOADING":
-        return { ...state, captchaLoading: action.payload };
-      default:
-        return state;
-    }
-  }
   // Busca captcha ao montar
   useEffect(() => {
     const fetchCaptcha = async () => {
-      dispatch({ type: "SET_CAPTCHA_LOADING", payload: true });
+      setField('captchaLoading', true);
       try {
-  const res = await axios.get("/api/captcha");
+        const res = await axios.get('/api/captcha');
         if (res.data && res.data.png && res.data.token) {
-          dispatch({ type: "SET_CAPTCHA_IMG", payload: res.data.png });
-          dispatch({ type: "SET_CAPTCHA_TOKEN", payload: res.data.token });
+          setFormState({ captchaImg: res.data.png, captchaToken: res.data.token });
         }
-      } catch {
-        dispatch({ type: "SET_ERROR", payload: "Erro ao carregar captcha" });
+      } catch (err: unknown) {
+        const msg = extractErrorMessage(err) ?? 'Erro ao carregar captcha';
+        setError(msg);
       } finally {
-        dispatch({ type: "SET_CAPTCHA_LOADING", payload: false });
+        setField('captchaLoading', false);
       }
     };
     fetchCaptcha();
-  }, []);
-
-  const [state, dispatch] = useReducer(reducer, initialState);
+  }, [setField, setFormState, setError]); // incluir setters para satisfazer o lint
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    dispatch({ type: "SET_LOADING", payload: true });
-    dispatch({ type: "SET_ERROR", payload: null });
-    dispatch({ type: "SET_SUCCESS", payload: null });
+    setLoading(true);
+    setError(null);
+    setFormState({ success: null });
     if (!state.captchaAnswer || !state.captchaToken) {
-      dispatch({ type: "SET_ERROR", payload: "Preencha o captcha." });
-      dispatch({ type: "SET_LOADING", payload: false });
+      setError('Preencha o captcha.');
+      setLoading(false);
       return;
     }
     try {
@@ -110,28 +79,22 @@ export default function ForgotPage() {
         },
         { headers: { "Content-Type": "application/json" } }
       );
-      dispatch({ type: "SET_SUCCESS", payload: "Se as informações estiverem corretas, você receberá um e-mail para redefinir sua senha." });
-  } catch (err: unknown) {
-      let message = "Erro ao enviar e-mail";
-      if (axios.isAxiosError(err)) {
-        message = err.response?.data?.message || err.message || message;
-      } else if (err instanceof Error) {
-        message = err.message;
-      }
-      dispatch({ type: "SET_ERROR", payload: message });
+  setFormState({ success: "Se as informações estiverem corretas, você receberá um e-mail para redefinir sua senha." });
+    } catch (err: unknown) {
+      const msg = extractErrorMessage(err) ?? 'Erro ao enviar e-mail';
+      setError(msg);
       // Se captcha falhar, recarrega
-      dispatch({ type: "SET_CAPTCHA_ANSWER", payload: "" });
+      setField('captchaAnswer', '');
       try {
-        const res = await axios.get("/api/captcha");
+        const res = await axios.get('/api/captcha');
         if (res?.data && res.data.png && res.data.token) {
-          dispatch({ type: "SET_CAPTCHA_IMG", payload: res.data.png });
-          dispatch({ type: "SET_CAPTCHA_TOKEN", payload: res.data.token });
+          setFormState({ captchaImg: res.data.png, captchaToken: res.data.token });
         }
       } catch {
         // ignore
       }
     } finally {
-      dispatch({ type: "SET_LOADING", payload: false });
+      setLoading(false);
     }
   };
 
@@ -158,7 +121,7 @@ export default function ForgotPage() {
                 label="E-mail"
                 type="email"
                 value={state.email}
-                onChange={e => dispatch({ type: "SET_EMAIL", payload: e.target.value })}
+                onChange={e => setField('email', e.target.value)}
                 sx={{ mb: 3 }}
                 disabled={state.loading}
               />
@@ -183,7 +146,7 @@ export default function ForgotPage() {
                   label="Digite o texto da imagem"
                   type="text"
                   value={state.captchaAnswer}
-                  onChange={e => dispatch({ type: "SET_CAPTCHA_ANSWER", payload: e.target.value })}
+                  onChange={e => setField('captchaAnswer', e.target.value)}
                   sx={{ mt: 1 }}
                   disabled={state.loading || state.captchaLoading}
                 />

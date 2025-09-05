@@ -1,5 +1,6 @@
 "use client";
-import React, { useState } from 'react';
+import React from 'react';
+import useFormReducer from '@/lib/useFormReducer';
 import { useSession } from '@/context/SessionContext';
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
@@ -17,8 +18,9 @@ export default function SessionFloatingPanel() {
   const { sessao, elapsedSeconds, loading, panelOpen, setPanelOpen } = useSession();
   const theme = useTheme();
   const open = panelOpen ?? false;
-  const [startModalOpen, setStartModalOpen] = useState(false);
-  const [stopModalOpen, setStopModalOpen] = useState(false);
+  const { state, setField } = useFormReducer({ startModalOpen: false, stopModalOpen: false });
+  const startModalOpen = Boolean(state.startModalOpen);
+  const stopModalOpen = Boolean(state.stopModalOpen);
   // Fixed panel height to keep implementation simple and predictable
   const PANEL_HEIGHT = 180; // px
 
@@ -161,7 +163,7 @@ export default function SessionFloatingPanel() {
                   <IconButton
                     aria-label="Iniciar sessão"
                     size="medium"
-                    onClick={() => setStartModalOpen(true)}
+                    onClick={() => setField('startModalOpen', true)}
                     disabled={loading}
                     sx={{
                       width: 50,
@@ -178,7 +180,7 @@ export default function SessionFloatingPanel() {
                   <IconButton
                     aria-label="Parar sessão"
                     size="medium"
-                    onClick={() => setStopModalOpen(true)}
+                    onClick={() => setField('stopModalOpen', true)}
                     disabled={loading}
                     sx={{
                       width: 50,
@@ -217,11 +219,11 @@ export default function SessionFloatingPanel() {
       {/* Modais */}
       <StartSessionModal
         open={startModalOpen}
-        onClose={() => setStartModalOpen(false)}
+        onClose={() => setField('startModalOpen', false)}
       />
       <StopSessionModal
         open={stopModalOpen}
-        onClose={() => setStopModalOpen(false)}
+        onClose={() => setField('stopModalOpen', false)}
       />
     </Box>
   );

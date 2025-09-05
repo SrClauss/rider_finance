@@ -1,5 +1,4 @@
 pub mod checkout;
-pub mod verify;
 use axum::Json;
 use diesel::{ExpressionMethods, OptionalExtension, QueryDsl, RunQueryDsl};
 use crate::models::assinatura::{Assinatura, NewAssinatura};

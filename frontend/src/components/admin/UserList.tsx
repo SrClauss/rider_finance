@@ -1,17 +1,22 @@
 "use client";
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useCallback, useState } from "react";
+import useFormReducer from '@/lib/useFormReducer';
 import { UsuarioListItem } from "@/interfaces/Usuario";
 import { Box, TextField, IconButton, Table, TableHead, TableRow, TableCell, TableBody, Button, CircularProgress, Pagination, Chip, Accordion, AccordionSummary, AccordionDetails, Typography, useTheme, useMediaQuery } from "@mui/material";
+// ReplaceAdminPasswordModal removed: admins cannot change other admins' passwords from this list
+import DeleteAdminConfirmModal from '@/modals/DeleteAdminConfirmModal';
+import Toast from '@/components/ui/Toast';
 import SearchIcon from '@mui/icons-material/Search';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { listUsers, blockUser, unblockUser } from "@/lib/api/admin";
 
 export default function UserList() {
-  const [q, setQ] = useState('');
-  const [cpf, setCpf] = useState('');
-  const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(false);
-  const [data, setData] = useState<{ items: UsuarioListItem[]; total: number; page: number; per_page: number }>({ items: [], total: 0, page: 1, per_page: 20 });
+  const { state, setField, setLoading } = useFormReducer({ q: '', cpf: '', page: 1 });
+  const q = String(state.q ?? '');
+  const cpf = String(state.cpf ?? '');
+  const page = Number(state.page ?? 1);
+  const loading = Boolean(state.loading);
+  const [data, setData] = useState<{ items: UsuarioListItem[]; total: number; page: number; per_page: number }>({ items: [] as UsuarioListItem[], total: 0, page: 1, per_page: 20 });
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -20,7 +25,7 @@ export default function UserList() {
     } finally {
       setLoading(false);
     }
-  }, [page, q, cpf]);
+  }, [page, q, cpf, setLoading]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -40,6 +45,42 @@ export default function UserList() {
     } finally { setLoading(false); }
   };
 
+  // password changes for admins happen only via "Minha conta" dialog; remove replaceOpen state
+
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [toDelete, setToDelete] = useState<{ id: string; username?: string } | null>(null);
+  const [toast, setToast] = useState<{ open: boolean; severity?: 'error' | 'success' | 'info' | 'warning'; message: string }>({ open: false, severity: 'info', message: '' });
+
+  const requestDeleteAdmin = (id: string, username?: string) => {
+    if (username === 'admin') {
+      setToast({ open: true, severity: 'error', message: 'Remoção do super-admin não é permitida.' });
+      return;
+    }
+    setToDelete({ id, username });
+    setDeleteOpen(true);
+  };
+
+  const confirmDeleteAdmin = async () => {
+    if (!toDelete) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/admin/${toDelete.id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({} as { message?: string }));
+        throw new Error(json?.message || 'Erro ao excluir administrador');
+      }
+      setToast({ open: true, severity: 'success', message: 'Administrador excluído com sucesso.' });
+      await load();
+    } catch (err: unknown) {
+      const msg = String(err instanceof Error ? err.message : err);
+      setToast({ open: true, severity: 'error', message: msg });
+    } finally {
+      setLoading(false);
+      setDeleteOpen(false);
+      setToDelete(null);
+    }
+  };
+
   const theme = useTheme();
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'));
 
@@ -48,9 +89,9 @@ export default function UserList() {
   return (
     <Box>
       <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
-        <TextField label="Pesquisar por nome" value={q} onChange={(e) => setQ(e.target.value)} />
-        <TextField label="CPF" value={cpf} onChange={(e) => setCpf(e.target.value)} />
-        <IconButton color="primary" onClick={() => { setPage(1); load(); }}><SearchIcon /></IconButton>
+  <TextField label="Pesquisar por nome" value={q} onChange={(e) => setField('q', e.target.value)} />
+  <TextField label="CPF" value={cpf} onChange={(e) => setField('cpf', e.target.value)} />
+  <IconButton color="primary" onClick={() => { setField('page', 1); load(); }}><SearchIcon /></IconButton>
       </Box>
 
       {loading ? <CircularProgress /> : (
@@ -106,7 +147,10 @@ export default function UserList() {
                     <TableCell>{u.subscription_end ? formatDate(u.subscription_end) : '—'}</TableCell>
                     <TableCell>{u.blocked ? <Chip label={`Bloqueado em ${u.blocked_date ? formatDate(u.blocked_date) : ''}`} color="error" /> : <Chip label="Ativo" color="success" />}</TableCell>
                     <TableCell>
-                      {u.blocked ? <Button onClick={() => doUnblock(u.id)}>Desbloquear</Button> : <Button color="error" onClick={() => doBlock(u.id)}>Bloquear</Button>}
+                          <Box sx={{ display: 'flex', gap: 1 }}>
+                            {u.blocked ? <Button onClick={() => doUnblock(u.id)}>Desbloquear</Button> : <Button color="error" onClick={() => doBlock(u.id)}>Bloquear</Button>}
+                            <Button color="error" onClick={() => requestDeleteAdmin(u.id, u.usuario)}>Excluir</Button>
+                          </Box>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -117,8 +161,10 @@ export default function UserList() {
       )}
 
       <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
-        <Pagination count={Math.max(1, Math.ceil((data.total || 0) / (data.per_page || 20)))} page={page} onChange={(_,v) => setPage(v)} />
+  <Pagination count={Math.max(1, Math.ceil((data.total || 0) / (data.per_page || 20)))} page={page} onChange={(_,v) => setField('page', v)} />
       </Box>
+  <DeleteAdminConfirmModal open={deleteOpen} onClose={() => setDeleteOpen(false)} onConfirm={confirmDeleteAdmin} adminName={toDelete?.username ?? null} />
+  <Toast open={toast.open} onClose={() => setToast(s => ({ ...s, open: false }))} severity={toast.severity} message={toast.message} />
     </Box>
   );
 }

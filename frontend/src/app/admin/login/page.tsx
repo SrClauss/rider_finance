@@ -1,101 +1,130 @@
 "use client";
-import React, { useReducer } from "react";
-import { Box, Card, CardContent, Typography, TextField, Button, Avatar, IconButton, InputAdornment } from "@mui/material";
+import React, { useEffect } from "react";
+import { Box, Card, CardContent, Typography, TextField, Button, Avatar, IconButton, InputAdornment, Stack } from "@mui/material";
 import { DirectionsCar, Visibility, VisibilityOff } from "@mui/icons-material";
 import { ThemeProvider } from "@/theme/ThemeProvider";
 import axios from "axios";
 import Toast from "@/components/ui/Toast";
 import { useState } from "react";
+import useFormReducer from '@/lib/useFormReducer';
+import { extractErrorMessage } from '@/lib/errorUtils';
 import { useRouter } from "next/navigation";
 
 type State = { usuario: string; senha: string; loading: boolean; error: string | null; showPassword: boolean };
-type Action =
-  | { type: "SET_USUARIO"; payload: string }
-  | { type: "SET_SENHA"; payload: string }
-  | { type: "SET_LOADING"; payload: boolean }
-  | { type: "SET_ERROR"; payload: string | null }
-  | { type: "SET_SHOW_PASSWORD"; payload: boolean };
-
 const initialState: State = { usuario: "", senha: "", loading: false, error: null, showPassword: false };
 
-function reducer(state: State, action: Action): State {
-  switch (action.type) {
-    case "SET_USUARIO":
-      return { ...state, usuario: action.payload };
-    case "SET_SENHA":
-      return { ...state, senha: action.payload };
-    case "SET_LOADING":
-      return { ...state, loading: action.payload };
-    case "SET_ERROR":
-      return { ...state, error: action.payload };
-    case "SET_SHOW_PASSWORD":
-      return { ...state, showPassword: action.payload };
-    default:
-      return state;
-  }
-}
-
 export default function AdminLoginPage() {
-  const [state, dispatch] = useReducer(reducer, initialState);
+  const { state, setField, setLoading, setError } = useFormReducer<State>(initialState);
   const router = useRouter();
   const [toastOpen, setToastOpen] = useState(false);
-  const [toastMsg, setToastMsg] = useState<string | null>(null);
-  const [toastSeverity, setToastSeverity] = useState<'error'|'warning'|'info'|'success'>('error');
+  const [toastMsg] = useState<string | null>(null);
+  const [toastSeverity] = useState<'error'|'warning'|'info'|'success'>('error');
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaImage, setCaptchaImage] = useState<string | null>(null);
+  const [captchaAnswer, setCaptchaAnswer] = useState<string>('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    dispatch({ type: "SET_LOADING", payload: true });
-    dispatch({ type: "SET_ERROR", payload: null });
+    setLoading(true);
+    setError(null);
     try {
       const res = await axios.post(
         "/api/admin/login",
-        { usuario: state.usuario, senha: state.senha },
+  { usuario: state.usuario, senha: state.senha, captcha_token: captchaToken, captcha_answer: captchaAnswer },
         { withCredentials: true }
       );
       if (res.status === 200) {
         router.push("/admin");
       } else {
-        dispatch({ type: "SET_ERROR", payload: "Credenciais inválidas" });
+        setError("Credenciais inválidas");
       }
     } catch (err: unknown) {
-      let msg = "Erro ao logar";
-      if (axios.isAxiosError(err)) msg = err.response?.data?.message || err.message || msg;
-      dispatch({ type: "SET_ERROR", payload: msg });
+      const msg = extractErrorMessage(err) ?? 'Erro ao logar';
+      setError(msg);
     } finally {
-      dispatch({ type: "SET_LOADING", payload: false });
+      setLoading(false);
     }
   };
 
+  async function fetchCaptcha() {
+    try {
+      const res = await axios.get('/api/captcha');
+      if (res?.data) {
+        setCaptchaToken(res.data.token);
+        setCaptchaImage(`data:image/png;base64,${res.data.png}`);
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  useEffect(() => {
+    fetchCaptcha();
+  }, []);
+
   return (
     <ThemeProvider>
-  <Toast open={toastOpen} onClose={() => setToastOpen(false)} severity={toastSeverity} message={toastMsg ?? ''} />
-      <Box sx={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, #181818 0%, #232323 100%)", p: 2 }}>
-        <Card sx={{ maxWidth: 420, width: "100%", backgroundColor: "background.paper" }}>
-          <CardContent sx={{ p: 4 }}>
-            <Box sx={{ textAlign: "center", mb: 3 }}>
-              <Avatar sx={{ width: 64, height: 64, margin: "0 auto", backgroundColor: "primary.main", mb: 2 }}>
-                <DirectionsCar sx={{ fontSize: 32 }} />
-              </Avatar>
-              <Typography variant="h5" fontWeight={700}>Painel Administrativo</Typography>
-              <Typography variant="body2" color="text.secondary">Acesse com credenciais administrativas</Typography>
+      <Toast open={toastOpen} onClose={() => setToastOpen(false)} severity={toastSeverity} message={toastMsg ?? ''} />
+      
+        <Card sx={{ width: '100%', maxWidth: { xs: 400, md: 980 }, borderRadius: 2, overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, minHeight: 320 }}>
+            <Box sx={{ flex: 1 }}>
+              <CardContent sx={{ p: { xs: 4, md: 6 } }}>
+                <Stack spacing={2} alignItems="center" sx={{ mb: 2, textAlign: { xs: 'center', md: 'left' } }}>
+                  <Avatar sx={{ width: 72, height: 72, bgcolor: 'primary.main' }}>
+                    <DirectionsCar sx={{ fontSize: 36 }} />
+                  </Avatar>
+                  <Typography variant={{ xs: 'h4', md: 'h5' } as any} fontWeight={800}>Painel Administrativo</Typography>
+                  <Typography variant="body2" color="text.secondary" align="center">Acesse com suas credenciais administrativas para gerenciar usuários e configurações.</Typography>
+                </Stack>
+
+                <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1, width: '100%' }}>
+                  <Stack spacing={2} sx={{ width: '100%' }}>
+                    <TextField label="Usuário" fullWidth value={state.usuario} onChange={(e) => setField('usuario', e.target.value)} disabled={state.loading} />
+                    <TextField label="Senha" fullWidth type={state.showPassword ? 'text' : 'password'} value={state.senha} onChange={(e) => setField('senha', e.target.value)} disabled={state.loading}
+                      InputProps={{ endAdornment: (
+                        <InputAdornment position="end">
+                          <IconButton aria-label="toggle" edge="end" onClick={() => setField('showPassword', !state.showPassword)} tabIndex={-1}>
+                            {state.showPassword ? <VisibilityOff /> : <Visibility />}
+                          </IconButton>
+                        </InputAdornment>
+                      ) }}
+                    />
+
+                    {captchaImage && (
+                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center">
+                        <Box sx={{ p: 1, borderRadius: 1, bgcolor: 'background.paper' }}>
+                          <img src={captchaImage} alt="captcha" style={{ height: 56, display: 'block' }} />
+                        </Box>
+                        <TextField label="Digite o captcha" value={captchaAnswer} onChange={(e) => setCaptchaAnswer(e.target.value)} disabled={state.loading} />
+                        <Button variant="text" onClick={() => { setCaptchaAnswer(''); fetchCaptcha(); }} sx={{ whiteSpace: 'nowrap' }}>Atualizar</Button>
+                      </Stack>
+                    )}
+
+                    {state.error && <Typography color="error" sx={{ mt: 1 }}>{state.error}</Typography>}
+
+                    <Button type="submit" fullWidth variant="contained" size="large" disabled={state.loading} sx={{ height: 48, fontWeight: 600 }}> {state.loading ? 'Entrando...' : 'Entrar'}</Button>
+
+                    <Box sx={{ textAlign: 'center', mt: 1 }}>
+                      <Typography variant="caption" color="text.secondary">Versão de desenvolvimento</Typography>
+                    </Box>
+                  </Stack>
+                </Box>
+              </CardContent>
             </Box>
-            <Box component="form" onSubmit={handleSubmit}>
-              <TextField label="Usuário" fullWidth value={state.usuario} onChange={(e) => dispatch({ type: "SET_USUARIO", payload: e.target.value })} sx={{ mb: 2 }} disabled={state.loading} />
-              <TextField label="Senha" fullWidth type={state.showPassword ? "text" : "password"} value={state.senha} onChange={(e) => dispatch({ type: "SET_SENHA", payload: e.target.value })} sx={{ mb: 2 }} disabled={state.loading}
-                InputProps={{ endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton aria-label="toggle" edge="end" onClick={() => dispatch({ type: "SET_SHOW_PASSWORD", payload: !state.showPassword })} tabIndex={-1}>
-                      {state.showPassword ? <VisibilityOff /> : <Visibility />}
-                    </IconButton>
-                  </InputAdornment>
-                ) }}
-              />
-              {state.error && <Typography color="error" sx={{ mb: 2 }}>{state.error}</Typography>}
-              <Button type="submit" fullWidth variant="contained" size="large" disabled={state.loading}>{state.loading ? "Entrando..." : "Entrar"}</Button>
+
+            <Box sx={{ width: { xs: '100%', md: '45%' }, display: { xs: 'none', md: 'block' }, bgcolor: 'linear-gradient(135deg, rgba(58,123,213,0.12), rgba(99,102,241,0.08))' }}>
+              <Box sx={{ height: '100%', minHeight: 320, background: 'linear-gradient(135deg, rgba(58,123,213,0.12), rgba(99,102,241,0.08))', p: 6, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                <Typography variant="h6" fontWeight={700} sx={{ color: 'primary.main', mb: 1 }}>Bem-vindo(a)</Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>Gerencie usuários, assinaturas e configurações do sistema com segurança.</Typography>
+                <Box sx={{ mt: 2, bgcolor: 'rgba(255,255,255,0.02)', p: 2, borderRadius: 2 }}>
+                  <Typography variant="body2" color="text.secondary">Acesso restrito a administradores. Mantenha suas credenciais seguras.</Typography>
+                </Box>
+              </Box>
             </Box>
-          </CardContent>
+          </Box>
         </Card>
-      </Box>
+      
     </ThemeProvider>
   );
 }

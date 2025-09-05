@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from 'react';
+import React from 'react';
+import useFormReducer from '@/lib/useFormReducer';
 import {
   Dialog,
   DialogTitle,
@@ -24,7 +25,7 @@ interface StartSessionModalProps {
 
 export default function StartSessionModal({ open, onClose }: StartSessionModalProps) {
   const { start, loading } = useSession();
-  const [formData, setFormData] = useState({
+  const { state: formData, setField, reset } = useFormReducer({
     local_inicio: '',
     plataforma: '',
     observacoes: '',
@@ -32,10 +33,7 @@ export default function StartSessionModal({ open, onClose }: StartSessionModalPr
   });
 
   const handleChange = (field: string) => (event: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: event.target.value,
-    }));
+    setField(field, event.target.value);
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -52,12 +50,7 @@ export default function StartSessionModal({ open, onClose }: StartSessionModalPr
       }
 
       // Reset form
-      setFormData({
-        local_inicio: '',
-        plataforma: '',
-        observacoes: '',
-        clima: '',
-      });
+      reset();
 
       onClose();
     } catch (error) {
@@ -66,12 +59,7 @@ export default function StartSessionModal({ open, onClose }: StartSessionModalPr
   };
 
   const handleClose = () => {
-    setFormData({
-      local_inicio: '',
-      plataforma: '',
-      observacoes: '',
-      clima: '',
-    });
+    reset();
     onClose();
   };
 
@@ -88,7 +76,7 @@ export default function StartSessionModal({ open, onClose }: StartSessionModalPr
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
             <TextField
               label="Local de Início"
-              value={formData.local_inicio}
+              value={String(formData.local_inicio ?? '')}
               onChange={handleChange('local_inicio')}
               placeholder="Ex: Centro, Zona Sul, etc."
               fullWidth
@@ -98,8 +86,8 @@ export default function StartSessionModal({ open, onClose }: StartSessionModalPr
             <FormControl fullWidth variant="outlined">
               <InputLabel>Plataforma</InputLabel>
               <Select
-                value={formData.plataforma}
-                onChange={(e) => setFormData(prev => ({ ...prev, plataforma: e.target.value }))}
+                value={String(formData.plataforma ?? '')}
+                onChange={(e) => setField('plataforma', e.target.value)}
                 label="Plataforma"
               >
                 <MenuItem value="">
@@ -116,8 +104,8 @@ export default function StartSessionModal({ open, onClose }: StartSessionModalPr
             <FormControl fullWidth variant="outlined">
               <InputLabel>Clima</InputLabel>
               <Select
-                value={formData.clima}
-                onChange={(e) => setFormData(prev => ({ ...prev, clima: e.target.value }))}
+                value={String(formData.clima ?? '')}
+                onChange={(e) => setField('clima', e.target.value)}
                 label="Clima"
               >
                 <MenuItem value="">
@@ -133,7 +121,7 @@ export default function StartSessionModal({ open, onClose }: StartSessionModalPr
 
             <TextField
               label="Observações"
-              value={formData.observacoes}
+              value={String(formData.observacoes ?? '')}
               onChange={handleChange('observacoes')}
               placeholder="Observações sobre a sessão..."
               fullWidth

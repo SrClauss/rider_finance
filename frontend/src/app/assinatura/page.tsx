@@ -7,41 +7,47 @@ import { ConfiguracoesSistema } from '../../interfaces/ConfiguracoesSistema';
 import {ThemeProvider} from '@/theme/ThemeProvider';
 import { UsuarioRegisterPayload } from '@/interfaces/UsuarioRegisterPayload';
 import AssinaturaModal from '@/modals/AssinaturaModal';
+import useFormReducer from '@/lib/useFormReducer';
 
 export default function AssinaturaPage() {
 
   const [isClient, setIsClient] = useState(false);
-  const [valor, setValor] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { state, setField, setLoading, setError } = useFormReducer<{ valor: string; modalOpen: boolean; meses: number; idUsuario: string }>({ valor: '', modalOpen: false, meses: 1, idUsuario: '' });
   const [usuario, setUsuario] = useState<UsuarioRegisterPayload | null>(null);
   const [assinatura] = useState<{ periodo_fim?: string } | null>(null);
-  const [modalOpen, setModalOpen] = useState(false);
   const [diasRestantes] = useState<number | null>(null);
-  const [meses, setMeses] = useState(1); // Novo estado para quantidade de meses
-  const [idUsuario, setIdUsuario] = useState('');
 
+  // Evita usar useSearchParams (que requer suspense) durante o build.
   // Evita usar useSearchParams (que requer suspense) durante o build.
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
-    setIdUsuario(params.get('id_usuario') || '');
-  }, []);
+    setField('idUsuario', params.get('id_usuario') || '');
+  }, [setField]); // setField é estável no hook, mas incluímos na lista para satisfazer o lint
 
   useEffect(() => {
     setIsClient(true);
-    if (!idUsuario) return;
-    axios.get<ConfiguracoesSistema>(`/api/checkout-info?id_usuario=${idUsuario}`)
+    setLoading(true);
+    if (!state.idUsuario) {
+      // não há id, encerra carregamento
+      setLoading(false);
+      return;
+    }
+    let mounted = true;
+    axios.get<ConfiguracoesSistema>(`/api/checkout-info?id_usuario=${state.idUsuario}`)
       .then(res => {
-        setValor(res.data.valor ?? '');
+        if (!mounted) return;
+        setField('valor', res.data.valor ?? '');
         setLoading(false);
       })
       .catch(() => {
+        if (!mounted) return;
         setError('Erro ao buscar configurações do sistema');
         setLoading(false);
       });
-    axios.get(`/api/usuario/${idUsuario}`)
+    axios.get(`/api/usuario/${state.idUsuario}`)
       .then(res => {
+        if (!mounted) return;
         const usuarioData = {
           id: res.data.id,
           nome_usuario: res.data.nome_usuario,
@@ -69,11 +75,12 @@ export default function AssinaturaPage() {
           cpfcnpj: res.data.cpfcnpj,
           captcha_token: res.data.captcha_token,
           captcha_answer: res.data.captcha_answer
-        }
+        };
         setUsuario(usuarioData);
-  })
-  .catch(() => {});
-  }, [idUsuario]);
+      })
+      .catch(() => {});
+    return () => { mounted = false; };
+  }, [state.idUsuario, setField, setLoading, setError, setUsuario, setIsClient]);
 
   function sanitizePhone(raw?: string | null) {
     if (!raw) return null;
@@ -108,9 +115,9 @@ export default function AssinaturaPage() {
     }
   try {
       const res = await axios.post('/api/assinatura/checkout', {
-        id_usuario: idUsuario,
-        valor,
-        meses,
+        id_usuario: state.idUsuario,
+        valor: state.valor,
+        meses: state.meses,
         nome: usuario.nome_completo,
         cpf: usuario.cpfcnpj || '',
         email: usuario.email || '',
@@ -122,7 +129,7 @@ export default function AssinaturaPage() {
         bairro: usuario.province || '',
         cidade: usuario.city || ''
       });
-      const link = res.data.link;
+  const link = res.data.link;
       if (link) {
         window.location.href = link;
       } else {
@@ -135,7 +142,7 @@ export default function AssinaturaPage() {
 
 
   if (!isClient) return null;
-  if (loading) {
+  if (state.loading) {
     return (
       <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #181818 0%, #232323 100%)', p: 2 }}>
         <Card sx={{ maxWidth: 400, width: '100%', backgroundColor: 'background.paper', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
@@ -187,8 +194,8 @@ export default function AssinaturaPage() {
               <TextField
                 label="Quantidade de meses"
                 type="number"
-                value={meses}
-                onChange={(e) => setMeses(Number(e.target.value))}
+                value={state.meses}
+                onChange={(e) => setField('meses', Number(e.target.value))}
                 inputProps={{ min: 1 }}
                 fullWidth
                 sx={{ mt: 2 }}
@@ -200,7 +207,7 @@ export default function AssinaturaPage() {
                 Valor da assinatura:
               </Typography>
               <Typography variant="h4" color="primary" textAlign="center" sx={{ mb: 2 }}>
-                {error ? error : `R$ ${valor}`}
+                {state.error ? state.error : `R$ ${state.valor}`}
               </Typography>
             </Box>
             <Divider sx={{ my: 2, bgcolor: 'borderGray' }} />
@@ -210,27 +217,27 @@ export default function AssinaturaPage() {
               variant="contained"
               size="large"
               sx={{ fontWeight: 700, height: 48, bgcolor: 'primary.main', color: 'primary.contrastText', boxShadow: 2 }}
-              disabled={!idUsuario || !valor || !!error}
+              disabled={!state.idUsuario || !state.valor || !!state.error}
             >
-              {loading ? 'Processando...' : 'Ir para pagamento'}
+              {state.loading ? 'Processando...' : 'Ir para pagamento'}
             </Button>
             <AssinaturaModal 
-              open={modalOpen} 
+              open={Boolean(state.modalOpen)} 
               diasRestantes={diasRestantes} 
               periodoFim={assinatura?.periodo_fim}
-              onClose={() => setModalOpen(false)}
+              onClose={() => setField('modalOpen', false)}
               onRenovar={async () => {
-                setModalOpen(false);
+                setField('modalOpen', false);
                 // Executa fluxo de renovação normalmente
-                if (!idUsuario || !valor || !!error) return;
+                if (!state.idUsuario || !state.valor || !!state.error) return;
                 if (!usuario || !usuario.nome_completo || usuario.nome_completo.trim().length < 2) {
                   setError('Preencha o nome completo para continuar');
                   return;
                 }
                 try {
                   const res = await axios.post('/api/assinatura/checkout', {
-                    id_usuario: idUsuario,
-                    valor,
+                    id_usuario: state.idUsuario,
+                    valor: state.valor,
                     nome: usuario.nome_completo,
                     cpf: usuario.cpfcnpj || '',
                     email: usuario.email || '',

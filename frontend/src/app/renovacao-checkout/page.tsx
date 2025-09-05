@@ -1,47 +1,54 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
+import Toast from '@/components/ui/Toast';
 import axios from 'axios';
 import { Box, Card, CardContent, Typography, Button, Divider, TextField } from '@mui/material';
 import { ConfiguracoesSistema } from '../../interfaces/ConfiguracoesSistema';
-import { extractErrorMessage, getAxiosResponseInfo } from '@/lib/errorUtils';
+import { extractErrorMessage } from '@/lib/errorUtils';
 import {ThemeProvider} from '@/theme/ThemeProvider';
 import { UsuarioRegisterPayload } from '@/interfaces/UsuarioRegisterPayload';
 import AssinaturaModal from '@/modals/AssinaturaModal';
+import useFormReducer from '@/lib/useFormReducer';
 
 export default function RenovacaoCheckout() {
   const [isClient, setIsClient] = useState(false);
-  const [valor, setValor] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { state, setField, setLoading, setError } = useFormReducer<{
+    valor: string;
+    modalOpen: boolean;
+    meses: number;
+    idUsuario: string;
+  }>({ valor: '', modalOpen: false, meses: 1, idUsuario: '' });
   const [usuario, setUsuario] = useState<UsuarioRegisterPayload | null>(null);
   const [assinatura] = useState<{ periodo_fim?: string } | null>(null);
-  const [modalOpen, setModalOpen] = useState(false);
   const [diasRestantes] = useState<number | null>(null);
-  const [meses, setMeses] = useState(1);
-  const [idUsuario, setIdUsuario] = useState('');
+  const [toast, setToast] = useState<{ open: boolean; severity?: 'error' | 'success' | 'info' | 'warning'; message: string }>({ open: false, severity: 'info', message: '' });
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
-    setIdUsuario(params.get('id_usuario') || '');
-  }, []);
+    setField('idUsuario', params.get('id_usuario') || '');
+  }, [setField]);
 
   useEffect(() => {
     setIsClient(true);
-    if (!idUsuario) {
+    setLoading(true);
+    if (!state.idUsuario) {
       setLoading(false);
       return;
     }
+  let mounted = true;
     (async () => {
       try {
-        const cfgRes = await axios.get<ConfiguracoesSistema>(`/api/checkout-info?id_usuario=${idUsuario}`);
-        setValor(cfgRes.data.valor ?? '');
+        const cfgRes = await axios.get<ConfiguracoesSistema>(`/api/checkout-info?id_usuario=${state.idUsuario}`);
+        if (!mounted) return;
+        setField('valor', cfgRes.data.valor ?? '');
       } catch {
+        if (!mounted) return;
         setError('Erro ao buscar configurações do sistema');
       }
       try {
-        const userRes = await axios.get(`/api/usuario/${idUsuario}`);
+        const userRes = await axios.get(`/api/usuario/${state.idUsuario}`);
         const usuarioData = {
           id: userRes.data.id,
           nome_usuario: userRes.data.nome_usuario,
@@ -70,14 +77,17 @@ export default function RenovacaoCheckout() {
           captcha_token: userRes.data.captcha_token,
           captcha_answer: userRes.data.captcha_answer
         };
+        if (!mounted) return;
         setUsuario(usuarioData);
         } catch {
         // ignore
       } finally {
+        if (!mounted) return;
         setLoading(false);
       }
     })();
-  }, [idUsuario]);
+    return () => { mounted = false; };
+  }, [state.idUsuario, setField, setLoading, setError, setUsuario, setIsClient]);
 
   const handleRenew = async () => {
     if (!usuario) {
@@ -86,9 +96,9 @@ export default function RenovacaoCheckout() {
     }
     try {
       const res = await axios.post('/api/assinatura/checkout', {
-        id_usuario: idUsuario,
-        valor,
-        meses,
+        id_usuario: state.idUsuario,
+        valor: state.valor,
+        meses: state.meses,
         nome: usuario.nome_completo,
         cpf: usuario.cpfcnpj || '',
         email: usuario.email || '',
@@ -107,20 +117,31 @@ export default function RenovacaoCheckout() {
         const msg = res.data?.mensagem || res.data?.message || 'Erro ao criar checkout (sem link)';
         setError(msg);
         console.error('Checkout sem link:', res.data);
-        alert(msg);
+  setToast({ open: true, severity: 'error', message: msg });
       }
     } catch (err: unknown) {
       console.error('Erro ao criar checkout:', err);
       const extracted = extractErrorMessage(err);
-      const axiosInfo = getAxiosResponseInfo(err);
-      const resp = axiosInfo?.data as { mensagem?: string; message?: string } | undefined;
+      
+      let respData: unknown = undefined;
+      try {
+        if (err && typeof err === 'object') {
+          const respRaw = (err as Record<string, unknown>)['response'] as unknown;
+          if (respRaw && typeof respRaw === 'object') {
+            respData = (respRaw as Record<string, unknown>)['data'] as unknown;
+          }
+        }
+      } catch {
+        // ignore
+      }
+      const resp = respData as { mensagem?: string; message?: string } | undefined;
       const msg = resp?.mensagem || resp?.message || extracted || 'Erro ao criar checkout';
-      setError(String(msg));
+  setError(String(msg));
     }
   };
 
   if (!isClient) return null;
-  if (loading) {
+  if (state.loading) {
     return (
       <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #181818 0%, #232323 100%)', p: 2 }}>
         <Card sx={{ maxWidth: 400, width: '100%', backgroundColor: 'background.paper', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
@@ -138,6 +159,7 @@ export default function RenovacaoCheckout() {
   }
 
   return (
+    <>
     <ThemeProvider>
       <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #1e1e1e 0%, #2a2a2a 100%)', p: 2 }}>
         <Card sx={{ maxWidth: 500, width: '100%', bgcolor: 'cardGray', border: 1, borderColor: 'borderGray', boxShadow: '0 4px 24px rgba(0,0,0,0.5)', borderRadius: 4, p: 0 }}>
@@ -168,11 +190,11 @@ export default function RenovacaoCheckout() {
                   {usuario?.cpfcnpj ? formatCpfCnpj(usuario.cpfcnpj) : '---'}
                 </Typography>
               </Box>
-              <TextField
+                <TextField
                 label="Quantidade de meses"
                 type="number"
-                value={meses}
-                onChange={(e) => setMeses(Number(e.target.value))}
+                value={state.meses}
+                onChange={(e) => setField('meses', Number(e.target.value))}
                 inputProps={{ min: 1 }}
                 fullWidth
                 sx={{ mt: 2 }}
@@ -184,7 +206,7 @@ export default function RenovacaoCheckout() {
                 Valor da renovação:
               </Typography>
               <Typography variant="h4" color="primary" textAlign="center" sx={{ mb: 2 }}>
-                {error ? error : `R$ ${valor}`}
+                {state.error ? state.error : `R$ ${state.valor}`}
               </Typography>
             </Box>
             <Divider sx={{ my: 2, bgcolor: 'borderGray' }} />
@@ -194,28 +216,28 @@ export default function RenovacaoCheckout() {
               variant="contained"
               size="large"
               sx={{ fontWeight: 700, height: 48, bgcolor: 'primary.main', color: 'primary.contrastText', boxShadow: 2 }}
-              disabled={!idUsuario || !valor || !!error}
+              disabled={!state.idUsuario || !state.valor || !!state.error}
             >
-              {loading ? 'Processando...' : 'Prosseguir para pagamento'}
+              {state.loading ? 'Processando...' : 'Prosseguir para pagamento'}
             </Button>
 
             <AssinaturaModal 
-              open={modalOpen} 
+              open={Boolean(state.modalOpen)} 
               diasRestantes={diasRestantes} 
               periodoFim={assinatura?.periodo_fim}
-              onClose={() => setModalOpen(false)}
+              onClose={() => setField('modalOpen', false)}
               onRenovar={async () => {
-                setModalOpen(false);
-                if (!idUsuario || !valor || !!error) return;
+                setField('modalOpen', false);
+                if (!state.idUsuario || !state.valor || !!state.error) return;
                 if (!usuario || !usuario.nome_completo || usuario.nome_completo.trim().length < 2) {
                   setError('Preencha o nome completo para continuar');
                   return;
                 }
                 try {
                   const res = await axios.post('/api/assinatura/checkout', {
-                    id_usuario: idUsuario,
-                    valor,
-                    meses,
+                    id_usuario: state.idUsuario,
+                    valor: state.valor,
+                    meses: state.meses,
                     nome: usuario.nome_completo,
                     cpf: usuario.cpfcnpj || '',
                     email: usuario.email || '',
@@ -244,6 +266,8 @@ export default function RenovacaoCheckout() {
         </Card>
       </Box>
     </ThemeProvider>
+      <Toast open={toast.open} onClose={() => setToast(s => ({ ...s, open: false }))} severity={toast.severity} message={toast.message} />
+    </>
   );
 }
 

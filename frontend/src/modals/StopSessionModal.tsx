@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from 'react';
+import React from 'react';
+import useFormReducer from '@/lib/useFormReducer';
 import {
   Dialog,
   DialogTitle,
@@ -20,7 +21,8 @@ interface StopSessionModalProps {
 
 export default function StopSessionModal({ open, onClose }: StopSessionModalProps) {
   const { stop, loading, sessao, elapsedSeconds } = useSession();
-  const [local_fim, setLocalFim] = useState('');
+  const { state, setField, reset } = useFormReducer({ local_fim: '' });
+  const local_fim = String(state.local_fim ?? '');
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -32,8 +34,8 @@ export default function StopSessionModal({ open, onClose }: StopSessionModalProp
         await stop(local_fim || undefined);
       }
 
-      // Reset form
-      setLocalFim('');
+  // Reset form
+  reset();
       onClose();
     } catch (error) {
       console.error('Erro ao encerrar sessão:', error);
@@ -41,7 +43,7 @@ export default function StopSessionModal({ open, onClose }: StopSessionModalProp
   };
 
   const handleClose = () => {
-    setLocalFim('');
+    reset();
     onClose();
   };
 
@@ -78,7 +80,7 @@ export default function StopSessionModal({ open, onClose }: StopSessionModalProp
             <TextField
               label="Local de Fim"
               value={local_fim}
-              onChange={(e) => setLocalFim(e.target.value)}
+              onChange={(e) => setField('local_fim', e.target.value)}
               placeholder="Ex: Centro, Zona Sul, etc."
               fullWidth
               variant="outlined"
