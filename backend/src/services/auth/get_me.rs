@@ -2,7 +2,7 @@ use serde::{Serialize, Deserialize};
 use axum::{Json, response::IntoResponse};
 use axum_extra::extract::cookie::CookieJar;
 use hyper::StatusCode;
-use crate::services::auth::login::extract_active_user_id_from_cookie;
+use crate::services::auth::login::extract_user_id_from_cookie;
 use crate::db::establish_connection;
 use diesel::prelude::*;
 use crate::models::{Usuario};
@@ -33,7 +33,7 @@ pub struct UsuarioMeResponse {
 
 pub async fn get_me_handler(cookie_jar: CookieJar) -> impl IntoResponse {
     let mut conn = establish_connection();
-    let user_id = match extract_active_user_id_from_cookie(&cookie_jar) {
+    let user_id = match extract_user_id_from_cookie(&cookie_jar) {
         Some(id) => id,
         None => return (StatusCode::UNAUTHORIZED, Json("Usuário não autenticado".to_string())).into_response(),
     };

@@ -1,9 +1,10 @@
 "use client";
 import React, { useEffect, useState } from "react";
+import useFormReducer from '@/lib/useFormReducer';
 import { Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button, Box, Stack, CircularProgress, Typography, IconButton, FormControl, InputLabel, Select, MenuItem } from "@mui/material";
 import axios from "axios";
 import ClearIcon from "@mui/icons-material/Clear";
-import { extractErrorMessage, getAxiosResponseInfo } from '@/lib/errorUtils';
+import { extractErrorMessage } from '@/lib/errorUtils';
 
 type Endereco = {
   rua?: string;
@@ -27,19 +28,23 @@ const UFs = [
 ];
 
 export default function EditProfileModal({ open, initialEmail, initialEndereco, onClose, onSave }: Props) {
-  const [email, setEmail] = useState(initialEmail ?? "");
-  const [endereco, setEndereco] = useState<Endereco>(initialEndereco ?? {});
-  const [loading, setLoading] = useState(false);
+  const { state, setField, setLoading, setError, setState: setFormState } = useFormReducer({
+    email: initialEmail ?? '',
+    endereco: initialEndereco ?? {},
+  });
   const [cepLoading, setCepLoading] = useState(false);
-  const [error, setError] = useState("");
   const [cepError, setCepError] = useState("");
 
+  const email = String(state.email ?? '');
+  const endereco = (state.endereco ?? {}) as Endereco;
+  const loading = Boolean(state.loading);
+  const error = String(state.error ?? "");
+
   useEffect(() => {
-    setEmail(initialEmail ?? "");
-    setEndereco(initialEndereco ?? {});
-    setError("");
+    setFormState({ email: initialEmail ?? '', endereco: initialEndereco ?? {} });
+    setError(null);
     setCepError("");
-  }, [initialEmail, initialEndereco, open]);
+  }, [initialEmail, initialEndereco, open, setFormState, setError]);
 
   
 
@@ -52,8 +57,8 @@ export default function EditProfileModal({ open, initialEmail, initialEndereco, 
   }
 
   async function lookupCep(cepRaw?: string) {
-    setCepError("");
-    const cep = sanitizeCep(cepRaw ?? endereco.cep ?? "");
+  setCepError("");
+  const cep = sanitizeCep(cepRaw ?? endereco.cep ?? "");
     if (!cep || cep.length !== 8) {
       setCepError("CEP inválido. Use 8 dígitos.");
       return;
@@ -66,7 +71,7 @@ export default function EditProfileModal({ open, initialEmail, initialEndereco, 
       if (data.erro) {
         setCepError("CEP não encontrado.");
       } else {
-        setEndereco((s) => ({ ...s, rua: data.logradouro || s.rua, complemento: data.complemento || s.complemento, cidade: data.localidade || s.cidade, estado: data.uf || s.estado, cep }));
+  setFormState({ endereco: { ...endereco, rua: data.logradouro || endereco.rua, complemento: data.complemento || endereco.complemento, cidade: data.localidade || endereco.cidade, estado: data.uf || endereco.estado, cep } });
       }
     } catch {
       setCepError("Falha ao buscar CEP. Tente novamente.");
@@ -76,17 +81,16 @@ export default function EditProfileModal({ open, initialEmail, initialEndereco, 
   }
 
   function clearEndereco() {
-    setEndereco({});
+    setFormState({ endereco: {} });
     setCepError("");
   }
 
   async function handleSave() {
-    setError("");
+    setError(null);
     if (!validEmail(email)) {
       setError("Informe um email válido.");
       return;
     }
-
     setLoading(true);
     try {
       // construir payload somente com campos alterados
@@ -109,10 +113,21 @@ export default function EditProfileModal({ open, initialEmail, initialEndereco, 
       }
     } catch (err: unknown) {
       // tratar erros específicos retornados pelo backend
-      const axiosInfo = getAxiosResponseInfo(err);
       const extracted = extractErrorMessage(err);
-      const status = axiosInfo?.status;
-      const data = axiosInfo?.data;
+
+      let status: number | undefined = undefined;
+      let data: unknown = undefined;
+      try {
+        if (err && typeof err === 'object') {
+          const respRaw = (err as Record<string, unknown>)['response'] as unknown;
+          if (respRaw && typeof respRaw === 'object') {
+            status = (respRaw as Record<string, unknown>)['status'] as number | undefined;
+            data = (respRaw as Record<string, unknown>)['data'] as unknown;
+          }
+        }
+      } catch {
+        // ignore
+      }
       if (status === 400) {
         setError(typeof data === "string" ? data : extracted ?? "Entrada inválida.");
       } else if (status === 401) {
@@ -135,7 +150,7 @@ export default function EditProfileModal({ open, initialEmail, initialEndereco, 
           <TextField
             label="Email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => setField('email', e.target.value)}
             fullWidth
             type="email"
             error={!!(email && !validEmail(email))}
@@ -149,7 +164,7 @@ export default function EditProfileModal({ open, initialEmail, initialEndereco, 
             <TextField
               label="CEP"
               value={endereco.cep ?? ""}
-              onChange={(e) => setEndereco((s) => ({ ...s, cep: e.target.value }))}
+              onChange={(e) => setField('endereco', { ...endereco, cep: e.target.value })}
               onBlur={() => lookupCep()}
               sx={{ width: 160 }}
               disabled={cepLoading || loading}
@@ -167,7 +182,7 @@ export default function EditProfileModal({ open, initialEmail, initialEndereco, 
           <TextField
             label="Rua"
             value={endereco.rua ?? ""}
-            onChange={(e) => setEndereco((s) => ({ ...s, rua: e.target.value }))}
+            onChange={(e) => setField('endereco', { ...endereco, rua: e.target.value })}
             fullWidth
             disabled={loading}
             sx={{
@@ -180,7 +195,7 @@ export default function EditProfileModal({ open, initialEmail, initialEndereco, 
             <TextField
               label="Cidade"
               value={endereco.cidade ?? ""}
-              onChange={(e) => setEndereco((s) => ({ ...s, cidade: e.target.value }))}
+              onChange={(e) => setField('endereco', { ...endereco, cidade: e.target.value })}
               sx={{ flex: 1 }}
               disabled={loading}
             />
@@ -191,7 +206,7 @@ export default function EditProfileModal({ open, initialEmail, initialEndereco, 
                 labelId="estado-label"
                 label="Estado"
                 value={endereco.estado ?? ""}
-                onChange={(e) => setEndereco((s) => ({ ...s, estado: e.target.value }))}
+                onChange={(e) => setField('endereco', { ...endereco, estado: e.target.value })}
                 disabled={loading}
               >
                 <MenuItem value="">-</MenuItem>
@@ -206,14 +221,14 @@ export default function EditProfileModal({ open, initialEmail, initialEndereco, 
             <TextField
               label="Número"
               value={endereco.numero ?? ""}
-              onChange={(e) => setEndereco((s) => ({ ...s, numero: e.target.value }))}
+              onChange={(e) => setField('endereco', { ...endereco, numero: e.target.value })}
               sx={{ flex: 1 }}
               disabled={loading}
             />
             <TextField
               label="Complemento"
               value={endereco.complemento ?? ""}
-              onChange={(e) => setEndereco((s) => ({ ...s, complemento: e.target.value }))}
+              onChange={(e) => setField('endereco', { ...endereco, complemento: e.target.value })}
               sx={{ flex: 1 }}
               disabled={loading}
             />

@@ -1,6 +1,7 @@
 
 "use client";
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useRef } from "react";
+import useFormReducer from '@/lib/useFormReducer';
 import { useCategoriaContext } from "@/context/CategoriaContext";
 import Paper from "@mui/material/Paper";
 import IconButton from "@mui/material/IconButton";
@@ -34,30 +35,34 @@ interface SessionReportPanelProps {
 }
 
 const SessionReportPanel: React.FC<SessionReportPanelProps> = ({ sessaoId, onClose }) => {
-  const [loading, setLoading] = useState(false);
-  const [stats, setStats] = useState<Stat | null>(null);
-  const [transacoes, setTransacoes] = useState<TransactionItem[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const { state, setField, setLoading, setError } = useFormReducer({ loading: false, stats: null as Stat | null, transacoes: [] as TransactionItem[], error: null as string | null });
+  const loading = Boolean(state.loading);
+  const stats = state.stats as Stat | null;
+  const transacoes = state.transacoes as TransactionItem[];
+  const error = String(state.error ?? '') || null;
   const nodeRef = useRef<HTMLDivElement | null>(null);
   const { categorias } = useCategoriaContext();
 
   useEffect(() => {
     if (!sessaoId) return;
+    let mounted = true;
     setLoading(true);
     setError(null);
     axios
       .get(`/api/sessao/relatorio/${sessaoId}`, { withCredentials: true })
       .then((r) => {
+        if (!mounted) return;
         if (r.data) {
-          setStats(r.data.stats ?? null);
-          setTransacoes(r.data.transacoes ?? []);
+          setField('stats', r.data.stats ?? null);
+          setField('transacoes', r.data.transacoes ?? []);
         } else {
           setError("Sessão não encontrada");
         }
       })
-      .catch((e) => setError(String(e)))
-      .finally(() => setLoading(false));
-  }, [sessaoId]);
+      .catch((e) => { if (mounted) setError(String(e)); })
+      .finally(() => { if (mounted) setLoading(false); });
+    return () => { mounted = false; };
+  }, [sessaoId, setField, setLoading, setError]);
 
   return (
     <div

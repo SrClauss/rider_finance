@@ -1,4 +1,4 @@
-import React, { useMemo, useReducer } from 'react';
+import React, { useMemo } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -21,6 +21,8 @@ import { useMetasContext } from '@/context/MetasContext';
 import { formatForDateTimeLocal, parseDateTime, toBackendLocalString } from '@/utils/dateUtils';
 import { useSession } from '@/context/SessionContext';
 import axios from 'axios';
+import useFormReducer from '@/lib/useFormReducer';
+import { extractErrorMessage } from '@/lib/errorUtils';
 
 // Import FontAwesome CSS (certifique-se de que está instalado)
 import '@fortawesome/fontawesome-free/css/all.min.css';
@@ -41,63 +43,17 @@ interface FormState {
   id_categoria: string;
   data: string;
   eventos?: string;
+  [key: string]: unknown;
 }
 
 // Ações do reducer
-type FormAction =
-  | { type: 'SET_VALOR'; payload: string }
-  | { type: 'SET_TIPO'; payload: string }
-  | { type: 'SET_DESCRICAO'; payload: string }
-  | { type: 'SET_CATEGORIA'; payload: string }
-  | { type: 'SET_DATA'; payload: string }
-  | { type: 'SET_EVENTOS'; payload: string }
-  | { type: 'RESET_FORM' }
-  | { type: 'LOAD_TRANSACTION'; payload: Transaction };
-// (SET_EVENTOS merged into FormAction above)
+// FormAction removed — using useFormReducer
 
 // Função para obter data/hora local no formato correto para datetime-local
 const getCurrentLocalDateTime = () => {
   return formatForDateTimeLocal(new Date());
 };
-const formReducer = (state: FormState, action: FormAction): FormState => {
-  switch (action.type) {
-    case 'SET_VALOR':
-      return { ...state, valor: action.payload };
-    case 'SET_TIPO':
-      return { ...state, tipo: action.payload };
-    case 'SET_DESCRICAO':
-      return { ...state, descricao: action.payload };
-    case 'SET_CATEGORIA':
-      return { ...state, id_categoria: action.payload };
-    case 'SET_DATA':
-      return { ...state, data: action.payload };
-    case 'SET_EVENTOS':
-      return { ...state, eventos: action.payload };
-    case 'RESET_FORM':
-      return {
-        valor: '',
-        tipo: '',
-        descricao: '',
-        id_categoria: '',
-  data: getCurrentLocalDateTime(), // Usar função que retorna data/hora local correta
-  eventos: '1',
-      };
-    case 'LOAD_TRANSACTION':
-      const transaction = action.payload;
-      return {
-        valor: transaction.valor ? transaction.valor.toString() : '',
-        tipo: transaction.tipo || '',
-        descricao: transaction.descricao || '',
-        id_categoria: transaction.id_categoria || '',
-        data: transaction.data
-          ? formatForDateTimeLocal(parseDateTime(transaction.data)) // Formato YYYY-MM-DDTHH:mm para datetime-local sem shift
-          : getCurrentLocalDateTime(), // Usar função que retorna data/hora local correta
-  eventos: transaction.eventos ? transaction.eventos.toString() : '1',
-      };
-    default:
-      return state;
-  }
-};
+// reducer replaced by useFormReducer (see bottom)
 
 /**
  * Modal para criação e edição de transações
@@ -112,31 +68,36 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
   const { categorias } = useCategoriaContext();
   const { dispatchTransacoes } = useMetasContext();
 
-  // Estado do formulário usando reducer
-  const [formState, dispatch] = useReducer(formReducer, {
+  // Estado do formulário usando useFormReducer
+  const { state: formState, setField, reset, setError, setLoading } = useFormReducer<FormState>({
     valor: '',
     tipo: '',
     descricao: '',
     id_categoria: '',
-    data: getCurrentLocalDateTime(), // Usar função que retorna data/hora local correta
+    data: getCurrentLocalDateTime(),
     eventos: '1',
   });
 
   // Carregar transação para edição quando o modal abrir ou quando a transação mudar
   React.useEffect(() => {
+    let mounted = true;
     if (transaction && open) {
-      dispatch({ type: 'LOAD_TRANSACTION', payload: transaction });
+      if (!mounted) return;
+      setField('valor', transaction.valor ? String(transaction.valor) : '');
+      setField('tipo', transaction.tipo || '');
+      setField('descricao', transaction.descricao || '');
+      setField('id_categoria', transaction.id_categoria || '');
+      setField('data', transaction.data ? formatForDateTimeLocal(parseDateTime(transaction.data)) : getCurrentLocalDateTime());
+      setField('eventos', transaction.eventos ? String(transaction.eventos) : '1');
     } else if (!transaction && open) {
-      dispatch({ type: 'RESET_FORM' });
+      reset();
     }
-  }, [transaction, open]);
+    return () => { mounted = false; };
+  }, [transaction, open, setField, reset]);
 
   // (efeito duplicado removido)
 
-  const selectedCategoria = useMemo(
-    () => categorias.find((c) => c.id === formState.id_categoria) ?? null,
-    [categorias, formState.id_categoria]
-  );
+  const selectedCategoria = useMemo(() => categorias.find((c) => c.id === formState.id_categoria) ?? null, [categorias, formState.id_categoria]);
 
   const { attachTransaction, sessao } = useSession();
 
@@ -146,10 +107,11 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
   // Função para submeter o formulário
   const handleSubmit = async () => {
     // Validações básicas
-    if (!formState.id_categoria) {
-      alert('Categoria inválida');
-      return;
-    }
+      if (!formState.id_categoria) {
+        setError('Categoria inválida');
+        return;
+      }
+      setLoading(true);
 
     try {
       // Se há sessão ativa, usar a data/hora atual em vez da selecionada
@@ -198,13 +160,16 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
       handleClose();
     } catch (error) {
       console.error('Erro ao salvar transação:', error);
-      alert('Erro ao salvar transação. Tente novamente.');
+      const msg = extractErrorMessage(error) ?? 'Erro ao salvar transação. Tente novamente.';
+      setError(String(msg));
+    } finally {
+      setLoading(false);
     }
   };
 
   // Função para limpar o formulário
   const handleClose = () => {
-    dispatch({ type: 'RESET_FORM' });
+    reset();
     onClose();
   };
 
@@ -295,7 +260,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
             variant="outlined"
             placeholder="0,00"
             value={formState.valor}
-            onChange={(e) => dispatch({ type: 'SET_VALOR', payload: e.target.value })}
+            onChange={(e) => setField('valor', e.target.value)}
             slotProps={{
               input: {
                 sx: { borderRadius: 2 },
@@ -312,7 +277,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
             multiline
             rows={2}
             value={formState.descricao}
-            onChange={(e) => dispatch({ type: 'SET_DESCRICAO', payload: e.target.value })}
+            onChange={(e) => setField('descricao', e.target.value)}
             slotProps={{
               input: {
                 sx: { borderRadius: 2 },
@@ -326,7 +291,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
             <Select
               label="Categoria"
               value={formState.id_categoria}
-              onChange={(e) => dispatch({ type: 'SET_CATEGORIA', payload: e.target.value as string })}
+              onChange={(e) => setField('id_categoria', e.target.value as string)}
               renderValue={(val) => {
                 const cat = categorias.find((c) => c.id === val);
                 if (!cat) return <Typography color="text.secondary">Selecione uma categoria</Typography>;
@@ -369,7 +334,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
             fullWidth
             variant="outlined"
             value={formState.data}
-            onChange={(e) => dispatch({ type: 'SET_DATA', payload: e.target.value })}
+            onChange={(e) => setField('data', e.target.value)}
             slotProps={{
               inputLabel: {
                 shrink: true,
@@ -387,7 +352,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
             fullWidth
             variant="outlined"
             value={formState.eventos}
-            onChange={(e) => dispatch({ type: 'SET_EVENTOS', payload: e.target.value })}
+            onChange={(e) => setField('eventos', e.target.value)}
             inputProps={{ min: 1 }}
             helperText="Quantos eventos esse lançamento representa (>=1)"
             slotProps={{

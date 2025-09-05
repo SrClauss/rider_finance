@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo } from 'react';
+import useFormReducer from '@/lib/useFormReducer';
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, MenuItem, Typography, Stack } from '@mui/material';
 import axios from 'axios';
 import type { Categoria } from '@/interfaces/Categoria';
@@ -12,46 +13,47 @@ type Props = {
 };
 
 export default function DeleteCategoryModal({ open, onClose, categoryId, categorias, onCompleted }: Props) {
-  const [phase, setPhase] = useState<number>(1);
-  const [previewCount, setPreviewCount] = useState<number | null>(null);
-  const [selectedTarget, setSelectedTarget] = useState<string | null>(null);
-  const [method, setMethod] = useState<'migrate' | 'delete'>('migrate');
-  const [confirmText, setConfirmText] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { state, setField, setLoading, setError, reset } = useFormReducer({ phase: 1, previewCount: null as number | null, selectedTarget: null as string | null, method: 'migrate' as 'migrate' | 'delete', confirmText: '' });
+  const phase = Number(state.phase ?? 1);
+  const previewCount = state.previewCount as number | null;
+  const selectedTarget = state.selectedTarget as string | null;
+  const method = state.method as 'migrate' | 'delete';
+  const confirmText = String(state.confirmText ?? '');
+  const loading = Boolean(state.loading);
+  const error = String(state.error ?? '') || null;
 
   useEffect(() => {
     if (!open) {
-      setPhase(1);
-      setPreviewCount(null);
-      setSelectedTarget(null);
-      setMethod('migrate');
-      setConfirmText('');
-      setError(null);
+      reset();
     }
-  }, [open]);
+  }, [open, reset]);
 
   useEffect(() => {
     if (phase === 1 && categoryId) {
       // fetch preview
+      let mounted = true;
       (async () => {
         try {
           setLoading(true);
           const res = await axios.get(`/api/categoria/${categoryId}/preview-delete`, { withCredentials: true });
-          setPreviewCount(res.data.transactions_count ?? 0);
+          if (!mounted) return;
+          setField('previewCount', res.data.transactions_count ?? 0);
         } catch {
+          if (!mounted) return;
           setError('Falha ao obter contagem de transações');
         } finally {
+          if (!mounted) return;
           setLoading(false);
         }
       })();
+      return () => { mounted = false; };
     }
-  }, [phase, categoryId]);
+  }, [phase, categoryId, setLoading, setField, setError]);
 
   const otherCategories = useMemo(() => categorias.filter(c => c.id !== categoryId), [categorias, categoryId]);
 
-  const goNext = () => setPhase(p => Math.min(3, p + 1));
-  const goPrev = () => setPhase(p => Math.max(1, p - 1));
+  const goNext = () => setField('phase', Math.min(3, phase + 1));
+  const goPrev = () => setField('phase', Math.max(1, phase - 1));
 
   const execute = async () => {
     if (!categoryId) return;
@@ -89,17 +91,17 @@ export default function DeleteCategoryModal({ open, onClose, categoryId, categor
         )}
         {phase === 2 && (
           <Stack spacing={2} sx={{ mt: 1 }}>
-            <TextField select label="Ação" value={method} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setMethod(e.target.value as 'migrate' | 'delete')}>
+            <TextField select label="Ação" value={method} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setField('method', e.target.value as 'migrate' | 'delete')}>
               <MenuItem value="migrate">Migrar para outra categoria</MenuItem>
               <MenuItem value="delete">Deletar transações</MenuItem>
             </TextField>
 
             {method === 'migrate' && (
-              <TextField select label="Categoria destino" value={selectedTarget ?? ''} onChange={(e) => setSelectedTarget(e.target.value)}>
+              <TextField select label="Categoria destino" value={selectedTarget ?? ''} onChange={(e) => setField('selectedTarget', e.target.value)}>
                 <MenuItem value="">Selecione</MenuItem>
                 {otherCategories.map(c => (
-                  <MenuItem key={c.id} value={c.id}>{c.nome}</MenuItem>
-                ))}
+                    <MenuItem key={c.id} value={c.id}>{c.nome}</MenuItem>
+                  ))}
               </TextField>
             )}
 
@@ -110,7 +112,7 @@ export default function DeleteCategoryModal({ open, onClose, categoryId, categor
           <Stack spacing={2} sx={{ mt: 1 }}>
             <Typography color="error">Atenção: esta operação é irreversível.</Typography>
             <Typography color="text.secondary">Para confirmar, digite <strong>DELETAR</strong> abaixo e clique em Executar.</Typography>
-            <TextField value={confirmText} onChange={(e) => setConfirmText(e.target.value)} placeholder="Digite DELETAR" />
+            <TextField value={confirmText} onChange={(e) => setField('confirmText', e.target.value)} placeholder="Digite DELETAR" />
           </Stack>
         )}
         {error && <Typography color="error" sx={{ mt: 2 }}>{error}</Typography>}

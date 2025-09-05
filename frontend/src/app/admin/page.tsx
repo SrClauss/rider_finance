@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { Box, Card, CardContent, Typography, CircularProgress } from "@mui/material";
+
 import { getAdminOverview } from "@/lib/api/admin";
 import Charts from "@/components/admin/Charts";
 import useAdminAuth from "@/hooks/useAdminAuth";
@@ -14,6 +15,7 @@ type Overview = {
 
 export default function AdminPage() {
   const [overview, setOverview] = useState<Overview | null>(null);
+
 
   const { loading } = useAdminAuth();
 
@@ -38,7 +40,9 @@ export default function AdminPage() {
 
   return (
     <Box>
-      <Typography variant="h4" sx={{ mb: 3 }}>Dashboard Administrativo</Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h4">Dashboard Administrativo</Typography>
+      </Box>
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3,1fr)' }, gap: 2, mb: 2 }}>
         <Card>
           <CardContent>

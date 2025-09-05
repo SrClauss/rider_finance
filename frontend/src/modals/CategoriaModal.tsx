@@ -1,5 +1,5 @@
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, MenuItem, Box, CircularProgress, Alert, Autocomplete } from "@mui/material";
-import React, { useEffect, useState, ChangeEvent, SyntheticEvent } from "react";
+import React, { useEffect, ChangeEvent, SyntheticEvent } from "react";
 import axios from "axios";
 import { extractErrorMessage } from '@/lib/errorUtils';
 import useFormReducer from "@/lib/useFormReducer";
@@ -19,6 +19,7 @@ const initialState = {
   tipo: 'entrada' as 'entrada' | 'saida',
   icone: '',
   cor: '#1976d2',
+  search: '',
 };
 
 // Uma lista de ícones Font Awesome (free) para busca/seleção. Pode ser estendida.
@@ -41,7 +42,6 @@ const ICON_LIST = Array.from(new Set(ICON_SUGGESTIONS.map(s => s.trim())));
 
 export default function CategoriaModal({ open, onClose, onCreated, categoria, onUpdated }: Props) {
   const { state, setField, reset, setLoading, setError } = useFormReducer(initialState);
-  const [search, setSearch] = useState('');
 
   useEffect(() => {
     if (!open) {
@@ -144,8 +144,8 @@ export default function CategoriaModal({ open, onClose, onCreated, categoria, on
           <TextField
             label="Buscar ícone"
             placeholder="ex: car, food, shop"
-            value={search}
-            onChange={(e: ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
+            value={state.search}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setField('search', e.target.value)}
             fullWidth
           />
           <Box sx={{ maxHeight: 160, overflow: 'auto', mt: 1 }}>
@@ -158,8 +158,8 @@ export default function CategoriaModal({ open, onClose, onCreated, categoria, on
             >
               {ICON_LIST
                 .filter((c) => {
-                  if (!search) return true;
-                  const term = search.toLowerCase();
+                  if (!state.search) return true;
+                  const term = (state.search ?? '').toLowerCase();
                   return c.toLowerCase().includes(term) || c.split(' ').some(p => p.includes(term));
                 })
                 .slice(0, 200)

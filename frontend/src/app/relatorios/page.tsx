@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import Toast from '@/components/ui/Toast';
 import axios from "axios";
 import { toBackendLocalString } from '@/utils/dateUtils';
 import { Box, Button, Card, CardContent, MenuItem, TextField, Typography, Stack } from "@mui/material";
@@ -16,6 +17,7 @@ export default function RelatoriosPage() {
   const [filtros, setFiltros] = useState<TransacaoFiltro>({});
   const [tipoArquivo, setTipoArquivo] = useState<'pdf' | 'xlsx'>('pdf');
   const [loading, setLoading] = useState(false);
+  const [toast, setToast] = useState<{ open: boolean; severity?: 'error' | 'success' | 'info' | 'warning'; message: string }>({ open: false, severity: 'info', message: '' });
   const { categorias, setCategorias } = useCategoriaContext();
 
   useEffect(() => {
@@ -60,7 +62,7 @@ export default function RelatoriosPage() {
       a.remove();
       window.URL.revokeObjectURL(url);
     } catch {
-      alert("Erro ao gerar relatório");
+    setToast({ open: true, severity: 'error', message: "Erro ao gerar relatório" });
     } finally {
       setLoading(false);
     }
@@ -68,7 +70,7 @@ export default function RelatoriosPage() {
 
   return (
     <LoggedLayout>
-      <Box sx={{ maxWidth: 500, mx: "auto", mt: 6 }}>
+  <Box sx={{ maxWidth: 500, mx: "auto", mt: 6 }}>
         <Card>
           <CardContent>
             <Typography variant="h5" gutterBottom>Gerar Relatório de Transações</Typography>
@@ -113,6 +115,7 @@ export default function RelatoriosPage() {
           </CardContent>
         </Card>
       </Box>
+  <Toast open={toast.open} onClose={() => setToast(s => ({ ...s, open: false }))} severity={toast.severity} message={toast.message} />
     </LoggedLayout>
   );
 }

@@ -10,6 +10,72 @@ use jsonwebtoken::{encode, decode, Header, EncodingKey, DecodingKey, Validation,
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize)]
+pub struct AdminRequestResetPayload {
+    pub username: String,
+}
+
+#[derive(Deserialize)]
+pub struct AdminResetPayload {
+    pub token: String,
+    pub new_password: String,
+}
+
+#[derive(Deserialize)]
+pub struct CreateAdminPayload {
+    pub username: String,
+    pub password: String,
+}
+
+// Em ambiente de desenvolvimento retornamos o token no corpo; em produção deve enviar por e-mail
+pub async fn admin_request_reset_handler(Json(payload): Json<AdminRequestResetPayload>) -> impl IntoResponse {
+    let conn = &mut db::establish_connection();
+    // localizar admin de forma econômica: buscar apenas o `id` ao invés de desserializar toda a struct
+    if admin_dsl::admins
+        .filter(admin_dsl::username.eq(&payload.username))
+        .select(admin_dsl::id)
+        .first::<String>(conn)
+        .is_ok()
+    {
+        // gerar token simples e armazenar em memória/DB - para simplicidade salvamos em uma tabela `admin_reset_tokens` não implementada
+        // aqui apenas retornamos o token no corpo (dev)
+        let token = uuid::Uuid::new_v4().to_string();
+        // Em produção: salvar hash(token) no DB com expiry e enviar por email
+        let resp = serde_json::json!({"ok": true, "token": token});
+        return (StatusCode::OK, Json(resp));
+    }
+    (StatusCode::BAD_REQUEST, Json(serde_json::json!({"message": "admin not found"})))
+}
+
+// Reset via token (dev helper - procura admin pelo username implícito no token não implementado)
+pub async fn admin_reset_password_handler(Json(payload): Json<AdminResetPayload>) -> impl IntoResponse {
+    // Para simplificar: token não verificado; em produção validar token salvo
+    // Aqui assumimos token válido e atualizamos o admin padrão 'admin'
+    let conn = &mut db::establish_connection();
+    if let Ok(admin) = admin_dsl::admins.filter(admin_dsl::username.eq("admin")).first::<Admin>(conn) {
+        let new_hash = bcrypt::hash(&payload.new_password, bcrypt::DEFAULT_COST).unwrap();
+        diesel::update(admin_dsl::admins.filter(admin_dsl::id.eq(&admin.id)))
+            .set((admin_dsl::password_hash.eq(new_hash), admin_dsl::atualizado_em.eq(chrono::Utc::now().naive_utc())))
+            .execute(conn).ok();
+        return (StatusCode::OK, Json(serde_json::json!({"ok": true, "message": "password updated"})));
+    }
+    (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"ok": false, "message": "failed"})))
+}
+
+// Criar novo admin (exige cookie admin)
+pub async fn create_admin_handler(jar: CookieJar, Json(payload): Json<CreateAdminPayload>) -> impl IntoResponse {
+    if validate_admin_cookie(&jar).is_none() {
+        return (StatusCode::UNAUTHORIZED, Json(serde_json::json!({"message": "unauthorized"}))); 
+    }
+    let conn = &mut db::establish_connection();
+    let hash = bcrypt::hash(&payload.password, bcrypt::DEFAULT_COST).unwrap();
+    let new = crate::models::NewAdmin::new(payload.username.clone(), hash);
+    match diesel::insert_into(admin_dsl::admins).values(&new).execute(conn) {
+        Ok(_) => (StatusCode::CREATED, Json(serde_json::json!({"ok": true}))),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"ok": false, "error": format!("{}", e)}))),
+    }
+}
+
+#[derive(Deserialize)]
 pub struct AdminLoginPayload {
     pub usuario: String,
     pub senha: String,
@@ -20,6 +86,13 @@ pub struct ChangePasswordPayload {
     pub username: String,
     pub old_password: String,
     pub new_password: String,
+}
+
+#[derive(Serialize)]
+pub struct AdminListItem {
+    pub id: String,
+    pub username: String,
+    pub criado_em: Option<chrono::NaiveDateTime>,
 }
 
 #[derive(Serialize)]
@@ -69,31 +142,89 @@ pub async fn admin_login_handler(Json(payload): Json<AdminLoginPayload>) -> impl
 }
 
 // Change password (basic): verifies old password and updates hash
-fn validate_admin_cookie(jar: &CookieJar) -> bool {
+fn validate_admin_cookie(jar: &CookieJar) -> Option<String> {
     if let Some(cookie) = jar.get("admin_auth_token") {
         let token = cookie.value();
         let secret = std::env::var("ADMIN_JWT_SECRET").unwrap_or_else(|_| std::env::var("JWT_SECRET").unwrap_or_else(|_| "secret".to_string()));
         let validation = Validation::new(Algorithm::HS256);
-        return decode::<serde_json::Value>(token, &DecodingKey::from_secret(secret.as_ref()), &validation).is_ok();
+        if let Ok(data) = decode::<serde_json::Value>(token, &DecodingKey::from_secret(secret.as_ref()), &validation) {
+            // Expect `sub` claim to be admin id
+            if let Some(sub) = data.claims.get("sub") {
+                if let Some(s) = sub.as_str() {
+                    return Some(s.to_string());
+                }
+            }
+        }
     }
-    false
+    None
 }
 
 pub async fn admin_change_password_handler(jar: CookieJar, Json(payload): Json<ChangePasswordPayload>) -> impl IntoResponse {
-    if !validate_admin_cookie(&jar) {
-        return (StatusCode::UNAUTHORIZED, Json(serde_json::json!({"message": "unauthorized"}))); 
-    }
+    // Now only allow changing password for the authenticated admin (cookie-derived id)
+    let auth_admin_id = match validate_admin_cookie(&jar) {
+        Some(id) => id,
+        None => return (StatusCode::UNAUTHORIZED, Json(serde_json::json!({"message": "unauthorized"}))),
+    };
     let conn = &mut db::establish_connection();
-    if let Ok(admin) = admin_dsl::admins.filter(admin_dsl::username.eq(&payload.username)).first::<Admin>(conn) {
-        if bcrypt::verify(&payload.old_password, &admin.password_hash).unwrap_or(false) {
+    // load the auth admin
+    if let Ok(auth_admin) = admin_dsl::admins.filter(admin_dsl::id.eq(&auth_admin_id)).first::<Admin>(conn) {
+        // ensure payload.username matches auth_admin.username (so you can only change your own password)
+        if auth_admin.username != payload.username {
+            return (StatusCode::FORBIDDEN, Json(serde_json::json!({"message": "cannot change another admin password"})));
+        }
+        if bcrypt::verify(&payload.old_password, &auth_admin.password_hash).unwrap_or(false) {
             let new_hash = bcrypt::hash(&payload.new_password, bcrypt::DEFAULT_COST).unwrap();
-            let _ = diesel::update(admin_dsl::admins.filter(admin_dsl::id.eq(&admin.id)))
+            let _ = diesel::update(admin_dsl::admins.filter(admin_dsl::id.eq(&auth_admin.id)))
                 .set((admin_dsl::password_hash.eq(new_hash), admin_dsl::atualizado_em.eq(chrono::Utc::now().naive_utc())))
                 .execute(conn);
             return (StatusCode::OK, Json(serde_json::json!({"message": "password changed"})));
         }
     }
     (StatusCode::UNAUTHORIZED, Json(serde_json::json!({"message": "invalid credentials"})))
+}
+
+// List admins
+pub async fn list_admins_handler(jar: CookieJar) -> impl IntoResponse {
+    if validate_admin_cookie(&jar).is_none() {
+        return (StatusCode::UNAUTHORIZED, Json(serde_json::json!({"message": "unauthorized"}))); 
+    }
+    let conn = &mut db::establish_connection();
+    match admin_dsl::admins.load::<Admin>(conn) {
+        Ok(items) => {
+            let mapped: Vec<AdminListItem> = items.into_iter().map(|a| AdminListItem { id: a.id, username: a.username, criado_em: Some(a.criado_em) }).collect();
+            (StatusCode::OK, Json(serde_json::json!({"items": mapped})))
+        },
+        Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"message": "failed"})))
+    }
+}
+
+// Delete admin by id — only allowed if requester is authenticated admin
+pub async fn delete_admin_handler(jar: CookieJar, axum::extract::Path(admin_id): axum::extract::Path<String>) -> impl IntoResponse {
+    let auth = match validate_admin_cookie(&jar) {
+        Some(id) => id,
+        None => return (StatusCode::UNAUTHORIZED, Json(serde_json::json!({"message": "unauthorized"}))),
+    };
+    // Prevent self-deletion
+    if auth == admin_id {
+        return (StatusCode::BAD_REQUEST, Json(serde_json::json!({"message": "cannot delete yourself"}))); 
+    }
+    let conn = &mut db::establish_connection();
+    // Prevent deleting default 'admin' username
+    if let Ok(target) = admin_dsl::admins.filter(admin_dsl::id.eq(&admin_id)).first::<Admin>(conn) {
+        if target.username == "admin" {
+            return (StatusCode::BAD_REQUEST, Json(serde_json::json!({"message": "cannot delete default admin"}))); 
+        }
+    }
+    match diesel::delete(admin_dsl::admins.filter(admin_dsl::id.eq(admin_id))).execute(conn) {
+        Ok(affected) => {
+            if affected > 0 {
+                (StatusCode::OK, Json(serde_json::json!({"ok": true})))
+            } else {
+                (StatusCode::NOT_FOUND, Json(serde_json::json!({"message": "not found"})))
+            }
+        },
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"message": format!("error: {}", e)})))
+    }
 }
 
 // List users paginated with optional filters name, cpf, blocked
@@ -110,7 +241,7 @@ pub struct ListUsersQuery {
 }
 pub async fn list_users_handler(jar: CookieJar, axum::extract::Query(query): axum::extract::Query<ListUsersQuery>) -> impl IntoResponse {
     // Handler exige cookie admin_auth_token
-    if !validate_admin_cookie(&jar) {
+    if validate_admin_cookie(&jar).is_none() {
         return (StatusCode::UNAUTHORIZED, Json(serde_json::json!({"message": "unauthorized"}))); 
     }
     let conn = &mut db::establish_connection();
@@ -121,7 +252,7 @@ pub async fn list_users_handler(jar: CookieJar, axum::extract::Query(query): axu
     let mut base = usuarios_dsl::usuarios.into_boxed();
     // pesquisa por nome: aceitar tanto `q` quanto `name` e procurar em nome_completo OU nome_usuario
     if let Some(ref s) = query.q.as_ref().or(query.name.as_ref()) {
-        let pattern = format!("%{}%", s);
+        let pattern = format!("%{s}%");
         base = base.filter(usuarios_dsl::nome_completo.ilike(pattern.clone()).or(usuarios_dsl::nome_usuario.ilike(pattern)));
     }
     if let Some(ref cpf) = query.cpf {
@@ -135,7 +266,7 @@ pub async fn list_users_handler(jar: CookieJar, axum::extract::Query(query): axu
     // Recriar query para contagem (não podemos clonar BoxedSelectStatement)
     let mut count_q = usuarios_dsl::usuarios.into_boxed();
     if let Some(ref s) = query.q.as_ref().or(query.name.as_ref()) {
-        let pattern = format!("%{}%", s);
+        let pattern = format!("%{s}%");
         count_q = count_q.filter(usuarios_dsl::nome_completo.ilike(pattern.clone()).or(usuarios_dsl::nome_usuario.ilike(pattern)));
     }
     if let Some(ref cpf) = &query.cpf {
@@ -195,7 +326,7 @@ pub async fn list_users_handler(jar: CookieJar, axum::extract::Query(query): axu
 
 // Block user
 pub async fn block_user_handler(jar: CookieJar, axum::extract::Path(user_id): axum::extract::Path<String>) -> impl IntoResponse {
-    if !validate_admin_cookie(&jar) {
+    if validate_admin_cookie(&jar).is_none() {
         return (StatusCode::UNAUTHORIZED, Json(serde_json::json!({"message": "unauthorized"}))); 
     }
     let conn = &mut db::establish_connection();
@@ -211,7 +342,7 @@ pub async fn block_user_handler(jar: CookieJar, axum::extract::Path(user_id): ax
 
 // Unblock user and extend subscription if possible
 pub async fn unblock_user_handler(jar: CookieJar, axum::extract::Path(user_id): axum::extract::Path<String>) -> impl IntoResponse {
-    if !validate_admin_cookie(&jar) {
+    if validate_admin_cookie(&jar).is_none() {
         return (StatusCode::UNAUTHORIZED, Json(serde_json::json!({"message": "unauthorized"}))); 
     }
     let conn = &mut db::establish_connection();
@@ -243,7 +374,7 @@ pub async fn unblock_user_handler(jar: CookieJar, axum::extract::Path(user_id): 
 
 // Admin dashboard (skeleton): novos 30 dias, nao renovaram, taxa de renovacao
 pub async fn admin_dashboard_handler(jar: CookieJar) -> impl IntoResponse {
-    if !validate_admin_cookie(&jar) {
+    if validate_admin_cookie(&jar).is_none() {
         return (StatusCode::UNAUTHORIZED, Json(serde_json::json!({"message": "unauthorized"}))); 
     }
     let conn = &mut db::establish_connection();
@@ -268,7 +399,7 @@ pub async fn admin_dashboard_handler(jar: CookieJar) -> impl IntoResponse {
 
 // Return basic admin info if cookie valid
 pub async fn admin_me_handler(jar: CookieJar) -> impl IntoResponse {
-    if !validate_admin_cookie(&jar) {
+    if validate_admin_cookie(&jar).is_none() {
         return (StatusCode::UNAUTHORIZED, Json(serde_json::json!({"message": "unauthorized"}))); 
     }
     // Could return more data; minimal for now

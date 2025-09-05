@@ -21,9 +21,9 @@ pub use metas_com_transacoes::*;
 use axum::{Json, extract::Path};
 use diesel::AsChangeset;
 use axum_extra::extract::cookie::CookieJar;
+use crate::services::auth::login::extract_user_id_from_cookie;
 use crate::db;
 use crate::schema::metas;
-use crate::services::auth::login::extract_active_user_id_from_cookie;
 use crate::schema::metas::dsl::*;
 use diesel::{QueryDsl, RunQueryDsl, ExpressionMethods};
 use crate::models::{Meta, NewMeta};
@@ -69,7 +69,7 @@ pub struct MetaChangeset {
 
 pub async fn list_metas_a_cumprir_handler(jar: CookieJar) -> Json<Vec<Meta>> {
     let conn = &mut db::establish_connection();
-    let user_id = extract_active_user_id_from_cookie(&jar).expect("Usuário não autenticado");
+    let user_id = extract_user_id_from_cookie(&jar).expect("Usuário não autenticado");
     let results = metas
         .filter(id_usuario.eq(user_id))
         .filter(eh_ativa.eq(true))
@@ -93,7 +93,7 @@ pub async fn list_metas_cumpridas_handler(Path(id_usuario_param): Path<String>) 
 pub async fn create_meta_handler(jar: CookieJar, Json(payload): Json<CreateMetaPayload>) -> Json<Meta> {
     let conn = &mut db::establish_connection();
     let now = chrono::Utc::now().naive_utc();
-    let user_id = extract_active_user_id_from_cookie(&jar).expect("Usuário não autenticado");
+    let user_id = extract_user_id_from_cookie(&jar).expect("Usuário não autenticado");
     let nova_meta = NewMeta {
         id: ulid::Ulid::new().to_string(),
         id_usuario: user_id.clone(),
@@ -175,7 +175,7 @@ pub async fn update_meta_handler(Path(id_param): Path<String>, Json(payload): Js
 
 pub async fn delete_meta_handler(jar: CookieJar, Path(id_param): Path<String>) -> Json<bool> {
     let conn = &mut db::establish_connection();
-    let user_id = extract_active_user_id_from_cookie(&jar).expect("Usuário não autenticado");
+    let user_id = extract_user_id_from_cookie(&jar).expect("Usuário não autenticado");
     // Só deleta se a meta for do usuário autenticado
     let count = diesel::delete(metas.filter(id.eq(&id_param)).filter(id_usuario.eq(&user_id)))
         .execute(conn)
