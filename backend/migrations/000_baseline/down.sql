@@ -1,0 +1,2 @@
+-- baseline migration down (no-op)
+-- Não há nada a desfazer; mantido vazio propositalmente.

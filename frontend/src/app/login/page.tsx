@@ -21,6 +21,8 @@ import { useRouter } from 'next/navigation';
 import axios from "axios";
 import useFormReducer from '@/lib/useFormReducer';
 import { extractErrorMessage } from '@/lib/errorUtils';
+// Import package.json to show app version
+import pkg from '../../../package.json';
 
 type State = {
   usuario: string;
@@ -81,6 +83,7 @@ export default function Page() {
     <ThemeProvider>
       <Box
         sx={{
+          position: 'relative',
           minHeight: "100vh",
           display: "flex",
           alignItems: "center",
@@ -89,6 +92,10 @@ export default function Page() {
           p: 2,
         }}
       >
+        {/* App version in top-right */}
+        <Box sx={{ position: 'absolute', top: 12, right: 16, p: 1 }}>
+          <Typography variant="caption" color="text.secondary">v{pkg.version}</Typography>
+        </Box>
         <Card
           sx={{
             maxWidth: 400,
