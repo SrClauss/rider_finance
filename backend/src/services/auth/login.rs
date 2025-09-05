@@ -9,6 +9,28 @@ pub fn extract_user_id_from_cookie(jar: &CookieJar) -> Option<String> {
     let token_data = decode::<Claims>(token, &decoding_key, &validation).ok()?;
     Some(token_data.claims.sub)
 }
+
+/// Extrai o id do cookie JWT e valida que o usuário NÃO está bloqueado.
+/// Retorna Some(id) apenas se o token for válido e o usuário existir e não estiver bloqueado.
+pub fn extract_active_user_id_from_cookie(jar: &CookieJar) -> Option<String> {
+    use crate::db;
+    use crate::schema::usuarios::dsl as u_dsl;
+    if let Some(cookie) = jar.get("auth_token") {
+        let token = cookie.value();
+        let decoding_key = DecodingKey::from_secret(std::env::var("JWT_SECRET").unwrap_or_else(|_| "secret".to_string()).as_bytes());
+        let validation = Validation::new(Algorithm::HS256);
+        if let Ok(token_data) = decode::<Claims>(token, &decoding_key, &validation) {
+            let user_id = token_data.claims.sub;
+            let conn = &mut db::establish_connection();
+            if let Ok(u) = u_dsl::usuarios.filter(u_dsl::id.eq(&user_id)).first::<crate::models::usuario::Usuario>(conn) {
+                if !u.blocked {
+                    return Some(user_id);
+                }
+            }
+        }
+    }
+    None
+}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -71,6 +93,7 @@ use diesel::QueryDsl;
 use diesel::ExpressionMethods;
 use diesel::BoolExpressionMethods;
 use diesel::RunQueryDsl;
+use diesel::OptionalExtension;
 
 #[derive(Deserialize)]
 pub struct LoginPayload {
@@ -131,6 +154,52 @@ struct Claims {
 
 
 pub fn login(usuario: &Usuario, senha_plain: &str) -> Result<String, String> {
+    // Rejeita usuários bloqueados antes de verificar senha
+    if usuario.blocked {
+        return Err("Conta bloqueada".to_string());
+    }
+
+    // Verifica se o usuário possui assinatura ativa (periodo_fim > now)
+    {
+        use crate::db;
+        use crate::schema::assinaturas::dsl as assin_dsl;
+        let conn = &mut db::establish_connection();
+        let maybe_assin = assin_dsl::assinaturas
+            .filter(assin_dsl::id_usuario.eq(&usuario.id))
+            .order(assin_dsl::periodo_fim.desc())
+            .first::<crate::models::assinatura::Assinatura>(conn)
+            .optional()
+            .map_err(|_| "Erro ao verificar assinatura".to_string())?;
+        match maybe_assin {
+            Some(assin) => {
+                if assin.periodo_fim <= chrono::Utc::now().naive_utc() {
+                    // Gera um token JWT temporário para renovação e retorna erro especial
+                    let expiration = chrono::Utc::now().timestamp() as usize + 60 * 15; // 15 minutos
+                    #[derive(serde::Serialize)]
+                    struct RenewalClaims {
+                        sub: String,
+                        nome_usuario: String,
+                        email: String,
+                        exp: usize,
+                        kind: &'static str,
+                    }
+                    let claims = RenewalClaims {
+                        sub: usuario.id.clone(),
+                        nome_usuario: usuario.nome_usuario.clone(),
+                        email: usuario.email.clone(),
+                        exp: expiration,
+                        kind: "renewal",
+                    };
+                    let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "secret".to_string());
+                    let token = jsonwebtoken::encode(&jsonwebtoken::Header::default(), &claims, &jsonwebtoken::EncodingKey::from_secret(secret.as_ref()))
+                        .map_err(|_| "Erro ao gerar token de renovação".to_string())?;
+                    return Err(format!("Assinatura expirada|renewal_token:{}", token));
+                }
+            }
+            None => return Err("Sem assinatura ativa".to_string()),
+        }
+    }
+
     // usuario.senha é String (hash da senha)
     if verify(senha_plain, usuario.senha.as_ref()).map_err(|_| "Erro ao verificar senha".to_string())? {
         // Gerar token JWT

@@ -20,19 +20,19 @@ mod tests {
         std::env::set_var("PIX_ENABLED", "false");
 
         let payload = CheckoutPayload {
-            id_usuario: "user_test".to_string(),
-            valor: "99.99".to_string(),
-            nome: "Teste".to_string(),
-            cpf: "12345678900".to_string(),
-            email: "teste@teste.com".to_string(),
-            telefone: "11999999999".to_string(),
-            endereco: "Rua Teste".to_string(),
-            numero: "123".to_string(),
-            complemento: "Apto 1".to_string(),
-            cep: "01234567".to_string(),
-            bairro: "Centro".to_string(),
-            cidade: "São Paulo".to_string(),
-            meses: 1,
+            id_usuario: Some("user_test".to_string()),
+            valor: Some("99.99".to_string()),
+            nome: Some("Teste".to_string()),
+            cpf: Some("12345678900".to_string()),
+            email: Some("teste@teste.com".to_string()),
+            telefone: Some("11999999999".to_string()),
+            endereco: Some("Rua Teste".to_string()),
+            numero: Some("123".to_string()),
+            complemento: Some("Apto 1".to_string()),
+            cep: Some("01234567".to_string()),
+            bairro: Some("Centro".to_string()),
+            cidade: Some("São Paulo".to_string()),
+            meses: Some(1),
         };
 
         let result = criar_checkout_asaas(payload).await;
@@ -53,19 +53,19 @@ use axum::{Json};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CheckoutPayload {
-    pub id_usuario: String,
-    pub valor: String,
-    pub nome: String,
-    pub cpf: String,
-    pub email: String,
-    pub telefone: String,
-    pub endereco: String,
-    pub numero: String,
-    pub complemento: String,
-    pub cep: String,
-    pub bairro: String,
-    pub cidade: String,
-    pub meses: i64,
+    pub id_usuario: Option<String>,
+    pub valor: Option<String>,
+    pub nome: Option<String>,
+    pub cpf: Option<String>,
+    pub email: Option<String>,
+    pub telefone: Option<String>,
+    pub endereco: Option<String>,
+    pub numero: Option<String>,
+    pub complemento: Option<String>,
+    pub cep: Option<String>,
+    pub bairro: Option<String>,
+    pub cidade: Option<String>,
+    pub meses: Option<i64>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -78,6 +78,21 @@ pub struct CheckoutResponse {
 }
 
 pub async fn criar_checkout_asaas(payload: CheckoutPayload) -> Result<CheckoutResponse, String> {
+
+    // Coerce optional fields to defaults
+    let _id_usuario = payload.id_usuario.unwrap_or_default();
+    let valor = payload.valor.unwrap_or_else(|| "0.00".to_string());
+    let nome = payload.nome.unwrap_or_default();
+    let cpf = payload.cpf.unwrap_or_default();
+    let email = payload.email.unwrap_or_default();
+    let telefone = payload.telefone.unwrap_or_default();
+    let endereco = payload.endereco.unwrap_or_default();
+    let numero = payload.numero.unwrap_or_default();
+    let complemento = payload.complemento.unwrap_or_default();
+    let cep = payload.cep.unwrap_or_default();
+    let bairro = payload.bairro.unwrap_or_default();
+    let cidade = payload.cidade.unwrap_or_default();
+    let meses = payload.meses.unwrap_or(1);
 
     let url = env::var("END_POINT_ASSAS").map_err(|_| "END_POINT_ASSAS não configurado".to_string())?;
     let api_key = format!("${}", env::var("ASAAS_API_KEY").map_err(|_| "ASAAS_API_KEY não configurada".to_string())?);
@@ -108,20 +123,20 @@ pub async fn criar_checkout_asaas(payload: CheckoutPayload) -> Result<CheckoutRe
         "items": [{
             "name": "Assinatura Rider Finance",
             "description": "Acesso completo à plataforma",
-            "quantity": payload.meses,
-            "value": payload.valor
+            "quantity": meses,
+            "value": valor
         }],
         "customerData": {
-            "name": payload.nome,
-            "cpfCnpj": "10700418741",
-            "email": payload.email,
-            "phone": payload.telefone,
-            "address": payload.endereco,
-            "addressNumber": payload.numero,
-            "complement": payload.complemento,
-            "postalCode": payload.cep,
-            "province": payload.bairro,
-            "city": payload.cidade
+            "name": nome,
+            "cpfCnpj": cpf,
+            "email": email,
+            "phone": telefone,
+            "address": endereco,
+            "addressNumber": numero,
+            "complement": complemento,
+            "postalCode": cep,
+            "province": bairro,
+            "city": cidade
         }
     });
 

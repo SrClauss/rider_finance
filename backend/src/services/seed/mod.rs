@@ -24,7 +24,7 @@ use crate::db::establish_connection;
             postal_code: "01234567".to_string(),
             province: "Centro".to_string(),
             city: "São Paulo".to_string(),
-            cpfcnpj: "12345678900".to_string(),
+            cpfcnpj: "79982364502".to_string(),
         };
         diesel::insert_into(usuarios)
             .values(&new_user)
@@ -81,8 +81,9 @@ pub async fn seed_movimentacao_robusta() {
         .optional()
         .expect("Erro ao buscar usuário seed");
 
-    // Se usuário seed já existir, não faz nada (idempotente e sem alterações)
-    if existing.is_some() {
+    // Se usuário seed já existir, reutiliza e sai (idempotente)
+    // NÃO alteramos o campo `blocked` aqui para evitar bloquear contas em reinícios.
+    if let Some(_existing_user) = existing {
         return;
     }
 
@@ -90,6 +91,8 @@ pub async fn seed_movimentacao_robusta() {
     let resp = register_user_handler(Json(payload)).await;
     let resp_inner = resp.0; // RegisterResponse
     let id_user: String = resp_inner.id.expect("Falha ao criar usuário seed");
+    // Após criar via fluxo de registro, NÃO marcamos o usuário como bloqueado.
+    // Mantemos blocked = false por padrão.
     // Cria categorias padrão para o usuário seed: Corrida Uber, Corrida 99, Abastecimento, Alimentação
     use crate::services::categoria::{CreateCategoriaPayload, create_categoria_internal};
     use crate::schema::categorias::dsl as categorias_dsl;
