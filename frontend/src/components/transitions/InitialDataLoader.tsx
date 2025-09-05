@@ -14,9 +14,10 @@ export default function InitialDataLoader({ children }: { children: React.ReactN
 
   useEffect(() => {
     const validateAndLoadData = async () => {
-      // Skip global validation for admin routes and the public login page so admin login can render
-      if (typeof pathname === 'string' && (pathname.startsWith('/admin') || pathname === '/login')) {
-        console.log('InitialDataLoader: skipping for admin or login route:', pathname);
+      // Define public routes that should NOT trigger token validation/redirects
+  const publicPrefixes = ['/admin', '/login', '/register', '/forgot', '/reset', '/assinatura'];
+      if (typeof pathname === 'string' && publicPrefixes.some(prefix => pathname.startsWith(prefix))) {
+        console.log('InitialDataLoader: skipping token validation for public route:', pathname);
         return;
       }
       if (hasLoadedRef.current) return; // Já carregou, não fazer novamente
