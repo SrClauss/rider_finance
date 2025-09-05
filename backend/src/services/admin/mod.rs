@@ -79,6 +79,8 @@ pub async fn create_admin_handler(jar: CookieJar, Json(payload): Json<CreateAdmi
 pub struct AdminLoginPayload {
     pub usuario: String,
     pub senha: String,
+    pub captcha_token: Option<String>,
+    pub captcha_answer: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -106,39 +108,48 @@ pub struct PaginatedUsers {
 // Admin login: simples, retorna 200 se ok (implement JWT admin se desejado)
 pub async fn admin_login_handler(Json(payload): Json<AdminLoginPayload>) -> impl IntoResponse {
     let conn = &mut db::establish_connection();
-    match admin_dsl::admins.filter(admin_dsl::username.eq(&payload.usuario)).first::<Admin>(conn) {
-        Ok(admin) => {
-                if bcrypt::verify(&payload.senha, &admin.password_hash).unwrap_or(false) {
-                // Gera token JWT para admin e seta cookie HttpOnly com nome diferente do token de usuário
-                // Payload mínimo: sub = admin.id
-                #[derive(Serialize, Deserialize)]
-                struct Claims { sub: String, exp: usize }
-                let expiration = chrono::Utc::now().timestamp() as usize + 60 * 60 * 24; // 24h
-                let claims = Claims { sub: admin.id.clone(), exp: expiration };
-                let secret = std::env::var("ADMIN_JWT_SECRET").unwrap_or_else(|_| std::env::var("JWT_SECRET").unwrap_or_else(|_| "secret".to_string()));
-                match encode(&Header::default(), &claims, &EncodingKey::from_secret(secret.as_ref())) {
-                    Ok(token) => {
-                        let mut headers = HeaderMap::new();
-                        let cookie_value = format!("admin_auth_token={token}; HttpOnly; Path=/; Max-Age=86400; SameSite=Lax");
-                        headers.insert(header::SET_COOKIE, cookie_value.parse().unwrap());
-                        let resp = serde_json::json!({"message": format!("admin authenticated: {}", admin.username)});
-                        (StatusCode::OK, headers, Json(resp))
-                    },
-                    Err(_) => {
-                        let headers = HeaderMap::new();
-                        (StatusCode::INTERNAL_SERVER_ERROR, headers, Json(serde_json::json!({"message": "failed to generate token"})))
-                    },
-                }
-                } else {
-                    let headers = HeaderMap::new();
-                    (StatusCode::UNAUTHORIZED, headers, Json(serde_json::json!({"message": "invalid credentials"})))
-                }
-        },
-        Err(_) => {
-            let headers = HeaderMap::new();
-            (StatusCode::UNAUTHORIZED, headers, Json(serde_json::json!({"message": "invalid credentials"})))
-        },
+
+    // Validate captcha first
+    if payload.captcha_token.as_ref().and(payload.captcha_answer.as_ref()).is_none() {
+        let headers = HeaderMap::new();
+        return (StatusCode::BAD_REQUEST, headers, Json(serde_json::json!({"message": "captcha required"}))).into_response();
     }
+    if let (Some(token), Some(answer)) = (payload.captcha_token.as_ref(), payload.captcha_answer.as_ref()) {
+        if !crate::services::captcha::validate_captcha(token, answer) {
+            let headers = HeaderMap::new();
+            return (StatusCode::BAD_REQUEST, headers, Json(serde_json::json!({"message": "invalid captcha"}))).into_response();
+        }
+    }
+
+    // Prepare default response
+    let mut status = StatusCode::UNAUTHORIZED;
+    let mut headers = HeaderMap::new();
+    let mut body = serde_json::json!({"message": "invalid credentials"});
+
+    if let Ok(admin) = admin_dsl::admins.filter(admin_dsl::username.eq(&payload.usuario)).first::<Admin>(conn) {
+        if bcrypt::verify(&payload.senha, &admin.password_hash).unwrap_or(false) {
+            // generate token
+            #[derive(Serialize, Deserialize)]
+            struct Claims { sub: String, exp: usize }
+            let expiration = chrono::Utc::now().timestamp() as usize + 60 * 60 * 24; // 24h
+            let claims = Claims { sub: admin.id.clone(), exp: expiration };
+            let secret = std::env::var("ADMIN_JWT_SECRET").unwrap_or_else(|_| std::env::var("JWT_SECRET").unwrap_or_else(|_| "secret".to_string()));
+            match encode(&Header::default(), &claims, &EncodingKey::from_secret(secret.as_ref())) {
+                Ok(token) => {
+                    let cookie_value = format!("admin_auth_token={token}; HttpOnly; Path=/; Max-Age=86400; SameSite=Lax");
+                    headers.insert(header::SET_COOKIE, cookie_value.parse().unwrap());
+                    status = StatusCode::OK;
+                    body = serde_json::json!({"message": format!("admin authenticated: {}", admin.username)});
+                }
+                Err(_) => {
+                    status = StatusCode::INTERNAL_SERVER_ERROR;
+                    body = serde_json::json!({"message": "failed to generate token"});
+                }
+            }
+        }
+    }
+
+    (status, headers, Json(body)).into_response()
 }
 
 // Change password (basic): verifies old password and updates hash
