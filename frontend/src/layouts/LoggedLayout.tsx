@@ -89,16 +89,7 @@ export default function LoggedLayout({ children }: LoggedLayoutProps) {
             </Box>
 
             <Box>
-              <Tooltip title="Admin">
-                <IconButton
-                  color="inherit"
-                  onClick={() => router.push('/admin')}
-                  sx={{ color: "#fff" }}
-                  aria-label="admin"
-                >
-                  <AdminPanelSettingsIcon />
-                </IconButton>
-              </Tooltip>
+            
               <IconButton
                 color="inherit"
                 onClick={() => router.push("/perfil")}
