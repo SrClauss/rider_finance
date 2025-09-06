@@ -5,13 +5,14 @@ use crate::models::assinatura::{Assinatura, NewAssinatura};
 use crate::db;
 use crate::schema::assinaturas::dsl::{assinaturas, id as assinatura_id, periodo_inicio, periodo_fim, atualizado_em as assinatura_atualizado_em, id_usuario as assinatura_id_usuario};
 use chrono::{Utc, Duration};
+use ulid::Ulid;
 
 pub async fn create_assinatura(
     payload: Json<NewAssinatura>,
 ) -> Json<Assinatura> {
     let mut conn = db::establish_connection();
     let new_assinatura = NewAssinatura {
-        id: uuid::Uuid::new_v4().to_string(),
+    id: Ulid::new().to_string(),
         id_usuario: payload.id_usuario.clone(),
         asaas_subscription_id: payload.asaas_subscription_id.clone(),
         periodo_inicio: payload.periodo_inicio,
