@@ -185,6 +185,22 @@ pub async fn update_me_handler(cookie_jar: CookieJar, Json(payload): Json<Update
     (StatusCode::OK, Json(UpdateMeResponse { success: true })).into_response()
 }
 
+// Admin: Deleta usuário e todas as entidades relacionadas via cascade
+pub async fn delete_user_and_related_handler(axum::extract::Path(user_id): axum::extract::Path<String>) -> impl IntoResponse {
+    let conn = &mut db::establish_connection();
+    // usar transação para segurança, embora FKs com cascade façam o trabalho
+    let res = conn.transaction::<(), diesel::result::Error, _>(|conn_tx| {
+        // deletar o usuário — as FKs com ON DELETE CASCADE devem remover related rows
+        diesel::delete(usuarios.filter(id.eq(&user_id))).execute(conn_tx)?;
+        Ok(())
+    });
+
+    match res {
+        Ok(_) => (hyper::StatusCode::OK, Json(serde_json::json!({"ok": true}))).into_response(),
+        Err(e) => (hyper::StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"ok": false, "error": format!("{}", e)}))).into_response(),
+    }
+}
+
 
 #[cfg(test)]
 mod tests {

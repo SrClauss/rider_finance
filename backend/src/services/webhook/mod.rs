@@ -7,28 +7,25 @@ use axum::{Router, routing::post, Json};
 use axum::response::IntoResponse;
 use serde_json::Value;
 
-    // Lista de IPs permitidos (Asaas)
-    const ASAAS_IPS: &[&str] = &[
-        "52.67.12.206",
-        "18.230.8.159",
-        "54.94.136.112",
-        "54.94.183.101",
-        "54.232.48.115"
-    ];
+    // Nota: verificação por IP removida — agora o webhook exige um token
 
     pub async fn receber_webhook(
-        ConnectInfo(addr): ConnectInfo<SocketAddr>,
+        ConnectInfo(_addr): ConnectInfo<SocketAddr>,
         headers: HeaderMap,
         Json(payload): Json<Value>
     ) -> axum::response::Response {
-        // Tenta pegar o IP do header X-Forwarded-For
-        let ip = if let Some(forwarded) = headers.get("x-forwarded-for") {
-            forwarded.to_str().unwrap_or("").split(',').next().unwrap_or("").trim().to_string()
-        } else {
-            addr.ip().to_string()
+     
+
+        let expected = match std::env::var("ASAAS_WEBHOOK_TOKEN") {
+            Ok(v) => v,
+            Err(_) => {
+                let resp = (StatusCode::UNAUTHORIZED, Json("ASAAS_WEBHOOK_TOKEN não configurado".to_string()));
+                return resp.into_response();
+            }
         };
-        if !ASAAS_IPS.contains(&ip.as_str()) {
-            let resp = (StatusCode::UNAUTHORIZED, Json("IP não autorizado".to_string()));
+        let provided = headers.get("asaas-access-token").and_then(|h| h.to_str().ok()).unwrap_or("");
+        if provided != expected {
+            let resp = (StatusCode::UNAUTHORIZED, Json("Token de webhook inválido".to_string()));
             return resp.into_response();
         }
 
@@ -140,19 +137,49 @@ mod tests {
 
     #[tokio::test]
     async fn test_webhook_ip_nao_autorizado() {
-        let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(1,2,3,4)), 8080);
-        let headers = HeaderMap::new();
-        let payload = json!({"checkout": {"customerData": {"email": "x@x.com"}}});
-        let response = receber_webhook(ConnectInfo(addr), headers, axum::Json(payload)).await.into_response();
-        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    // sem ASAAS_WEBHOOK_TOKEN configurado -> rejeita
+    std::env::remove_var("ASAAS_WEBHOOK_TOKEN");
+    let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(1,2,3,4)), 8080);
+    let headers = HeaderMap::new();
+    let payload = json!({"checkout": {"customerData": {"email": "x@x.com"}}});
+    let response = receber_webhook(ConnectInfo(addr), headers, axum::Json(payload)).await.into_response();
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     }
 
     #[tokio::test]
     async fn test_webhook_payload_invalido() {
-        let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(52,67,12,206)), 8080); // IP autorizado
-        let headers = HeaderMap::new();
-        let payload = json!({"foo": "bar"});
+    // configura token e envia header correto, mas payload inválido -> BAD_REQUEST
+    std::env::set_var("ASAAS_WEBHOOK_TOKEN", "tokentest");
+    let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(1,2,3,4)), 8080);
+    let mut headers = HeaderMap::new();
+    headers.insert("asaas-access-token", "tokentest".parse().unwrap());
+    let payload = json!({"foo": "bar"});
+    let response = receber_webhook(ConnectInfo(addr), headers, axum::Json(payload)).await.into_response();
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn test_webhook_header_token_autorizado() {
+        // Define token de teste
+        std::env::set_var("ASAAS_WEBHOOK_TOKEN", "secret-token-123");
+        let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(1,2,3,4)), 8080);
+        let mut headers = HeaderMap::new();
+        headers.insert("asaas-access-token", "secret-token-123".parse().unwrap());
+        // payload mínimo com customerData
+        let payload = json!({"checkout": {"customerData": {"email": "nonexistent@x.com"}}});
         let response = receber_webhook(ConnectInfo(addr), headers, axum::Json(payload)).await.into_response();
+        // usuário não encontrado -> BAD_REQUEST (autenticação passa)
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn test_webhook_header_token_invalido() {
+        std::env::set_var("ASAAS_WEBHOOK_TOKEN", "otro-token");
+        let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(1,2,3,4)), 8080);
+        let mut headers = HeaderMap::new();
+        headers.insert("asaas-access-token", "wrong-token".parse().unwrap());
+        let payload = json!({"checkout": {"customerData": {"email": "x@x.com"}}});
+        let response = receber_webhook(ConnectInfo(addr), headers, axum::Json(payload)).await.into_response();
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     }
 }

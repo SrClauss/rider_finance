@@ -53,9 +53,9 @@ export default function AdminLoginPage() {
         setCaptchaToken(res.data.token);
         setCaptchaImage(`data:image/png;base64,${res.data.png}`);
       }
-    } catch (e) {
-      // ignore
-    }
+      } catch (_e) {
+        // ignore
+      }
   }
 
   useEffect(() => {
@@ -70,11 +70,11 @@ export default function AdminLoginPage() {
           <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, minHeight: 320 }}>
             <Box sx={{ flex: 1 }}>
               <CardContent sx={{ p: { xs: 4, md: 6 } }}>
-                <Stack spacing={2} alignItems="center" sx={{ mb: 2, textAlign: { xs: 'center', md: 'left' } }}>
+                  <Stack spacing={2} alignItems="center" sx={{ mb: 2, textAlign: { xs: 'center', md: 'left' } }}>
                   <Avatar sx={{ width: 72, height: 72, bgcolor: 'primary.main' }}>
                     <DirectionsCar sx={{ fontSize: 36 }} />
                   </Avatar>
-                  <Typography variant={{ xs: 'h4', md: 'h5' } as any} fontWeight={800}>Painel Administrativo</Typography>
+                  <Typography variant="h5" fontWeight={800} sx={{ fontSize: { xs: '2rem', md: '1.5rem' } }}>Painel Administrativo</Typography>
                   <Typography variant="body2" color="text.secondary" align="center">Acesse com suas credenciais administrativas para gerenciar usuários e configurações.</Typography>
                 </Stack>
 

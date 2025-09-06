@@ -131,8 +131,30 @@ export default function RegisterPage() {
       );
       const data = response.data;
       if (data && data.status === 'ok' && data.id) {
-        // Chama o endpoint de assinatura
-  await axios.post('/api/assinatura/checkout', { id_usuario: data.id });
+        // Fetch checkout info (valor, endpoint) para montar payload
+        try {
+          const info = await axios.get('/api/checkout-info');
+          const valor = info.data?.valor ?? '2.00';
+          // Monta payload compatível com backend CheckoutPayload
+          const checkoutPayload = {
+            id_usuario: data.id,
+            valor: String(valor),
+            nome: payload.nome_completo || '',
+            cpf: payload.cpfcnpj || '',
+            email: payload.email,
+            telefone: payload.telefone || '',
+            endereco: payload.address || '',
+            numero: payload.address_number || '',
+            complemento: payload.complement || '',
+            cep: payload.postal_code || '',
+            bairro: payload.province || '',
+            cidade: payload.city || '',
+            meses: 1,
+          };
+          await axios.post('/api/assinatura/checkout', checkoutPayload, { headers: { 'Content-Type': 'application/json' } });
+        } catch (e) {
+          // ignore erros de checkout para não bloquear fluxo de registro
+        }
         // Redireciona para página intermediária, incluindo id_usuario
         window.location.href = `/assinatura?id_usuario=${encodeURIComponent(data.id)}`;
         return;

@@ -4,7 +4,7 @@ import useFormReducer from '@/lib/useFormReducer';
 import { UsuarioListItem } from "@/interfaces/Usuario";
 import { Box, TextField, IconButton, Table, TableHead, TableRow, TableCell, TableBody, Button, CircularProgress, Pagination, Chip, Accordion, AccordionSummary, AccordionDetails, Typography, useTheme, useMediaQuery } from "@mui/material";
 // ReplaceAdminPasswordModal removed: admins cannot change other admins' passwords from this list
-import DeleteAdminConfirmModal from '@/modals/DeleteAdminConfirmModal';
+import DeleteUserConfirmModal from '@/modals/DeleteUserConfirmModal';
 import Toast from '@/components/ui/Toast';
 import SearchIcon from '@mui/icons-material/Search';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
@@ -51,25 +51,26 @@ export default function UserList() {
   const [toDelete, setToDelete] = useState<{ id: string; username?: string } | null>(null);
   const [toast, setToast] = useState<{ open: boolean; severity?: 'error' | 'success' | 'info' | 'warning'; message: string }>({ open: false, severity: 'info', message: '' });
 
-  const requestDeleteAdmin = (id: string, username?: string) => {
+  const requestDeleteUser = (id: string, username?: string) => {
+    // prevent accidental removal of primary admin user if listed as a user
     if (username === 'admin') {
-      setToast({ open: true, severity: 'error', message: 'Remoção do super-admin não é permitida.' });
+      setToast({ open: true, severity: 'error', message: 'Remoção do usuário administrador não é permitida aqui.' });
       return;
     }
     setToDelete({ id, username });
     setDeleteOpen(true);
   };
 
-  const confirmDeleteAdmin = async () => {
+  const confirmDeleteUser = async () => {
     if (!toDelete) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/admin/${toDelete.id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/admin/users/${toDelete.id}/hard-delete`, { method: 'DELETE' });
       if (!res.ok) {
         const json = await res.json().catch(() => ({} as { message?: string }));
-        throw new Error(json?.message || 'Erro ao excluir administrador');
+        throw new Error(json?.message || 'Erro ao excluir usuário');
       }
-      setToast({ open: true, severity: 'success', message: 'Administrador excluído com sucesso.' });
+      setToast({ open: true, severity: 'success', message: 'Usuário excluído com sucesso.' });
       await load();
     } catch (err: unknown) {
       const msg = String(err instanceof Error ? err.message : err);
@@ -149,7 +150,7 @@ export default function UserList() {
                     <TableCell>
                           <Box sx={{ display: 'flex', gap: 1 }}>
                             {u.blocked ? <Button onClick={() => doUnblock(u.id)}>Desbloquear</Button> : <Button color="error" onClick={() => doBlock(u.id)}>Bloquear</Button>}
-                            <Button color="error" onClick={() => requestDeleteAdmin(u.id, u.usuario)}>Excluir</Button>
+                            <Button color="error" onClick={() => requestDeleteUser(u.id, u.usuario)}>Excluir</Button>
                           </Box>
                     </TableCell>
                   </TableRow>
@@ -163,7 +164,7 @@ export default function UserList() {
       <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
   <Pagination count={Math.max(1, Math.ceil((data.total || 0) / (data.per_page || 20)))} page={page} onChange={(_,v) => setField('page', v)} />
       </Box>
-  <DeleteAdminConfirmModal open={deleteOpen} onClose={() => setDeleteOpen(false)} onConfirm={confirmDeleteAdmin} adminName={toDelete?.username ?? null} />
+  <DeleteUserConfirmModal open={deleteOpen} onClose={() => setDeleteOpen(false)} onConfirm={confirmDeleteUser} userName={toDelete?.username ?? null} />
   <Toast open={toast.open} onClose={() => setToast(s => ({ ...s, open: false }))} severity={toast.severity} message={toast.message} />
     </Box>
   );

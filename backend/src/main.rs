@@ -120,6 +120,9 @@ async fn main() {
         .route("/api/admin/me", get(admin_me_handler))
         .route("/api/admin/logout", post(admin_logout_handler));
 
+    // Rota administrativa para remover um usuário e seus dados relacionados (hard delete)
+    let app = app.route("/api/admin/users/{id}/hard-delete", delete(backend::services::usuario::delete_user_and_related_handler));
+
     // Novos endpoints para admin: request/reset e create
     let app = app
         .route("/api/admin/request-reset", post(admin_request_reset_handler))

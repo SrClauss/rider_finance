@@ -2,14 +2,14 @@
 import React from 'react';
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Typography } from '@mui/material';
 
-type Props = { open: boolean; onClose: () => void; onConfirm: () => void; adminName?: string | null; entityLabel?: string };
+type Props = { open: boolean; onClose: () => void; onConfirm: () => void; userName?: string | null };
 
-export default function DeleteAdminConfirmModal({ open, onClose, onConfirm, adminName, entityLabel = 'administrador' }: Props) {
+export default function DeleteUserConfirmModal({ open, onClose, onConfirm, userName }: Props) {
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
-      <DialogTitle>Confirmar exclusão</DialogTitle>
+      <DialogTitle>Confirmar exclusão do usuário</DialogTitle>
       <DialogContent>
-        <Typography>Deseja realmente excluir o {entityLabel} {adminName ? `"${adminName}"` : ''}? Esta ação não pode ser desfeita.</Typography>
+        <Typography>Deseja realmente excluir o usuário {userName ? `"${userName}"` : ''}? Esta ação não pode ser desfeita.</Typography>
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Cancelar</Button>
