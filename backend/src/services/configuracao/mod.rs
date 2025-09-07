@@ -267,7 +267,7 @@ pub fn seed_configuracoes_padrao(conn: &mut diesel::PgConnection) {
         .first::<Configuracao>(conn)
         .is_err() {
         // Use fixed ULID from environment to make this config immutable by creation
-        let reserved_ulid = std::env::var("SEED_VALOR_ASSINATURA_ULID").unwrap_or_else(|_| "01K3E3VRQ0FAXB6XMC94ZQ9GHA".to_string());
+        let reserved_ulid = "01K3E3VRQ0FAXB6XMC94ZQ9GHA".to_string();
         configs.push(NewConfiguracao {
             id: reserved_ulid,
             id_usuario: None,
