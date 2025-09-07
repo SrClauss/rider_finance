@@ -30,11 +30,24 @@ pub async fn dashboard_stats_handler(
         None => "".to_string(),
     };
 
-    // conexão DB
-    let conn = &mut db::establish_connection();
+    // CACHE LAYER: Tentar cálculo incremental primeiro
+    if let Some(stats) = crate::cache::dashboard::calculate_dashboard_incremental(&id_usuario).await {
+        // Verificar mecanismo de segurança
+        if crate::cache::transacao::check_cache_safety(&id_usuario).await {
+            return Json(stats);
+        } else {
+            // Muitas transações novas - limpar cache e recalcular
+            crate::cache::dashboard::clear_user_caches(&id_usuario).await;
+        }
+    }
 
-    // delega para camada de service (sem params)
+    // Cache miss ou mecanismo de segurança ativado - calcular do zero
+    let conn = &mut db::establish_connection();
     let stats = service::compute_dashboard_stats(conn, &id_usuario);
+    
+    // Salvar no cache para próximas consultas
+    crate::cache::dashboard::save_dashboard_to_cache(&id_usuario, &stats).await;
+    
     Json(stats)
 }
 

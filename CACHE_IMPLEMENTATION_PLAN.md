@@ -18,430 +18,253 @@
 
 ## Objetivos do Sistema de Cache
 
-### Requisitos Funcionais
-- ✅ Cache de primeira página de transações por usuário
-- ✅ Cache de dashboard stats completo por usuário  
-- ✅ Cache incremental para novas transações
-- ✅ Invalidação inteligente por operações CRUD
-- ✅ Cache de agregações por períodos
-- ✅ Cache de tendências e projeções
-- ✅ Expiração configurável por tipo de cache
-- ✅ Fallback para DB em caso de miss
+### Fluxo de Uso Definido (Atualizado)
+1. **Primeiro acesso Dashboard**: Handler salva resultado no cache.
+2. **Primeiro acesso Transações**: Handler grava 20 transações no cache (VecDeque), marcando-as como `new: true`.
+3. **Volta ao Dashboard**: Handler verifica o cache e calcula de forma incremental com base nas transações marcadas como `new: true`. Após o cálculo, todas as transações `new` são marcadas como `false`.
+4. **Volta a Transações**: Primeira página vem do cache.
+5. **Nova Transação**: Inserção no cache (VecDeque remove última automaticamente e marca a nova transação como `new: true`).
+6. **Segunda/Terceira página**: Segunda vem do cache, terceira vai ao DB.
+7. **Edição/Deleção**: Invalidam ambos os caches.
+
+### Requisitos Funcionais (Atualizados)
+- ✅ Cache de transações usando VecDeque (máximo 20 transações por usuário).
+- ✅ Cache de dashboard stats completo por usuário.
+- ✅ Parâmetro booleano `new` para controle incremental em transações.
+- ✅ Dashboard calcula de forma incremental com base em transações `new`.
+- ✅ Após cálculo, transações `new` são marcadas como `false`.
+- ✅ Invalidação de ambos os caches para edição/deleção.
+- ✅ Fallback para DB quando não há cache
 
 ### Requisitos Não-Funcionais
 - ✅ Latência < 50ms para hits
-- ✅ Memória controlada (max 512MB)
+- ✅ Memória controlada
 - ✅ Thread-safe para concorrência
-- ✅ Métricas de hit/miss ratio
 - ✅ Logs de operações de cache
+
+## Checklist de Implementação
+
+### Fase 1: Estrutura Base do Cache
+- [ ] Criar módulo `src/cache/mod.rs` com estruturas principais
+- [ ] Criar `src/cache/types.rs` com tipos de dados do cache
+- [ ] Implementar estrutura global do cache com Moka
+- [ ] Definir chaves de cache padronizadas
+
+### Fase 2: Cache de Transações (`src/cache/transacao.rs`)
+- [ ] Implementar estrutura `TransactionCacheData` com VecDeque
+- [ ] Implementar tipo `TransacaoCached` que estende `Transacao` com propriedade `new: bool`
+- [ ] Função `get_cached_transactions(user_id, page)` - retorna dados para páginas 1 e 2 apenas
+- [ ] Função `add_new_transaction(user_id, transaction)` - adiciona no início da VecDeque e remove do final se > 20
+- [ ] Função `mark_transactions_as_processed(user_id)` - marca todas as transações `new` como `false`
+- [ ] Função `get_new_transactions(user_id)` - retorna apenas transações com `new: true`
+- [ ] Mecanismo de segurança: se >= 20 transações novas, invalidar cache
+- [ ] Controle de limite de 20 transações no VecDeque com contador de transações novas
+- [ ] Logs de operações de cache de transações
+
+### Fase 3: Cache de Dashboard (`src/cache/dashboard.rs`)  
+- [ ] Implementar estrutura `DashboardStats`
+- [ ] Função `get_cached_dashboard(user_id)` 
+- [ ] Função `calculate_dashboard_incremental(user_id)` - processa apenas transações `new: true`
+- [ ] Função `apply_transaction_to_dashboard(dashboard, transaction)` - aplica uma transação aos stats
+- [ ] Função `save_dashboard_to_cache(user_id, dashboard_stats)`  
+- [ ] Função `clear_user_caches(user_id)` - limpa ambos os caches (mecanismo de segurança)
+- [ ] TTL configurável para dashboard (30 minutos)
+- [ ] Logs de operações de cache de dashboard
+
+### Fase 4: Integração com Handlers
+- [ ] Modificar `dashboard_stats_handler` para usar cálculo incremental baseado em transações `new`
+- [ ] Modificar `list_transacoes_handler` para usar cache apenas nas páginas 1 e 2
+- [ ] Modificar `create_transacao_handler` para adicionar ao cache com `new: true` (sem invalidar dashboard)
+- [ ] Modificar `update_transacao_handler` para invalidar ambos os caches
+- [ ] Modificar `delete_transacao_handler` para invalidar ambos os caches
+- [ ] Implementar mecanismo de segurança: >= 20 transações novas força recálculo completo
+- [ ] Garantir que edição/deleção invalida ambos os caches conforme especificado
+
+### Fase 5: Testes e Otimizações
+- [ ] Testes unitários para módulos de cache
+- [ ] Testes de integração com handlers
+- [ ] Métricas de hit/miss ratio
+- [ ] Logs de performance e debugging
+- [ ] Documentação do sistema de cache
 
 ## Arquitetura do Sistema
 
-### 1. Estrutura de Cache (Moka)
+### 1. Estrutura de Cache com VecDeque
 
-O plano foi reduzido para **dois caches principais** para atender ao requisito declarado:
+**Dois caches principais usando Moka para armazenar as estruturas de dados:**
 
-- Cache de Transações: mantém até **20 entradas por usuário** (ex.: páginas/prefetches)
-- Cache de Dashboard: mantém **1 entrada por usuário** (dashboard completo pré-calculado)
-
-Observação: o `moka` controla capacidade global; o limite por-usuário será aplicado logicamente (veja seção de implementação abaixo) — por exemplo mantendo uma lista de chaves por usuário e removendo as mais antigas quando o limite for atingido.
+- **Cache de Transações**: Armazena `TransactionCacheData` com VecDeque interno (máximo 20 transações por usuário)
+- **Cache de Dashboard**: Armazena `DashboardStats` por usuário
 
 ```rust
-// Tipos de cache simplificados
-pub enum CacheType {
-    TransactionList, // Lista paginada de transações (p.ex. page=1, filtros)
-    DashboardStats,  // Dashboard completo por usuário
-}
-
-// Estrutura de caches usados pela aplicação
+// Estrutura principal do cache
 pub struct RiderCache {
-    // cache global para transações (chave inclui user_id + page + filtros)
-    pub transactions: moka::future::Cache<String, PaginatedTransacoes>,
-    // cache global para dashboard (chave = user_id)
+    // Cache por usuário - cada entrada contém um VecDeque com até 20 transações
+    pub transactions: moka::future::Cache<String, Arc<RwLock<TransactionCacheData>>>,
+    // Cache de dashboard por usuário  
     pub dashboard: moka::future::Cache<String, DashboardStats>,
 }
-```
 
-### 2. Estratégias de Cache por Endpoint
+// Cada usuário tem uma estrutura com VecDeque de transações
+pub struct TransactionCacheData {
+    pub transactions: VecDeque<TransacaoCached>, // Máximo 20 transações
+    pub last_updated: DateTime<Utc>,
+    pub total_new_transactions: usize, // Contador de transações novas adicionadas
+}
 
-#### A. Cache de Transações (`list_transacoes_handler`)
-```rust
-// Chave: user_id:page:filters_hash
-// TTL: 5 minutos
-// Invalidação: CREATE, UPDATE, DELETE transação
-
-async fn get_cached_transactions(
-    user_id: &str, 
-    page: usize, 
-    filters: &TransacaoFiltro
-) -> Option<PaginatedTransacoes> {
-    let key = format!("{}:{}:{}", user_id, page, hash_filters(filters));
-    CACHE.transactions.get(&key).await
+// Transação estendida com propriedade 'new'
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TransacaoCached {
+    #[serde(flatten)]
+    pub transacao: Transacao, // Todas as propriedades originais
+    pub new: bool,           // Propriedade booleana para controle incremental
 }
 ```
 
-#### B. Cache de Dashboard (`dashboard_stats_handler`)  
+### 2. Fluxo de Cache Implementado
+
+#### A. Primeiro Acesso às Transações
 ```rust
-// Chave: user_id:dashboard:date_range
-// TTL: 30 minutos
-// Invalidação: CREATE, UPDATE, DELETE transação/sessão
-
-async fn get_cached_dashboard(user_id: &str) -> Option<DashboardStats> {
-    let key = format!("{}:dashboard", user_id);
-    CACHE.dashboard.get(&key).await
-}
-```
-
-#### C. Cache de Agregações Periódicas
-```rust
-// Chaves especializadas por período
-// user_id:period:YYYY-MM-DD (diário)
-// user_id:period:YYYY-WW (semanal)  
-// user_id:period:YYYY-MM (mensal)
-// TTL: 1 hora (diário), 6 horas (semanal), 24 horas (mensal)
-
-pub struct PeriodAggregation {
-    ganhos: i32,
-    gastos: i32,
-    lucro: i32,
-    corridas: u32,
-    horas: i32,
-    periodo: String,
-    data: NaiveDateTime,
-}
-```
-
-### 3. Sistema de Cache Incremental
-
-#### Fluxo de Inserção de Transação
-```rust
-async fn create_transacao_with_cache(payload: CreateTransacaoPayload, user_id: String) {
-    // 1. Inserir no banco
-    let nova_transacao = insert_transaction(payload).await;
+async fn list_transacoes_handler(user_id: &str, page: usize) -> Result<Vec<Transacao>, Error> {
+    if page <= 2 {
+        // Páginas 1 e 2: tentar cache primeiro
+        if let Some(cached) = get_cached_transactions(user_id, page).await {
+            return Ok(cached);
+        }
+    }
     
-    // 2. Atualizar cache incremental
-    update_dashboard_incremental(&user_id, &nova_transacao).await;
-    update_period_cache_incremental(&user_id, &nova_transacao).await;
+    // Cache miss ou página > 2: buscar no DB
+    let transactions = fetch_from_db(user_id, page).await?;
     
-    // 3. Invalidar caches específicos
-    invalidate_user_caches(&user_id, CacheType::TransactionList).await;
+    // Se é primeira página, salvar no cache
+    if page == 1 {
+        save_transactions_to_cache(user_id, &transactions).await;
+    }
+    
+    Ok(transactions)
 }
+```
 
-async fn update_dashboard_incremental(user_id: &str, transacao: &Transacao) {
+#### B. Dashboard com Cálculo Incremental  
+```rust
+async fn dashboard_stats_handler(user_id: &str) -> Result<DashboardStats, Error> {
+    // Verificar se há dashboard em cache
     if let Some(mut cached_dashboard) = get_cached_dashboard(user_id).await {
-        // Aplicar mudança incremental
-        match transacao.tipo.as_str() {
-            "entrada" => {
-                cached_dashboard.ganhos_hoje = Some(
-                    cached_dashboard.ganhos_hoje.unwrap_or(0) + transacao.valor
-                );
-                // Atualizar outros campos relevantes...
-            },
-            "saida" => {
-                cached_dashboard.gastos_hoje = Some(
-                    cached_dashboard.gastos_hoje.unwrap_or(0) + transacao.valor
-                );
-            },
-            _ => {}
+        // Verificar se há transações novas para processar
+        if let Some(new_transactions) = get_new_transactions(user_id).await {
+            if new_transactions.len() >= 20 {
+                // MECANISMO DE SEGURANÇA: Se 20+ transações novas, limpar cache e recalcular tudo
+                clear_user_caches(user_id).await;
+                return calculate_dashboard_from_db(user_id).await;
+            }
+            
+            // Cálculo incremental com transações novas
+            for transaction in &new_transactions {
+                apply_transaction_to_dashboard(&mut cached_dashboard, transaction);
+            }
+            
+            // Marcar todas as transações como processadas (new = false)
+            mark_transactions_as_processed(user_id).await;
+            
+            // Atualizar cache do dashboard
+            save_dashboard_to_cache(user_id, &cached_dashboard).await;
+            return Ok(cached_dashboard);
         }
         
-        // Salvar versão atualizada
-        cache_dashboard(user_id, cached_dashboard).await;
+        return Ok(cached_dashboard);
+    }
+    
+    // Cache miss: calcular do zero
+    let dashboard = calculate_dashboard_from_db(user_id).await?;
+    save_dashboard_to_cache(user_id, &dashboard).await;
+    Ok(dashboard)
+}
+```
+
+#### C. Criação de Nova Transação
+```rust
+async fn create_transacao_handler(payload: CreateTransacaoPayload, user_id: String) -> Result<Transacao, Error> {
+    // 1. Inserir no banco
+    let nova_transacao = insert_transaction_db(payload).await?;
+    
+    // 2. Adicionar ao cache com new = true
+    add_transaction_to_cache(&user_id, &nova_transacao, true).await;
+    
+    // 3. NÃO invalidar dashboard - ele será calculado incrementalmente no próximo acesso
+    
+    Ok(nova_transacao)
+}
+
+async fn add_transaction_to_cache(user_id: &str, transacao: &Transacao, new: bool) {
+    let cached_transaction = TransacaoCached {
+        transacao: transacao.clone(),
+        new,
+    };
+    
+    if let Some(cache_data) = get_user_transaction_cache(user_id).await {
+        let mut data = cache_data.write().await;
+        
+        // Adicionar no início da VecDeque
+        data.transactions.push_front(cached_transaction);
+        data.total_new_transactions += if new { 1 } else { 0 };
+        
+        // Remover última se exceder 20
+        if data.transactions.len() > 20 {
+            if let Some(removed) = data.transactions.pop_back() {
+                if removed.new {
+                    data.total_new_transactions = data.total_new_transactions.saturating_sub(1);
+                }
+            }
+        }
+        
+        data.last_updated = Utc::now();
     }
 }
 ```
 
-#### Fluxo de Update/Delete de Transação
+### 3. Mecanismos de Segurança e Invalidação
+
+#### A. Mecanismo de Segurança - 20 Transações Novas
 ```rust
-async fn update_transacao_with_cache(id: String, payload: UpdateTransacaoPayload, user_id: String) {
-    // 1. Buscar transação original
-    let original = get_transacao_original(&id).await;
-    
-    // 2. Aplicar update no banco
-    let updated = update_transaction(id, payload).await;
-    
-    // 3. Calcular delta e aplicar ao cache
-    apply_transaction_delta(&user_id, &original, &updated).await;
-}
-
-async fn delete_transacao_with_cache(id: String, user_id: String) {
-    // 1. Buscar transação a ser deletada
-    let transacao = get_transacao_original(&id).await;
-    
-    // 2. Deletar do banco
-    delete_transaction(id).await;
-    
-    // 3. Reverter valores do cache
-    revert_transaction_from_cache(&user_id, &transacao).await;
-}
-```
-
-### 4. Implementação Detalhada
-
-#### A. Configuração do Cache (Moka)
-```rust
-// backend/src/utils/cache.rs
-use moka::future::Cache;
-use std::time::Duration;
-
-pub struct CacheConfig {
-    pub max_capacity: u64,
-    pub time_to_live: Duration,
-    pub time_to_idle: Duration,
-}
-
-impl Default for CacheConfig {
-    fn default() -> Self {
-        Self {
-            max_capacity: 10_000,
-            time_to_live: Duration::from_secs(1800), // 30 min
-            time_to_idle: Duration::from_secs(300),  // 5 min
+async fn check_cache_safety(user_id: &str) -> bool {
+    if let Some(cache_data) = get_user_transaction_cache(user_id).await {
+        let data = cache_data.read().await;
+        if data.total_new_transactions >= 20 {
+            // Cache não é mais confiável - VecDeque pode ter descartado dados novos
+            return false;
         }
     }
-}
-
-lazy_static::lazy_static! {
-    // Nota: max_capacity é global; aplicaremos controle fino por usuário em camada adicional
-    pub static ref TRANSACTION_CACHE: moka::future::Cache<String, PaginatedTransacoes> = 
-        moka::future::Cache::builder()
-            .max_capacity(50_000) // capacidade global; cada usuário limitado a 20 entradas via bookkeeping
-            .time_to_live(Duration::from_secs(300)) // 5 min
-            .build();
-
-    pub static ref DASHBOARD_CACHE: moka::future::Cache<String, DashboardStats> = 
-        moka::future::Cache::builder()
-            .max_capacity(10_000) // capacidade global; cada usuário terá apenas 1 entrada lógica
-            .time_to_live(Duration::from_secs(1800)) // 30 min
-            .build();
+    true
 }
 ```
 
-#### B. Utilitários de Cache
+#### B. Invalidação para Edição/Deleção
 ```rust
-// Geração de chaves padronizadas
-pub fn generate_transaction_key(user_id: &str, page: usize, filters: &TransacaoFiltro) -> String {
-    let filters_hash = calculate_filters_hash(filters);
-    format!("tx:{}:{}:{}", user_id, page, filters_hash)
+async fn update_transacao_handler(id: i32, payload: UpdateTransacaoPayload, user_id: String) -> Result<Transacao, Error> {
+    // 1. Atualizar no banco
+    let updated = update_transaction_db(id, payload).await?;
+    
+    // 2. Invalidar ambos os caches
+    invalidate_user_caches(&user_id).await;
+    
+    Ok(updated)
 }
 
-pub fn generate_dashboard_key(user_id: &str) -> String {
-    format!("dash:{}", user_id)
+async fn delete_transacao_handler(id: i32, user_id: String) -> Result<(), Error> {
+    // 1. Deletar do banco
+    delete_transaction_db(id).await?;
+    
+    // 2. Invalidar ambos os caches  
+    invalidate_user_caches(&user_id).await;
+    
+    Ok(())
 }
 
-pub fn generate_period_key(user_id: &str, period_type: &str, date: &str) -> String {
-    format!("period:{}:{}:{}", user_id, period_type, date)
-}
-
-// Hash de filtros para detectar mudanças
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
-
-fn calculate_filters_hash(filters: &TransacaoFiltro) -> u64 {
-    let mut hasher = DefaultHasher::new();
-    filters.id_categoria.hash(&mut hasher);
-    filters.descricao.hash(&mut hasher);
-    filters.tipo.hash(&mut hasher);
-    filters.data_inicio.hash(&mut hasher);
-    filters.data_fim.hash(&mut hasher);
-    hasher.finish()
+async fn invalidate_user_caches(user_id: &str) {
+    let tx_key = format!("transactions:{}", user_id);
+    let dashboard_key = format!("dashboard:{}", user_id);
+    
+    RIDER_CACHE.transactions.remove(&tx_key).await;
+    RIDER_CACHE.dashboard.remove(&dashboard_key).await;
 }
 ```
-
-#### C. Middleware de Cache
-```rust
-// Middleware para injetar cache automaticamente
-pub async fn cache_middleware<B>(
-    request: Request<B>,
-    next: Next<B>,
-) -> Result<Response, StatusCode> {
-    let cache_key = extract_cache_key(&request);
-    
-    // Try cache first
-    if let Some(cached_response) = try_get_cached_response(&cache_key).await {
-        return Ok(cached_response);
-    }
-    
-    // Execute handler
-    let response = next.run(request).await;
-    
-    // Cache successful responses
-    if response.status().is_success() {
-        cache_response(&cache_key, &response).await;
-    }
-    
-    Ok(response)
-}
-```
-
-### 5. Estratégias de Invalidação
-
-#### A. Invalidação por Padrão de Chave
-```rust
-pub async fn invalidate_user_pattern(user_id: &str, pattern: &str) {
-    let keys_to_remove: Vec<String> = TRANSACTION_CACHE
-        .run_pending_tasks()
-        .await;
-    
-    // Implementar varredura de chaves com pattern matching
-    for key in keys_matching_pattern(user_id, pattern).await {
-        TRANSACTION_CACHE.remove(&key).await;
-    }
-}
-
-// Exemplos de invalidação
-// Transação criada: invalidate_user_pattern(user_id, "tx:*")
-// Dashboard: invalidate_user_pattern(user_id, "dash:*")
-// Período específico: invalidate_user_pattern(user_id, "period:*:daily:2025-09-07")
-```
-
-#### B. Invalidação Inteligente por Contexto
-```rust
-pub async fn invalidate_transaction_related_caches(user_id: &str, transacao: &Transacao) {
-    // Invalidar listas de transações
-    invalidate_user_pattern(user_id, "tx:*").await;
-    
-    // Invalidar dashboard
-    invalidate_dashboard_cache(user_id).await;
-    
-    // Invalidar agregações do período da transação
-    let date_str = transacao.data.format("%Y-%m-%d").to_string();
-    invalidate_period_cache(user_id, "daily", &date_str).await;
-    
-    // Invalidar semana e mês se necessário
-    let week_str = transacao.data.format("%Y-%U").to_string();
-    let month_str = transacao.data.format("%Y-%m").to_string();
-    invalidate_period_cache(user_id, "weekly", &week_str).await;
-    invalidate_period_cache(user_id, "monthly", &month_str).await;
-}
-```
-
-### 6. Métricas e Observabilidade
-
-```rust
-#[derive(Debug, Serialize)]
-pub struct CacheMetrics {
-    pub hits: u64,
-    pub misses: u64,
-    pub hit_ratio: f64,
-    pub entries: u64,
-    pub memory_usage: u64,
-    pub last_reset: chrono::DateTime<chrono::Utc>,
-}
-
-pub async fn get_cache_metrics() -> CacheMetrics {
-    let tx_hits = TRANSACTION_CACHE.hit_count();
-    let tx_misses = TRANSACTION_CACHE.miss_count();
-    
-    CacheMetrics {
-        hits: tx_hits,
-        misses: tx_misses,
-        hit_ratio: tx_hits as f64 / (tx_hits + tx_misses) as f64,
-        entries: TRANSACTION_CACHE.entry_count(),
-        memory_usage: TRANSACTION_CACHE.weighted_size(),
-        last_reset: chrono::Utc::now(),
-    }
-}
-
-// Endpoint para métricas
-pub async fn cache_metrics_handler() -> Json<CacheMetrics> {
-    Json(get_cache_metrics().await)
-}
-```
-
-## Plano de Implementação
-
-### Fase 1: Fundação (Semana 1)
-- [ ] Adicionar dependência `moka` no `Cargo.toml`
-- [ ] Implementar estruturas básicas de cache (`cache.rs`)
-- [ ] Criar utilitários de chave e hash
-- [ ] Testes unitários básicos
-
-### Fase 2: Cache de Transações (Semana 2)
-- [ ] Implementar cache na `list_transacoes_handler`
-- [ ] Adicionar invalidação em CRUD de transações
-- [ ] Testes de integração
-- [ ] Métricas básicas
-
-### Fase 3: Cache de Dashboard (Semana 3)  
-- [ ] Cache completo da `dashboard_stats_handler`
-- [ ] Implementar sistema incremental
-- [ ] Cache de agregações periódicas
-- [ ] Testes de performance
-
-### Fase 4: Otimizações (Semana 4)
-- [ ] Middleware automático de cache
-- [ ] Invalidação inteligente avançada
-- [ ] Métricas e observabilidade completa
-- [ ] Documentação e benchmarks
-
-### Fase 5: Monitoramento (Semana 5)
-- [ ] Dashboard de métricas de cache
-- [ ] Alertas de performance
-- [ ] Ajuste fino de configurações
-- [ ] Deploy em produção
-
-## Configurações Recomendadas
-
-### Variáveis de Ambiente
-```env
-# Cache Configuration
-CACHE_MAX_CAPACITY=10000
-CACHE_TTL_SECONDS=1800
-CACHE_TTI_SECONDS=300
-CACHE_METRICS_ENABLED=true
-
-# Performance Tuning  
-CACHE_DASHBOARD_TTL=1800
-CACHE_TRANSACTION_TTL=300
-CACHE_PERIOD_TTL=3600
-```
-
-### Dependency Updates
-```toml
-# Cargo.toml
-[dependencies]
-moka = { version = "0.12", features = ["future"] }
-lazy_static = "1.4"
-tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
-serde = { version = "1.0", features = ["derive"] }
-```
-
-## Benefícios Esperados
-
-### Performance
-- ⚡ **Dashboard**: 90% redução no tempo de resposta (de ~500ms para ~50ms)
-- ⚡ **Transações**: 80% redução para primeira página (de ~200ms para ~40ms)
-- ⚡ **Agregações**: 95% redução para períodos cached (de ~300ms para ~15ms)
-
-### Recursos
-- 📉 **CPU**: 60% redução na carga de DB queries
-- 📉 **DB Connections**: 70% redução no pool de conexões
-- 📊 **Throughput**: 3x aumento na capacidade de usuários simultâneos
-
-### Experiência
-- 🚀 **UX**: Interface mais responsiva
-- 🎯 **Confiabilidade**: Fallback automático para DB
-- 📈 **Escalabilidade**: Suporte a mais usuários sem degradação
-
-## Riscos e Mitigações
-
-### Riscos Identificados
-1. **Consistência**: Cache desatualizado vs DB
-   - **Mitigação**: Invalidação imediata + TTL baixo
-2. **Memória**: Crescimento descontrolado do cache
-   - **Mitigação**: Limits de capacidade + monitoramento
-3. **Complexidade**: Sistema mais difícil de debugar
-   - **Mitigação**: Logs detalhados + métricas
-
-### Plano de Rollback
-- Feature flag para habilitar/desabilitar cache
-- Fallback automático para queries diretas
-- Scripts de limpeza de cache
-- Monitoramento de consistência entre cache e DB
-
----
-
-**Status**: 📋 Planejamento Completo
-**Próximo Passo**: Implementação Fase 1 - Fundação
-**Estimativa Total**: 5 semanas
-**ROI Esperado**: 200% melhoria de performance

@@ -10,7 +10,7 @@ use crate::schema::metas::dsl as meta_dsl;
 
 
 // Tipos públicos para uso pela camada API
-#[derive(Serialize)]
+#[derive(Serialize, Clone, Default)]
 pub struct DashboardStats {
     pub ganhos_hoje: Option<i32>,
     pub ganhos_ontem: Option<i32>,
@@ -71,7 +71,7 @@ pub struct DashboardStats {
     pub top_sources: TopSources,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone, Default)]
 pub struct TopSourceItem {
     pub periodo: String,
     pub tipo: String,
@@ -82,7 +82,7 @@ pub struct TopSourceItem {
     pub valor: i64,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone, Default)]
 pub struct TopSources {
     pub receitas: Vec<TopSourceItem>,
     pub despesas: Vec<TopSourceItem>,
@@ -102,7 +102,7 @@ pub struct PlatformQuery {
     pub names: Option<String>,
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Clone, Default)]
 pub struct PlatformResult {
     pub ganhos: i32,
     pub corridas: u32,
