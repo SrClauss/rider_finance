@@ -26,6 +26,8 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: rider_finance_backend
+    env_file:
+      - ./backend/.env
     environment:
       DATABASE_URL: "postgres://postgres:dy213y1984@postgres:5432/ride"
       RUST_LOG: "info"
