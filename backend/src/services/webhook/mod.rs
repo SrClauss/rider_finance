@@ -13,7 +13,8 @@ use serde_json::Value;
         Json(payload): Json<Value>
     ) -> axum::response::Response {
      
-
+        eprintln!("--- Webhook headers start ---");
+        eprintln!("{:#?}", headers); // imprime em formato debug (com quebra de linhas)
         let expected = match std::env::var("ASAAS_WEBHOOK_TOKEN") {
             Ok(v) => v,
             Err(_) => {
@@ -123,3 +124,5 @@ use serde_json::Value;
 pub fn routes() -> Router {
     Router::new().route("/api/webhook/pagamento", post(receber_webhook))
 }
+
+// --- Log dos cabeçalhos do webhook (colar aqui) ---

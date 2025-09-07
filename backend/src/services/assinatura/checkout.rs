@@ -37,7 +37,7 @@ pub async fn criar_checkout_asaas(payload: CheckoutPayload) -> Result<CheckoutRe
     let url = env::var("END_POINT_ASSAS").map_err(|_| "END_POINT_ASSAS não configurado".to_string())?;
     let api_key = format!("${}", env::var("ASAAS_API_KEY").map_err(|_| "ASAAS_API_KEY não configurada".to_string())?);
    
-
+    
 
     let client = Client::new();
     let body = serde_json::json!({
@@ -92,6 +92,8 @@ pub async fn criar_checkout_asaas(payload: CheckoutPayload) -> Result<CheckoutRe
     let status = res.status();
     let resp_body: serde_json::Value = res.json().await.map_err(|e| format!("Erro ao ler resposta Asaas: {e}"))?;
     let payment_url = resp_body.get("paymentUrl").and_then(|v| v.as_str()).map(|s| s.to_string());
+    println!("data: {:?}", resp_body);
+    
     if status.is_success() {
         Ok(CheckoutResponse {
             status: "ok".to_string(),
