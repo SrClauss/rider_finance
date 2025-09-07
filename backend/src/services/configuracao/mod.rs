@@ -195,6 +195,15 @@ pub fn update_configuracao_handler_inner(
 // Função para inserir configurações padrão no banco, incluindo valor_assinatura
 pub fn seed_configuracoes_padrao(conn: &mut diesel::PgConnection) {
 
+
+    //apagar todas as configurações globais que não tenham um id de usuario
+    use crate::schema::configuracoes::dsl::configuracoes;
+    use crate::models::configuracao::Configuracao;
+
+    diesel::delete(configuracoes.filter(crate::schema::configuracoes::id_usuario.is_null()))
+        .execute(conn)
+        .unwrap();
+
     use crate::models::configuracao::NewConfiguracao;
     let now = Utc::now().naive_utc();
     let valor_assinatura = std::env::var("VALOR_ASSINATURA").unwrap_or("2.00".to_string());
