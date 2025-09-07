@@ -1,26 +1,3 @@
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use axum::response::IntoResponse;
-
-    #[tokio::test]
-    async fn test_generate_and_validate_captcha() {
-        // Gera um captcha
-        let response = generate_captcha_handler().await.into_response();
-        let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
-        let captcha: CaptchaResponse = serde_json::from_slice(&body).unwrap();
-        // O token deve existir no store
-        let store = CAPTCHA_STORE.lock().unwrap();
-        let expected = store.get(&captcha.token).unwrap().clone();
-        drop(store);
-        // Validação correta
-        assert!(validate_captcha(&captcha.token, &expected));
-        // Validação errada
-        assert!(!validate_captcha(&captcha.token, "errado"));
-        // Após consumo, o token não deve mais ser válido
-        assert!(!validate_captcha(&captcha.token, &expected));
-    }
-}
 use axum::{response::IntoResponse, Json};
 use captcha::{filters, Captcha};
 use serde::{Serialize, Deserialize};

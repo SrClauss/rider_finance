@@ -1,37 +1,36 @@
 [dev-dependencies]
-mockito = "0.31"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
-serial_test = "2.0"
+serial_test = "3.2.0"
 [package]
 name = "backend"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-lettre = "0.11"
-lettre_email = "0.9"
-tokio = { version = "1", features = ["full"] }
+anyhow = "1.0"
 axum = { version = "0.8.4", features = ["macros"] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+axum-extra = { version = "0.10", features = ["typed-header", "cookie"] }
+base64 = "0.22.1"
+bcrypt = "0.17.0"
+captcha = "1.0.0"
+chrono = { version = "0.4", features = ["serde"] }
 diesel = { version = "2.0.3", features = ["postgres", "r2d2", "chrono"] }
 diesel_migrations = "2.0.0"
-ulid = "1.0"
-anyhow = "1.0"
-thiserror = "2.0.11"
 dotenvy = "0.15"
-chrono = { version = "0.4", features = ["serde"] }
-bcrypt = "0.17.0"
 hyper = "1.6.0"
-tower = { version = "0.5.2", features = ["util"] }
 jsonwebtoken = "9.3.1"
-captcha = "1.0.0"
-uuid = { version = "1.17.0", features = ["v4"] }
 lazy_static = "1.4.0"
+lettre = "0.11"
+lettre_email = "0.9"
 mutex = "1.0.2"
-base64 = "0.22.1"
-reqwest = { version = "0.12.22", features = ["json"] }
-axum-extra = { version = "0.10", features = ["typed-header", "cookie"] }
+printpdf = "0.8.2"
 rand = "0.9.2"
-printpdf = "0.7"
-umya-spreadsheet = "1.1"
+reqwest = { version = "0.12.22", features = ["json"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "2.0.16"
+tokio = { version = "1", features = ["full"] }
+tower = { version = "0.5.2", features = ["util"] }
+ulid = "1.0"
+umya-spreadsheet = "2.3.2"
+uuid = { version = "1.18.1", features = ["v4"] }

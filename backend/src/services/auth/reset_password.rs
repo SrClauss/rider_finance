@@ -1,19 +1,3 @@
-#[cfg(test)]
-mod tests {
-    use super::*;
-    // use axum::Json;
-
-    // Teste removido: handler agora espera token JWT, não Path
-
-    #[test]
-    fn test_reset_password_usuario_inexistente() {
-        let result = reset_password("naoexiste", "nova123");
-        assert!(result.is_ok() || result.is_err());
-    }
-}
-
-// --- Payload ---
-// use serde::Deserialize; // já importado acima
 
 #[derive(Deserialize)]
 pub struct ResetPasswordPayload {

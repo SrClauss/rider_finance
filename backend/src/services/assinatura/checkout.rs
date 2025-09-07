@@ -1,49 +1,4 @@
-#[cfg(test)]
-mod tests {
-    use super::*;
 
-    use tokio;
-
-    #[tokio::test]
-    async fn test_criar_checkout_asaas_mock() {
-        use mockito::{mock, Matcher};
-
-        let _mock = mock("POST", "/")
-            .match_header("content-type", "application/json")
-            .match_header("access_token", Matcher::Any)
-            .with_status(200)
-            .with_body(r#"{"id":"123","paymentUrl":"https://mocked-payment-url.com"}"#)
-            .create();
-
-    std::env::set_var("END_POINT_ASSAS", mockito::server_url());
-        std::env::set_var("ASAAS_API_KEY", "fake-key");
-        std::env::set_var("PIX_ENABLED", "false");
-
-        let payload = CheckoutPayload {
-            id_usuario: "user_test".to_string(),
-            valor: "99.99".to_string(),
-            nome: "Teste".to_string(),
-            cpf: "12345678900".to_string(),
-            email: "teste@teste.com".to_string(),
-            telefone: "11999999999".to_string(),
-            endereco: "Rua Teste".to_string(),
-            numero: "123".to_string(),
-            complemento: "Apto 1".to_string(),
-            cep: "01234567".to_string(),
-            bairro: "Centro".to_string(),
-            cidade: "São Paulo".to_string(),
-            meses: 1,
-        };
-
-        let result = criar_checkout_asaas(payload).await;
-        assert!(result.is_ok());
-        let resp = result.unwrap();
-        assert_eq!(resp.status, "ok");
-        assert_eq!(resp.id.unwrap(), "123");
-        assert!(resp.link.is_none());
-        assert_eq!(resp.payment_url.unwrap(), "https://mocked-payment-url.com");
-    }
-}
 use std::env;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};

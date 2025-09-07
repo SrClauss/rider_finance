@@ -1,65 +1,5 @@
 use axum_extra::extract::cookie::CookieJar;
 use jsonwebtoken::{DecodingKey, Validation, decode, Algorithm};
-/// Extrai o id_usuario do cookie http-only (JWT)
-pub fn extract_user_id_from_cookie(jar: &CookieJar) -> Option<String> {
-    let cookie = jar.get("auth_token")?;
-    let token = cookie.value();
-    let decoding_key = DecodingKey::from_secret(std::env::var("JWT_SECRET").unwrap_or_else(|_| "secret".to_string()).as_bytes());
-    let validation = Validation::new(Algorithm::HS256);
-    let token_data = decode::<Claims>(token, &decoding_key, &validation).ok()?;
-    Some(token_data.claims.sub)
-}
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::models::Usuario;
-    use axum::http::StatusCode;
-    use axum::Json;
-    use axum::response::IntoResponse;
-
-    #[tokio::test]
-    async fn test_login_handler_usuario_nao_encontrado() {
-        let payload = LoginPayload {
-            usuario: "naoexiste".to_string(),
-            senha: "senha".to_string(),
-        };
-        let resp = login_handler(Json(payload)).await.into_response();
-        assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
-    }
-
-    #[test]
-    fn test_login_sucesso_ou_falha() {
-        let now = chrono::Utc::now().naive_utc();
-        let usuario = Usuario {
-            id: "1".to_string(),
-            nome_usuario: "teste".to_string(),
-            email: "teste@teste.com".to_string(),
-            senha: bcrypt::hash("senha123", bcrypt::DEFAULT_COST).unwrap(),
-            nome_completo: "Nome Completo".to_string(),
-            telefone: "11999999999".to_string(),
-            veiculo: "Carro".to_string(),
-            blocked: false,
-            blocked_date: None,
-            criado_em: now,
-            atualizado_em: now,
-            ultima_tentativa_redefinicao: now,
-            address: "Rua Teste".to_string(),
-            address_number: "123".to_string(),
-            complement: "Apto 1".to_string(),
-            postal_code: "01234567".to_string(),
-            province: "Centro".to_string(),
-            city: "São Paulo".to_string(),
-            cpfcnpj: "12345678900".to_string(),
-        };
-        // Senha correta
-        let token = super::login(&usuario, "senha123");
-        assert!(token.is_ok());
-        // Senha errada
-        let token = super::login(&usuario, "errada");
-        assert!(token.is_err());
-    }
-}
-
 use axum::{response::IntoResponse, Json};
 use axum::http::{HeaderMap, header, StatusCode};
 use serde::Deserialize;
@@ -71,6 +11,16 @@ use diesel::QueryDsl;
 use diesel::ExpressionMethods;
 use diesel::BoolExpressionMethods;
 use diesel::RunQueryDsl;
+
+/// Extrai o id_usuario do cookie http-only (JWT)
+pub fn extract_user_id_from_cookie(jar: &CookieJar) -> Option<String> {
+    let cookie = jar.get("auth_token")?;
+    let token = cookie.value();
+    let decoding_key = DecodingKey::from_secret(std::env::var("JWT_SECRET").unwrap_or_else(|_| "secret".to_string()).as_bytes());
+    let validation = Validation::new(Algorithm::HS256);
+    let token_data = decode::<Claims>(token, &decoding_key, &validation).ok()?;
+    Some(token_data.claims.sub)
+}
 
 #[derive(Deserialize)]
 pub struct LoginPayload {

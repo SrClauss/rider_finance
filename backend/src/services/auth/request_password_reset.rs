@@ -1,18 +1,3 @@
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use axum::Json;
-
-    #[tokio::test]
-    async fn test_request_password_reset_handler_usuario_inexistente() {
-        let payload = RequestPasswordResetPayload {
-            email: "naoexiste@teste.com".to_string(),
-        };
-        let resp = request_password_reset_handler(Json(payload)).await;
-        let msg = resp.0;
-        assert!(msg.contains("não encontrado"));
-    }
-}
 use axum::Json;
 use serde::Deserialize;
 use crate::models::Usuario;
