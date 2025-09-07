@@ -1,6 +1,7 @@
 use axum::{response::{Response}, http::{StatusCode, header}};
 use crate::utils::relatorio::{gerar_pdf, gerar_xlsx};
 use crate::utils::date_utils::parse_datetime;
+use crate::cache::RIDER_CACHE;
 
 
 #[derive(Deserialize)]
@@ -114,6 +115,9 @@ pub struct TransacaoChangeset {
 pub async fn update_transacao_handler(Path(id_param): Path<String>, Json(payload): Json<UpdateTransacaoPayload>) -> Json<Option<TransacaoResponse>> {
     let conn = &mut db::establish_connection();
 
+    // Buscar transação original para obter user_id
+    let original_transaction = transacoes.filter(id.eq(&id_param)).first::<Transacao>(conn);
+
     // Parse da data se fornecida
     let parsed_data = if let Some(data_str) = &payload.data {
         parse_datetime(data_str).ok()
@@ -126,12 +130,19 @@ pub async fn update_transacao_handler(Path(id_param): Path<String>, Json(payload
         tipo: payload.tipo,
         descricao: payload.descricao,
         data: parsed_data,
-    eventos: payload.eventos,
+        eventos: payload.eventos,
     };
+    
     diesel::update(transacoes.filter(id.eq(&id_param)))
         .set(changeset)
         .execute(conn)
         .ok();
+    
+    // CACHE LAYER: Invalidar ambos os caches após edição
+    if let Ok(original) = original_transaction {
+        RIDER_CACHE.invalidate_user_caches(&original.id_usuario).await;
+    }
+    
     match transacoes.filter(id.eq(id_param)).first::<Transacao>(conn) {
         Ok(t) => Json(Some(TransacaoResponse {
             id: t.id,
@@ -149,7 +160,17 @@ pub async fn update_transacao_handler(Path(id_param): Path<String>, Json(payload
 
 pub async fn delete_transacao_handler(Path(id_param): Path<String>) -> Json<bool> {
     let conn = &mut db::establish_connection();
+    
+    // Buscar transação antes de deletar para obter user_id
+    let transaction_to_delete = transacoes.filter(id.eq(&id_param)).first::<Transacao>(conn);
+    
     let count = diesel::delete(transacoes.filter(id.eq(id_param))).execute(conn).unwrap_or(0);
+    
+    // CACHE LAYER: Invalidar ambos os caches após deleção
+    if let Ok(deleted_transaction) = transaction_to_delete {
+        RIDER_CACHE.invalidate_user_caches(&deleted_transaction.id_usuario).await;
+    }
+    
     Json(count > 0)
 }
 
@@ -209,17 +230,33 @@ pub async fn create_transacao_handler(jar: CookieJar, Json(payload): Json<Create
         criado_em: now,
         atualizado_em: now,
     };
-    diesel::insert_into(transacoes)
+    let _result = diesel::insert_into(transacoes)
         .values(&nova_transacao)
         .execute(conn)
         .expect("Erro ao inserir transação");
+
+    // CACHE LAYER: Adicionar ao cache como transação nova
+    let transacao_criada = Transacao {
+        id: nova_transacao.id.clone(),
+        id_usuario: nova_transacao.id_usuario.clone(),
+        id_categoria: nova_transacao.id_categoria.clone(),
+        valor: nova_transacao.valor,
+        eventos: nova_transacao.eventos,
+        descricao: nova_transacao.descricao.clone(),
+        tipo: nova_transacao.tipo.clone(),
+        data: nova_transacao.data,
+        criado_em: nova_transacao.criado_em,
+        atualizado_em: nova_transacao.atualizado_em,
+    };
+    
+    crate::cache::transacao::add_new_transaction(&user_id, transacao_criada).await;
 
     Json(TransacaoResponse {
         id: nova_transacao.id,
         id_usuario: nova_transacao.id_usuario,
         id_categoria: nova_transacao.id_categoria,
         valor: nova_transacao.valor,
-    eventos: nova_transacao.eventos,
+        eventos: nova_transacao.eventos,
         tipo: nova_transacao.tipo,
         descricao: nova_transacao.descricao,
         data: nova_transacao.data,
@@ -281,6 +318,41 @@ pub async fn list_transacoes_handler(
     let page_size = filtro.page_size.unwrap_or(10).clamp(1, 100);
     let offset = (page - 1) * page_size;
 
+    // CACHE LAYER: Tentar cache para páginas 1 e 2 sem filtros
+    let is_simple_query = filtro.id_categoria.is_none() && 
+                         filtro.descricao.is_none() && 
+                         filtro.tipo.is_none() && 
+                         filtro.data_inicio.is_none() && 
+                         filtro.data_fim.is_none();
+    
+    if is_simple_query && page <= 2 {
+        if let Some(cached_transactions) = crate::cache::transacao::get_cached_transactions(&user_id, page, page_size).await {
+            // Buscar total do banco se necessário (cache não tem total)
+            let count_query = transacoes.filter(id_usuario.eq(&user_id)).into_boxed();
+            let total: i64 = count_query.count().get_result(conn).unwrap_or(0);
+            
+            let items = cached_transactions.into_iter().map(|t| TransacaoResponse {
+                id: t.id,
+                id_usuario: t.id_usuario,
+                id_categoria: t.id_categoria,
+                valor: t.valor,
+                eventos: t.eventos,
+                tipo: t.tipo,
+                descricao: t.descricao,
+                data: t.data,
+            }).collect();
+            
+            return Json(PaginatedTransacoes {
+                total: total as usize,
+                page,
+                page_size,
+                items,
+            });
+        }
+    }
+
+    // Cache miss ou consulta com filtros - usar lógica original
+
     // Monta query base para count
     let mut count_query = transacoes.filter(id_usuario.eq(&user_id)).into_boxed();
     if let Some(ref cat) = filtro.id_categoria {
@@ -328,16 +400,21 @@ pub async fn list_transacoes_handler(
         .load::<Transacao>(conn)
         .unwrap_or_default();
 
-    let items = results.into_iter().map(|t| TransacaoResponse {
+    let items = results.clone().into_iter().map(|t| TransacaoResponse {
         id: t.id,
         id_usuario: t.id_usuario,
         id_categoria: t.id_categoria,
-    valor: t.valor,
-    eventos: t.eventos,
-    tipo: t.tipo,
-    descricao: t.descricao,
-    data: t.data,
+        valor: t.valor,
+        eventos: t.eventos,
+        tipo: t.tipo,
+        descricao: t.descricao,
+        data: t.data,
     }).collect();
+
+    // Salvar no cache se é primeira página sem filtros
+    if is_simple_query && page == 1 {
+        crate::cache::transacao::set_cached_transactions(&user_id, results).await;
+    }
 
     Json(PaginatedTransacoes {
         total: total as usize,
