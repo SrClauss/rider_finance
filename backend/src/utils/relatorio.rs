@@ -1,7 +1,6 @@
 
 use crate::models::{Transacao, categoria::Categoria};
 use printpdf::*;
-// BufWriter não é mais necessário com a API atual do printpdf
 use std::collections::HashMap;
 use diesel::prelude::*;
 use crate::models::configuracao::Configuracao;

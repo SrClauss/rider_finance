@@ -1,6 +1,6 @@
 use axum_extra::extract::cookie::CookieJar;
 use jsonwebtoken::{decode, DecodingKey, Validation};
-use crate::services::dashboard::Claims;
+use crate::services::dashboard::api::Claims;
 use axum::{Json, extract::Path};
 use diesel::prelude::*;
 use serde::{Serialize, Deserialize};
@@ -170,9 +170,9 @@ pub async fn update_categoria_handler(Path(id_param): Path<String>, jar: axum_ex
     // extrai usuário do cookie
     let token = jar.get("auth_token").map(|c| c.value().to_string()).unwrap_or_default();
     let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "secret".to_string());
-    let claims = jsonwebtoken::decode::<crate::services::dashboard::Claims>(token.as_str(), &jsonwebtoken::DecodingKey::from_secret(secret.as_ref()), &jsonwebtoken::Validation::default())
+    let claims = jsonwebtoken::decode::<Claims>(token.as_str(), &jsonwebtoken::DecodingKey::from_secret(secret.as_ref()), &jsonwebtoken::Validation::default())
         .map(|data| data.claims)
-        .unwrap_or_else(|_| crate::services::dashboard::Claims { sub: "".to_string(), email: "".to_string(), exp: 0 });
+        .unwrap_or_else(|_| Claims { sub: "".to_string(), email: "".to_string(), exp: 0 });
     let usuario_id_val = claims.sub.clone();
 
     if usuario_id_val.is_empty() {
@@ -218,9 +218,9 @@ pub async fn preview_delete_categoria_handler(Path(id_param): Path<String>, jar:
     // Extrai usuário do cookie
     let token = jar.get("auth_token").map(|c| c.value().to_string()).unwrap_or_default();
     let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "secret".to_string());
-    let claims = jsonwebtoken::decode::<crate::services::dashboard::Claims>(token.as_str(), &jsonwebtoken::DecodingKey::from_secret(secret.as_ref()), &jsonwebtoken::Validation::default())
+    let claims = jsonwebtoken::decode::<Claims>(token.as_str(), &jsonwebtoken::DecodingKey::from_secret(secret.as_ref()), &jsonwebtoken::Validation::default())
         .map(|data| data.claims)
-        .unwrap_or_else(|_| crate::services::dashboard::Claims { sub: "".to_string(), email: "".to_string(), exp: 0 });
+        .unwrap_or_else(|_| Claims { sub: "".to_string(), email: "".to_string(), exp: 0 });
     let usuario_id_val = claims.sub.clone();
     let conn = &mut db::establish_connection();
 
@@ -254,9 +254,9 @@ pub async fn execute_delete_categoria_handler(Path(id_param): Path<String>, jar:
     // Extrai usuário do cookie
     let token = jar.get("auth_token").map(|c| c.value().to_string()).unwrap_or_default();
     let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "secret".to_string());
-    let claims = jsonwebtoken::decode::<crate::services::dashboard::Claims>(token.as_str(), &jsonwebtoken::DecodingKey::from_secret(secret.as_ref()), &jsonwebtoken::Validation::default())
+    let claims = jsonwebtoken::decode::<Claims>(token.as_str(), &jsonwebtoken::DecodingKey::from_secret(secret.as_ref()), &jsonwebtoken::Validation::default())
         .map(|data| data.claims)
-        .unwrap_or_else(|_| crate::services::dashboard::Claims { sub: "".to_string(), email: "".to_string(), exp: 0 });
+        .unwrap_or_else(|_| Claims { sub: "".to_string(), email: "".to_string(), exp: 0 });
     let usuario_id_val = claims.sub.clone();
 
     // Garante que operamos apenas nas categorias do usuário
