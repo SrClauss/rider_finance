@@ -18,19 +18,6 @@ pub mod dashboard;
 use types::*;
 use crate::services::dashboard::service::DashboardStats;
 
-// Macro helper para prints de desenvolvimento.
-// Em builds de release estes prints serão removidos via #[cfg(debug_assertions)].
-// Use `dev_println!("msg {}", val)` nos módulos de cache para mensagens locais de dev.
-#[macro_export]
-macro_rules! dev_println {
-    ($($arg:tt)*) => {
-        #[cfg(debug_assertions)]
-        {
-            println!($($arg)*);
-        }
-    };
-}
-
 /// Cache global singleton para toda a aplicação
 pub static RIDER_CACHE: once_cell::sync::Lazy<RiderCache> = 
     once_cell::sync::Lazy::new(|| RiderCache::new());
