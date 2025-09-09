@@ -66,14 +66,19 @@ export default function EditProfileModal({ open, initialEmail, initialEndereco, 
 
     setCepLoading(true);
     try {
-      const res = await axios.get(`https://viacep.com.br/ws/${cep}/json/`);
-      const data = res.data;
+      const resp = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+      if (!resp.ok) {
+        setCepError('Falha ao buscar CEP. Tente novamente.');
+        return;
+      }
+      const data = await resp.json();
       if (data.erro) {
         setCepError("CEP não encontrado.");
       } else {
-  setFormState({ endereco: { ...endereco, rua: data.logradouro || endereco.rua, complemento: data.complemento || endereco.complemento, cidade: data.localidade || endereco.cidade, estado: data.uf || endereco.estado, cep } });
+        setFormState({ endereco: { ...endereco, rua: data.logradouro || endereco.rua, complemento: data.complemento || endereco.complemento, cidade: data.localidade || endereco.cidade, estado: data.uf || endereco.estado, cep } });
       }
-    } catch {
+    } catch (e) {
+      console.error('Erro ao consultar ViaCEP:', e);
       setCepError("Falha ao buscar CEP. Tente novamente.");
     } finally {
       setCepLoading(false);

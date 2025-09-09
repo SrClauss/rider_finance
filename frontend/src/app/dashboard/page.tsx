@@ -60,9 +60,7 @@ export default function Page() {
       <Box sx={{ mb: 1, mt: 4 }}>
         <SectionTitle>Resumo</SectionTitle>
       </Box>
-      <pre>
-        {JSON.stringify(usuarioContext.localtime, null, 2)}
-      </pre>
+
 
       <SummarySwiper data={data!} /> {/* Substituir SummaryTodayCard por SummarySwiper */}
 

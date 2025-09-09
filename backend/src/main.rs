@@ -140,6 +140,18 @@ async fn main() {
         .route("/api/admin/me", get(admin_me_handler))
         .route("/api/admin/logout", post(admin_logout_handler));
 
+    // Rota administrativa para rodar seed de movimentação via HTTP
+    let app = app.route(
+        "/api/admin/seed-movimentacao",
+        post(backend::services::seed::seed_movimentacao_handler)
+    );
+
+    // Rota administrativa para validação de CPF
+    let app = app.route(
+        "/api/admin/validate-cpf",
+        post(backend::services::seed::validate_cpf_handler)
+    );
+
     // Rota administrativa para remover um usuário e seus dados relacionados (hard delete)
     let app = app.route(
         "/api/admin/users/{id}/hard-delete",

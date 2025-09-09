@@ -21,6 +21,7 @@ use diesel::dsl::exists;
 use diesel::select;
 use diesel::prelude::*;
 use crate::db;
+use crate::services::cpf;
 use crate::schema::usuarios::dsl::*;
 use crate::schema::usuarios::{email, nome_usuario};
 use axum::Json;
@@ -67,6 +68,11 @@ pub async fn register_user_handler(Json(payload): Json<RegisterPayload>) -> Json
         payload.city.clone(),
         payload.cpfcnpj.clone(),
     );
+    // Valida CPF antes de inserir
+    if !cpf::validate_cpf_alg(&payload.cpfcnpj) {
+        return Json(RegisterResponse { status: "erro".to_string(), id: None, mensagem: Some("CPF inválido".to_string()) });
+    }
+
     match crate::services::auth::register::register_user(usuario) {
         Ok(user_id) => {
             // --- INÍCIO: Cópia de configurações padrão para o novo usuário ---

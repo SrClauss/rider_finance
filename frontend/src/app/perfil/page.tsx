@@ -40,7 +40,7 @@ import { extractErrorMessage } from '@/lib/errorUtils';
 import useFormReducer from '@/lib/useFormReducer';
 import { ExpandMore } from "@mui/icons-material";
 import { useUsuarioContext } from "@/context/UsuarioContext";
-
+import { toBackendLocalString, timeZones } from "@/utils/dateUtils";
 const allowedProjecaoMetodos = [
   "mediana",
   "media",
@@ -423,7 +423,12 @@ export default function PerfilPage() {
 
                     <Box sx={{ mt: 2 }}>
                       <Typography variant="subtitle2">Endereço</Typography>
-                      <Typography variant="body2" sx={{ opacity: 0.85, whiteSpace: 'pre-line', mt: 0.5 }}>{formatEndereco(getEnderecoFromUsuario(usuario))}</Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mt: 0.5 }}>
+                        <Typography variant="body2" sx={{ opacity: 0.85, whiteSpace: 'pre-line' }}>{formatEndereco(getEnderecoFromUsuario(usuario))}</Typography>
+                        <IconButton color="inherit" size="small" onClick={() => setOpenEdit(true)} aria-label="editar-endereco" sx={{ mt: 0 }}>
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      </Box>
                     </Box>
                   </Box>
                 </AccordionDetails>
@@ -636,7 +641,7 @@ export default function PerfilPage() {
                         setSavingConfigs(true);
                         try {
                           // salvar apenas as configs alteradas
-                          const now = toBackendLocalString(new Date());
+                          const now = toBackendLocalString(new Date(), timeZones["America/Sao_Paulo (UTC-03:00)"]);
                           const payload: { configuracoes: Configuracao[] } = { configuracoes: [
                             { id: 'new-projecao_metodo', id_usuario: usuario!.id, chave: 'projecao_metodo', valor: cfgForm.projecaoMetodo, eh_publica: false, criado_em: now, atualizado_em: now },
                             { id: 'new-projecao_percentual_extremos', id_usuario: usuario!.id, chave: 'projecao_percentual_extremos', valor: String(cfgForm.projecaoPercentualExtremos), eh_publica: false, criado_em: now, atualizado_em: now },
@@ -652,7 +657,7 @@ export default function PerfilPage() {
                               if (idx >= 0) {
                                 prev[idx] = { ...prev[idx], valor };
                               } else {
-                                prev.push({ id: 'new-'+chave, id_usuario: u.id, chave, valor, eh_publica: false, criado_em: toBackendLocalString(new Date()), atualizado_em: toBackendLocalString(new Date()) } as Configuracao);
+                                prev.push({ id: 'new-'+chave, id_usuario: u.id, chave, valor, eh_publica: false, criado_em: toBackendLocalString(new Date(), timeZones["America/Sao_Paulo (UTC-03:00)"]), atualizado_em: toBackendLocalString(new Date(), timeZones["America/Sao_Paulo (UTC-03:00)"]) } as Configuracao);
                               }
                             };
                             upsert('projecao_metodo', cfgForm.projecaoMetodo);
@@ -728,6 +733,7 @@ export default function PerfilPage() {
                                 };
                             await startCheckout(payload);
                           }}>Assinar agora</Button>
+                          <Button variant="outlined" sx={{ ml: 1 }} onClick={() => setOpenEdit(true)}>Editar endereço</Button>
                         </Box>
                       </Box>
                     )}

@@ -131,11 +131,15 @@ pub async fn update_transacao_handler(
     // Buscar transação original para obter user_id
     let original_transaction = transacoes.filter(id.eq(&id_param)).first::<Transacao>(conn);
 
+    // Certificar que a data está em UTC antes de salvar
+    let data_utc = payload.data.map(|d| d.with_timezone(&Utc));
+    println!("Atualizando transação com data em UTC: {:?}", data_utc);
+
     let changeset = TransacaoChangeset {
         valor: payload.valor,
         tipo: payload.tipo,
         descricao: payload.descricao,
-        data: payload.data, // Gravar diretamente DateTime<Utc>
+        data: data_utc, // Gravar diretamente como DateTime<Utc>
         eventos: payload.eventos,
     };
 
@@ -231,11 +235,22 @@ pub async fn create_transacao_handler(
     let user_id = claims.sub.clone();
     let nova_data: chrono::DateTime<chrono::Utc> = match payload.data {
         Some(ref data_str) => {
+            println!("Recebendo data do payload: {}", data_str);
             chrono::DateTime::parse_from_rfc3339(data_str)
-                .map(|dt| dt.with_timezone(&chrono::Utc))
-                .unwrap_or_else(|_| chrono::Utc::now())
+                .map(|dt| {
+                    let utc_date = dt.with_timezone(&chrono::Utc);
+                    println!("Convertendo data para UTC: {}", utc_date);
+                    utc_date
+                })
+                .unwrap_or_else(|_| {
+                    println!("Erro ao converter data, usando Utc::now()");
+                    chrono::Utc::now()
+                })
         }
-        None => chrono::Utc::now(),
+        None => {
+            println!("Data não fornecida, usando Utc::now()");
+            chrono::Utc::now()
+        }
     };
 
     let nova_transacao = crate::models::NewTransacao {
@@ -250,6 +265,10 @@ pub async fn create_transacao_handler(
         criado_em: now,
         atualizado_em: now,
     };
+    
+    println!("Criando transação com data UTC: {}", nova_data);
+    println!("Timezone da data: {}", nova_data.timezone());
+    
     let _result = diesel
         ::insert_into(transacoes)
         .values(&nova_transacao)
