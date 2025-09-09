@@ -2,6 +2,8 @@
 
 import React from 'react';
 import useFormReducer from '@/lib/useFormReducer';
+import { formatUtcToLocalString, getUserTimezone } from '@/utils/dateUtils';
+import { useUsuarioContext } from '@/context/SessionContext';
 import {
   Dialog,
   DialogTitle,
@@ -21,6 +23,8 @@ interface StopSessionModalProps {
 
 export default function StopSessionModal({ open, onClose }: StopSessionModalProps) {
   const { stop, loading, sessao, elapsedSeconds } = useSession();
+  const { configuracoes } = useUsuarioContext();
+  const userTimezone = getUserTimezone(configuracoes);
   const { state, setField, reset } = useFormReducer({ local_fim: '' });
   const local_fim = String(state.local_fim ?? '');
 
@@ -72,7 +76,7 @@ export default function StopSessionModal({ open, onClose }: StopSessionModalProp
                   Tempo decorrido: {formatElapsedTime(elapsedSeconds || 0)}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Iniciada em: {new Date(sessao.sessao.inicio).toLocaleString('pt-BR')}
+                  Iniciada em: {formatUtcToLocalString(sessao.sessao.inicio, userTimezone)}
                 </Typography>
               </Box>
             )}

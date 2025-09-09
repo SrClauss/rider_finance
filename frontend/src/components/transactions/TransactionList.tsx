@@ -2,7 +2,9 @@ import { Box, Typography, Paper, Chip, IconButton, Divider } from "@mui/material
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import type { Transaction } from "@/interfaces/Transaction";
-import { useCategoriaContext } from "@/context/CategoriaContext";
+import { useUsuarioContext } from "@/context/UsuarioContext";
+import { formatUtcToLocalString, getUserTimezone } from "@/utils/dateUtils";
+import { useUsuarioContext as useUsuarioContextSession } from "@/context/SessionContext";
 
 
 interface Props {
@@ -13,7 +15,9 @@ interface Props {
 
 
 export default function TransactionList({ transactions, onEdit, onDelete }: Props) {
-  const { categorias } = useCategoriaContext();
+  const { categorias } = useUsuarioContext();
+  const { configuracoes } = useUsuarioContextSession();
+  const userTimezone = getUserTimezone(configuracoes);
 
   if (!transactions || transactions.length === 0) {
     return <Typography color="#aaa" sx={{ mt: 4, textAlign: "center" }}>Nenhuma transação encontrada.</Typography>;
@@ -37,7 +41,7 @@ export default function TransactionList({ transactions, onEdit, onDelete }: Prop
           
           {/* Linha 2: Data/hora à esquerda, Receita/Despesa e Valor à direita */}
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="body2" color="#aaa">{new Date(tx.data).toLocaleString("pt-BR")}</Typography>
+            <Typography variant="body2" color="#aaa">{formatUtcToLocalString(tx.data, userTimezone)}</Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <Chip label={tx.tipo === "entrada" ? "Receita" : "Despesa"} color={tx.tipo === "entrada" ? "success" : "error"} size="small" />
               <Typography variant="body1" fontWeight={700} color={tx.tipo === "entrada" ? "#00e676" : "#ff1744"}>

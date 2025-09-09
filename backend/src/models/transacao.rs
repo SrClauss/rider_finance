@@ -1,8 +1,7 @@
-
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
 use ulid::Ulid;
-use chrono::{NaiveDateTime};
+use chrono::{DateTime, Utc};
 use crate::schema::transacoes;
 use crate::models::{Usuario, Categoria};
 
@@ -19,9 +18,9 @@ pub struct Transacao {
     pub eventos: i32,
     pub descricao: Option<String>,
     pub tipo: String,
-    pub data: NaiveDateTime,
-    pub criado_em: NaiveDateTime,
-    pub atualizado_em: NaiveDateTime,
+    pub data: DateTime<Utc>,
+    pub criado_em: DateTime<Utc>,
+    pub atualizado_em: DateTime<Utc>,
 }
 
 #[derive(Debug, Insertable)]
@@ -34,14 +33,14 @@ pub struct NewTransacao {
     pub eventos: i32,
     pub descricao: Option<String>,
     pub tipo: String,
-    pub data: NaiveDateTime,
-    pub criado_em: NaiveDateTime,
-    pub atualizado_em: NaiveDateTime,
+    pub data: DateTime<Utc>,
+    pub criado_em: DateTime<Utc>,
+    pub atualizado_em: DateTime<Utc>,
 }
 
 impl NewTransacao {
     pub fn new(id_usuario: String, id_categoria: String, valor: i32, tipo: String) -> Self {
-    let now = chrono::Local::now().naive_local();
+        let now = chrono::Utc::now();
         NewTransacao {
             id: Ulid::new().to_string(),
             id_usuario,

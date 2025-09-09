@@ -2,6 +2,8 @@ import { DirectionsCarRounded, ShowChart, SpeedRounded, WatchLater } from "@mui/
 import { Box, Card, Divider, Typography } from "@mui/material";
 import InfoCard from "./InfoCard";
 import { JSX } from "react";
+import { getCurrentDateTime, getUserTimezone, formatUtcToLocalDateString } from "@/utils/dateUtils";
+import { useUsuarioContext } from "@/context/SessionContext";
 
 export interface SummaryLast7DaysCardProps {
   ganhos_7dias: number[];
@@ -24,6 +26,9 @@ export default function SummaryLast7DaysCard({
   corridas_semana_passada,
   horas_semana_passada,
 }: SummaryLast7DaysCardProps): JSX.Element {
+  const { configuracoes } = useUsuarioContext();
+  const userTimezone = getUserTimezone(configuracoes);
+  
   const totalGanhos = ganhos_7dias.reduce((sum, val) => sum + val, 0);
   const totalGastos = gastos_7dias.reduce((sum, val) => sum + val, 0);
   const totalCorridas = corridas_7dias.reduce((sum, val) => sum + val, 0);
@@ -94,11 +99,7 @@ export default function SummaryLast7DaysCard({
           >
             <Typography variant="body2">Resumo (7 dias)</Typography>
             <Typography variant="caption">
-              {new Date().toLocaleDateString("pt-BR", {
-                day: "2-digit",
-                month: "2-digit",
-                year: "numeric",
-              })}
+              {formatUtcToLocalDateString(getCurrentDateTime(userTimezone).toISOString(), userTimezone)}
             </Typography>
           </Box>
         </Box>

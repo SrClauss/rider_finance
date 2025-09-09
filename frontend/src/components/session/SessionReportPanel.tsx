@@ -2,7 +2,8 @@
 "use client";
 import React, { useEffect, useRef } from "react";
 import useFormReducer from '@/lib/useFormReducer';
-import { useCategoriaContext } from "@/context/CategoriaContext";
+import { useUsuarioContext } from "@/context/SessionContext";
+import { formatUtcToLocalString, getUserTimezone } from "@/utils/dateUtils";
 import Paper from "@mui/material/Paper";
 import IconButton from "@mui/material/IconButton";
 import CloseIcon from "@mui/icons-material/Close";
@@ -41,7 +42,8 @@ const SessionReportPanel: React.FC<SessionReportPanelProps> = ({ sessaoId, onClo
   const transacoes = state.transacoes as TransactionItem[];
   const error = String(state.error ?? '') || null;
   const nodeRef = useRef<HTMLDivElement | null>(null);
-  const { categorias } = useCategoriaContext();
+  const { configuracoes } = useUsuarioContext();
+  const userTimezone = getUserTimezone(configuracoes);
 
   useEffect(() => {
     if (!sessaoId) return;
@@ -99,9 +101,8 @@ const SessionReportPanel: React.FC<SessionReportPanelProps> = ({ sessaoId, onClo
 
             <Box sx={{ maxHeight: 300, overflow: "auto", mt: 2 }}>
               {transacoes.map((t) => {
-                const catFromCtx = categorias.find((c) => c.id === (t.categoria && t.categoria.id));
-                const cor = catFromCtx?.cor ?? t.categoria?.cor ?? "#999";
-                const icone = catFromCtx?.icone ?? t.categoria?.icone ?? "fas fa-question";
+                const cor = t.categoria?.cor ?? "#999";
+                const icone = t.categoria?.icone ?? "fas fa-question";
                 return (
                   <Box key={t.id} sx={{ display: "flex", justifyContent: "space-between", py: 1, borderBottom: "1px solid #eee", alignItems: 'center' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -111,7 +112,7 @@ const SessionReportPanel: React.FC<SessionReportPanelProps> = ({ sessaoId, onClo
                           <i className={icone} style={{ width: 20, textAlign: 'center' }} aria-hidden />
                           <Typography variant="body2">{t.descricao ?? "—"}</Typography>
                         </Box>
-                        <Typography variant="caption" color="text.secondary">{new Date(t.data).toLocaleString()}</Typography>
+                        <Typography variant="caption" color="text.secondary">{formatUtcToLocalString(String(t.data), userTimezone)}</Typography>
                       </Box>
                     </Box>
                     <Box sx={{ textAlign: "right" }}>

@@ -8,12 +8,12 @@ pub struct ConfiguracaoChangeset {
     pub descricao: Option<String>,
     pub tipo_dado: Option<String>,
     pub eh_publica: Option<bool>,
-    pub atualizado_em: Option<chrono::NaiveDateTime>,
+    pub atualizado_em: Option<chrono::DateTime<chrono::Utc>>,
 }
 use diesel::Identifiable;
 use crate::schema::configuracoes;
 use diesel::{Insertable, Queryable};
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 #[derive(Debug, Clone, Queryable, Identifiable, Insertable, serde::Serialize, serde::Deserialize, PartialEq)]
 #[diesel(table_name = configuracoes)]
 pub struct Configuracao {
@@ -25,8 +25,8 @@ pub struct Configuracao {
     pub descricao: Option<String>,
     pub tipo_dado: Option<String>,
     pub eh_publica: bool,
-    pub criado_em: NaiveDateTime,
-    pub atualizado_em: NaiveDateTime,
+    pub criado_em: DateTime<Utc>,
+    pub atualizado_em: DateTime<Utc>,
 }
 
 #[derive(Debug, Insertable, Clone, serde::Serialize, serde::Deserialize)]
@@ -40,6 +40,6 @@ pub struct NewConfiguracao {
     pub descricao: Option<String>,
     pub tipo_dado: Option<String>,
     pub eh_publica: bool,
-    pub criado_em: NaiveDateTime,
-    pub atualizado_em: NaiveDateTime,
+    pub criado_em: DateTime<Utc>,
+    pub atualizado_em: DateTime<Utc>,
 }

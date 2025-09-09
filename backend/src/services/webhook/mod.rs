@@ -61,7 +61,7 @@ use serde_json::Value;
             return resp.into_response();
         }
         let usuario = usuario_encontrado.unwrap();
-        let hoje = Utc::now().naive_utc();
+        let hoje = Utc::now();
     // Extrai id do webhook (será usado como asaas_subscription_id)
     let webhook_id = payload.get("id").and_then(|v| v.as_str()).unwrap_or("webhook_seed").to_string();
 

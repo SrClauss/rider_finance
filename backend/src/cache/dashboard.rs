@@ -173,9 +173,9 @@ mod tests {
             eventos: 1,
             descricao: Some("Teste".to_string()),
             tipo: tipo.to_string(),
-            data: Utc::now().naive_utc(),
-            criado_em: Utc::now().naive_utc(),
-            atualizado_em: Utc::now().naive_utc(),
+            data: Utc::now(),
+            criado_em: Utc::now(),
+            atualizado_em: Utc::now(),
         };
         
         TransacaoCached::from_transacao(transacao, true)

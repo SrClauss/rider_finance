@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import dayjs from 'dayjs';
 import { Goal } from '@/interfaces/goal';
 import { GoalProgress } from './GoalProgress';
 import {
@@ -15,6 +14,8 @@ import {
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import type { SxProps, Theme } from '@mui/material';
+import { useUsuarioContext } from '@/context/SessionContext';
+import { getUserTimezone, formatUtcToLocalString, parseUtcToDate } from '@/utils/dateUtils';
 
 interface GoalCardProps {
   goal: Goal;
@@ -31,23 +32,26 @@ interface GoalCardProps {
 const GoalCard: React.FC<GoalCardProps> = ({ goal, onEdit, onDelete, sx }) => {
   // Estado local para sincronizar com props
   const [localGoal, setLocalGoal] = useState<Goal>(goal);
+  const { configuracoes } = useUsuarioContext();
+  const userTimezone = getUserTimezone(configuracoes);
 
   // Sincroniza estado local quando goal muda
   useEffect(() => {
     setLocalGoal(goal);
   }, [goal]);
 
-  // Formata data para exibição
+  // Formata data para exibição usando timezone do usuário
   const formatDate = (dateString: string | null | undefined): string => {
     if (!dateString) return '-';
     try {
-      const d = dayjs(dateString);
-      if (!d.isValid()) return String(dateString);
-      return d.format('DD/MM/YY HH:mm');
+      return formatUtcToLocalString(dateString, userTimezone);
     } catch {
       return String(dateString);
     }
   };
+
+  const localDataInicio = parseUtcToDate(goal.data_inicio, userTimezone);
+  const localDataFim = goal.data_fim ? parseUtcToDate(goal.data_fim, userTimezone) : null;
 
   return (
     <Card
@@ -122,10 +126,10 @@ const GoalCard: React.FC<GoalCardProps> = ({ goal, onEdit, onDelete, sx }) => {
           </Typography>
           <Box>
             <Typography variant="body2" color="text.secondary">
-              <strong>Início:</strong> {formatDate(localGoal.data_inicio)}
+              <strong>Início:</strong> {localDataInicio.toLocaleString()}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              <strong>Fim:</strong> {formatDate(localGoal.data_fim)}
+              <strong>Fim:</strong> {localDataFim?.toLocaleString()}
             </Typography>
           </Box>
         </Box>

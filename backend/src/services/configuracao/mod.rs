@@ -1,8 +1,31 @@
+
+use axum::Json;
+use diesel::prelude::*;
+use serde_json::json;
+use ulid::Ulid;
+use chrono::Utc;
+use crate::db::establish_connection;
+use crate::models::configuracao::{Configuracao, NewConfiguracao};
+use crate::schema::configuracoes::dsl::*;
+use axum::{extract::Path, response::Json as AxumJson};
+use axum::{routing::get, Router};
+
+
 #[derive(serde::Deserialize)]
 pub struct UpdateValor {
     pub valor: Option<String>,
 }
-use axum::{extract::Path, response::Json as AxumJson};
+
+#[derive(serde::Deserialize)]
+pub struct CreateConfiguracaoPayload {
+    pub id_usuario: Option<String>,
+    pub chave: String,
+    pub valor: Option<String>,
+    pub categoria: Option<String>,
+    pub descricao: Option<String>,
+    pub tipo_dado: Option<String>,
+    pub eh_publica: Option<bool>,
+}
 #[axum::debug_handler]
 pub async fn usuario_completo_handler(Path(user_id): Path<String>) -> AxumJson<Option<crate::models::usuario::Usuario>> {
     use crate::db::establish_connection;
@@ -16,12 +39,47 @@ pub async fn usuario_completo_handler(Path(user_id): Path<String>) -> AxumJson<O
     AxumJson(usuario)
 }
 // Handler para buscar valor_assinatura global
-use axum::Json;
-use serde_json::json;
-use crate::db::establish_connection;
 
 
-
+pub async fn create_configuracao_handler(Json(payload): Json<CreateConfiguracaoPayload>) -> Result<AxumJson<Configuracao>, (StatusCode, String)> {
+    use crate::db::establish_connection;
+    let conn = &mut establish_connection();
+    let now = Utc::now();
+    
+    // Verificar se já existe uma configuração com a mesma chave para o mesmo usuário
+    let existing = configuracoes
+        .filter(chave.eq(&payload.chave))
+        .filter(id_usuario.eq(&payload.id_usuario))
+        .first::<Configuracao>(conn)
+        .optional()
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    
+    if existing.is_some() {
+        return Err((
+            StatusCode::CONFLICT,
+            format!("Configuração com chave '{}' já existe para este usuário", payload.chave)
+        ));
+    }
+    
+    let nova_configuracao = NewConfiguracao {
+        id: Ulid::new().to_string(),
+        id_usuario: payload.id_usuario.clone(),
+        chave: payload.chave.clone(),
+        valor: payload.valor.clone(),
+        categoria: payload.categoria.clone(),
+        descricao: payload.descricao.clone(),
+        tipo_dado: payload.tipo_dado.clone(),
+        eh_publica: payload.eh_publica.unwrap_or(false),
+        criado_em: now,
+        atualizado_em: now,
+    };
+    
+    diesel::insert_into(configuracoes)
+        .values(&nova_configuracao)
+        .get_result(conn)
+        .map(|config| AxumJson(config))
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
+}   
 pub async fn checkout_info_handler() -> AxumJson<serde_json::Value> {
     use crate::schema::configuracoes::dsl::*;
     use crate::models::configuracao::Configuracao;
@@ -70,42 +128,10 @@ pub async fn checkout_info_handler() -> AxumJson<serde_json::Value> {
         "checkout_success_url": success_url
     }))
 }
-use ulid::Ulid;
 
 
-// Removido import duplicado de Path e Json
-use crate::models::configuracao::{Configuracao, NewConfiguracao};
-use crate::schema::configuracoes::dsl::*;
-use diesel::prelude::*;
-use chrono::Utc;
-use diesel::pg::PgConnection;
-// Removidos imports inválidos e não utilizados
 
-// Criar configuração
-pub async fn create_configuracao_handler(
-    Json(payload): Json<NewConfiguracao>,
-    conn: &mut PgConnection,
-) -> Result<Json<Configuracao>, String> {
-    let now = Utc::now().naive_utc();
-    let new = NewConfiguracao {
-        criado_em: now,
-        atualizado_em: now,
-        ..payload
-    };
-    // Prevent creating configuration with the reserved seed ULID or creating a global valor_assinatura
-    let reserved_ulid = std::env::var("SEED_VALOR_ASSINATURA_ULID").unwrap_or_else(|_| "01K3E3VRQ0FAXB6XMC94ZQ9GHA".to_string());
-    if new.id == reserved_ulid {
-        return Err("Criação proibida: id reservado para configuração de seed".to_string());
-    }
-    if new.chave == "valor_assinatura" && new.id_usuario.is_none() {
-        return Err("Criação proibida: já existe uma configuração global 'valor_assinatura' gerenciada pelo sistema".to_string());
-    }
-    diesel::insert_into(configuracoes)
-        .values(&new)
-        .get_result(conn)
-        .map(Json)
-        .map_err(|e| e.to_string())
-}
+
 
 // Buscar configuração por id
 pub async fn get_configuracao_handler(
@@ -119,14 +145,20 @@ pub async fn get_configuracao_handler(
 }
 
 // Listar configurações de um usuário
+#[axum::debug_handler]
 pub async fn list_configuracoes_handler(
     Path(id_usuario_valor): Path<String>,
-    conn: &mut PgConnection,
 ) -> Result<Json<Vec<Configuracao>>, String> {
-    configuracoes.filter(crate::schema::configuracoes::id_usuario.eq(id_usuario_valor))
+    let conn = &mut establish_connection(); // Estabelece conexão com o banco
+    configuracoes
+        .filter(crate::schema::configuracoes::id_usuario.eq(id_usuario_valor))
         .load(conn)
         .map(Json)
         .map_err(|e| e.to_string())
+}
+
+pub fn configuracao_routes() -> Router {
+    Router::new().route("/configuracoes/:id_usuario_valor", get(list_configuracoes_handler))
 }
 
 // Deletar configuração
@@ -147,13 +179,13 @@ use axum::http::StatusCode;
 
 
 #[axum::debug_handler]
-pub async fn update_configuracao_axum(
+pub async fn update_configuracao_handler(
     Path(id_valor): Path<String>,
     Json(payload): Json<UpdateValor>,
 ) -> Result<Json<Configuracao>, (StatusCode, String)> {
     let conn = &mut establish_connection();
     // Só atualiza o valor
-    let now = Utc::now().naive_utc();
+    let now = Utc::now();
     use crate::models::configuracao::ConfiguracaoChangeset;
     let changeset = ConfiguracaoChangeset {
         valor: payload.valor,
@@ -170,12 +202,14 @@ pub async fn update_configuracao_axum(
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
 }
 
+
+
 pub fn update_configuracao_handler_inner(
     id_valor: String,
     payload: NewConfiguracao,
     conn: &mut PgConnection,
 ) -> Result<Json<Configuracao>, String> {
-    let now = Utc::now().naive_utc();
+    let now = Utc::now();
     use crate::models::configuracao::ConfiguracaoChangeset;
     let changeset = ConfiguracaoChangeset {
         valor: payload.valor,
@@ -205,7 +239,7 @@ pub fn seed_configuracoes_padrao(conn: &mut diesel::PgConnection) {
         .unwrap();
 
     use crate::models::configuracao::NewConfiguracao;
-    let now = Utc::now().naive_utc();
+    let now = Utc::now();
     let valor_assinatura = std::env::var("VALOR_ASSINATURA").unwrap_or("2.00".to_string());
     let mut configs = vec![
         NewConfiguracao {

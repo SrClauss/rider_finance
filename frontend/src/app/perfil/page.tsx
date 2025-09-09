@@ -32,15 +32,14 @@ import LoggedLayout from "@/layouts/LoggedLayout";
 import EditProfileModal from "@/modals/EditProfileModal";
 import DeleteCategoryModal from '@/modals/DeleteCategoryModal';
 import CategoriaModal from '@/modals/CategoriaModal';
-import { carregarCategorias } from '@/context/CategoriaContext';
 import type { Categoria } from '@/interfaces/Categoria';
 import { UsuarioMeResponse } from "@/interfaces/UsuarioMeResponse";
 import { Configuracao } from "@/interfaces/Configuracao";
 import { useRouter } from "next/navigation";
 import { extractErrorMessage } from '@/lib/errorUtils';
 import useFormReducer from '@/lib/useFormReducer';
-import { toBackendLocalString } from '@/utils/dateUtils';
 import { ExpandMore } from "@mui/icons-material";
+import { useUsuarioContext } from "@/context/UsuarioContext";
 
 const allowedProjecaoMetodos = [
   "mediana",
@@ -78,6 +77,7 @@ export default function PerfilPage() {
   const [editCatOpen, setEditCatOpen] = useState(false);
   const [catToEdit, setCatToEdit] = useState<string | null>(null);
   const [resetModalOpen, setResetModalOpen] = useState(false);
+  const { carregarCategorias } = useUsuarioContext();
   type PreviewData = {
     transactions?: number;
     transacoes?: number;

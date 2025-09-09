@@ -2,12 +2,18 @@
 
 import React, { useEffect, useState } from "react";
 import type { SessaoComTransacoes } from "@/interfaces/SessaoComTransacoes";
+import { formatUtcToLocalString, getUserTimezone } from "@/utils/dateUtils";
+import { useUsuarioContext } from "@/context/SessionContext";
 
 import { Box, Typography, Table, TableHead, TableRow, TableCell, TableBody, CircularProgress, TableContainer, Paper } from "@mui/material";
 
 export default function SessionDetailClient({ sessaoId }: { sessaoId: string }) {
   const [loading, setLoading] = useState(false);
   const [sessao, setSessao] = useState<SessaoComTransacoes | null>(null);
+  const { configuracoes } = useUsuarioContext();
+  const userTimezone = getUserTimezone(configuracoes);
+
+
 
   useEffect(() => {
     if (!sessaoId) return;
@@ -31,8 +37,8 @@ export default function SessionDetailClient({ sessaoId }: { sessaoId: string }) 
     <Box>
       <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: 2, flexWrap: 'wrap' }}>
         <Typography variant="h6">Sessão {s.id}</Typography>
-        <Typography>Início: {new Date(s.inicio).toLocaleString()}</Typography>
-        <Typography>Fim: {s.fim ? new Date(s.fim).toLocaleString() : 'Em andamento'}</Typography>
+        <Typography>Início: {formatUtcToLocalString(s.inicio, userTimezone)}</Typography>
+        <Typography>Fim: {s.fim ? formatUtcToLocalString(s.fim, userTimezone) : 'Em andamento'}</Typography>
         <Typography>Ganhos: R$ {(s.total_ganhos / 100).toFixed(2)}</Typography>
         <Typography>Gastos: R$ {(s.total_gastos / 100).toFixed(2)}</Typography>
         <Typography>Corridas: {s.total_corridas}</Typography>
@@ -55,7 +61,7 @@ export default function SessionDetailClient({ sessaoId }: { sessaoId: string }) 
             <TableBody>
               {transacoes.map(t => (
                 <TableRow key={t.id}>
-                  <TableCell>{new Date(t.data).toLocaleString()}</TableCell>
+                  <TableCell>{formatUtcToLocalString(t.data, userTimezone)}</TableCell>
                   <TableCell>{t.descricao}</TableCell>
                   <TableCell>{t.categoria ? `${t.categoria.nome}` : '-'}</TableCell>
                   <TableCell>{((t.valor || 0) / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>

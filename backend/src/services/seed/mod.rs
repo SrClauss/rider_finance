@@ -1,6 +1,6 @@
 use crate::db::establish_connection;
 use crate::services::transacao::{ CreateTransacaoPayload, create_transacao_handler };
-use chrono::{ Duration, Utc, Datelike, NaiveDateTime, NaiveTime };
+use chrono::{ Datelike, Duration, NaiveTime, TimeZone, Utc };
 use rand::Rng;
 use axum_extra::extract::cookie::{ Cookie, CookieJar };
 use jsonwebtoken::{ encode, EncodingKey, Header };
@@ -15,7 +15,7 @@ pub fn create_fake_user() -> String {
     use crate::models::usuario::NewUsuario;
     use crate::schema::usuarios::dsl::*;
     let conn = &mut establish_connection();
-    let now = chrono::Utc::now().naive_utc();
+    let now = chrono::Utc::now();
     let usuario_id = "01K2EX9HFA6JKNWRZ4XF9VZ2PA".to_string();
     let new_user = NewUsuario {
         id: usuario_id.clone(),
@@ -186,7 +186,7 @@ pub async fn seed_movimentacao_robusta() {
         use crate::models::assinatura::NewAssinatura;
         use crate::schema::assinaturas::dsl::*;
         let conn = &mut db::establish_connection();
-        let now_dt = chrono::Utc::now().naive_utc();
+        let now_dt = chrono::Utc::now();
         let periodo_fim_dt = now_dt + Duration::days(30);
         let nova_assinatura = NewAssinatura {
             id: ulid::Ulid::new().to_string(),
@@ -221,10 +221,15 @@ pub async fn seed_movimentacao_robusta() {
         } else {
             rng.random_range(6..10)
         };
-        let inicio_val = NaiveDateTime::new(data, NaiveTime::from_hms_opt(8, 0, 0).unwrap());
+        let inicio_val = chrono::Utc.from_utc_datetime(
+            &chrono::NaiveDateTime::new(data, NaiveTime::from_hms_opt(8, 0, 0).unwrap())
+        );
         let fim_hora: u32 = (8 + horas_val / 2) as u32;
-        let fim_val = Some(
-            NaiveDateTime::new(data, NaiveTime::from_hms_opt(fim_hora, 0, 0).unwrap())
+
+        let fim_val: Option<chrono::DateTime<chrono::Utc>> = Some(
+            chrono::Utc.from_utc_datetime(
+                &chrono::NaiveDateTime::new(data, NaiveTime::from_hms_opt(fim_hora, 0, 0).unwrap())
+            ),
         );
         let total_minutos_val = Some(horas_val * 60);
         let total_corridas_val = rng.random_range(1..8);
@@ -319,7 +324,7 @@ pub async fn seed_movimentacao_robusta() {
         }
         // Insere a sessão com os totais calculados
         let conn = &mut db::establish_connection();
-        let now = chrono::Utc::now().naive_utc();
+        let now = chrono::Utc::now();
         let nova_sessao = NewSessaoTrabalho {
             id: ulid::Ulid::new().to_string(),
             id_usuario: id_user.clone(),

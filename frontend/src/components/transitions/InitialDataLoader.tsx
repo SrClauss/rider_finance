@@ -57,13 +57,12 @@ export default function InitialDataLoader({ children }: { children: React.ReactN
                 const ss = s as Record<string, unknown> | null;
                 return !!ss && ss.eh_ativa === true;
               });
+                try {
                 if (activeSession && setSessao) {
-                // Buscar sessão com transações
-                  const activeSessionRecord = activeSession as Record<string, unknown>;
-                  const sessionWithTx = await axios.get(`/api/sessao/com-transacoes/${String(activeSessionRecord.id)}`, { withCredentials: true });
-                if (sessionWithTx.data) {
-                  setSessao(sessionWithTx.data);
+                  setSessao(activeSession);
                 }
+              } catch (error) {
+                console.error('Erro ao processar a sessão ativa:', error);
               }
             }
           }

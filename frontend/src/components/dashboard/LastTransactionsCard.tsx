@@ -2,7 +2,9 @@
 import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import axios from 'axios';
-import { useCategoriaContext } from '@/context/CategoriaContext';
+import { useUsuarioContext } from '@/context/UsuarioContext';
+import { useUsuarioContext as useUsuarioContextSession } from '@/context/SessionContext';
+import { formatUtcToLocalTimeString, getUserTimezone } from '@/utils/dateUtils';
 import { ThemeProvider } from '@/theme/ThemeProvider';
 import { Box, Card, CardContent, Typography, Divider } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
@@ -14,7 +16,9 @@ import type { Transaction } from '@/interfaces/Transaction';
 
 const LastTransactionsCard: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const { categorias } = useCategoriaContext();
+  const { categorias } = useUsuarioContext();
+  const { configuracoes } = useUsuarioContextSession();
+  const userTimezone = getUserTimezone(configuracoes);
   const theme = useTheme();
 
   
@@ -93,7 +97,7 @@ const LastTransactionsCard: React.FC = () => {
                         {/* tenta FontAwesome, se não renderar, emoji aparece como fallback visual */}
                         <i className="fa-regular fa-clock" aria-hidden style={{ fontSize: 12, opacity: 0.9 }} />
                         <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                          {new Date(transaction.data).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                          {formatUtcToLocalTimeString(transaction.data, userTimezone)}
                         </Typography>
                       </Box>
 

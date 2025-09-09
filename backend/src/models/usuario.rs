@@ -1,9 +1,8 @@
-
 use crate::schema::usuarios;
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
 use ulid::Ulid;
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 
 #[derive(Debug, Clone, Queryable, Identifiable, Serialize, Deserialize)]
 #[diesel(table_name = usuarios)]
@@ -16,10 +15,10 @@ pub struct Usuario {
     pub telefone: String,
     pub veiculo: String,
     pub blocked: bool,
-    pub blocked_date: Option<NaiveDateTime>,
-    pub criado_em: NaiveDateTime,
-    pub atualizado_em: NaiveDateTime,
-    pub ultima_tentativa_redefinicao: NaiveDateTime,
+    pub blocked_date: Option<DateTime<Utc>>,
+    pub criado_em: DateTime<Utc>,
+    pub atualizado_em: DateTime<Utc>,
+    pub ultima_tentativa_redefinicao: DateTime<Utc>,
     pub address: String,
     pub address_number: String,
     pub complement: String,
@@ -40,10 +39,10 @@ pub struct NewUsuario {
     pub telefone: String,
     pub veiculo: String,
     pub blocked: bool,
-    pub blocked_date: Option<NaiveDateTime>,
-    pub criado_em: NaiveDateTime,
-    pub atualizado_em: NaiveDateTime,
-    pub ultima_tentativa_redefinicao: NaiveDateTime,
+    pub blocked_date: Option<DateTime<Utc>>,
+    pub criado_em: DateTime<Utc>,
+    pub atualizado_em: DateTime<Utc>,
+    pub ultima_tentativa_redefinicao: DateTime<Utc>,
     pub address: String,
     pub address_number: String,
     pub complement: String,
@@ -63,8 +62,8 @@ pub struct NewUsuarioSemSenha {
     pub nome_completo: Option<String>,
     pub telefone: Option<String>,
     pub veiculo: Option<String>,
-    pub criado_em: NaiveDateTime,
-    pub atualizado_em: NaiveDateTime,
+    pub criado_em: DateTime<Utc>,
+    pub atualizado_em: DateTime<Utc>,
     pub address: String,
     pub address_number: String,
     pub complement: String,
@@ -83,9 +82,9 @@ impl NewUsuario {
         nome_completo: String,
         telefone: String,
         veiculo: String,
-        criado_em: Option<NaiveDateTime>,
-        atualizado_em: Option<NaiveDateTime>,
-        ultima_tentativa_redefinicao: Option<NaiveDateTime>,
+        criado_em: Option<DateTime<Utc>>,
+        atualizado_em: Option<DateTime<Utc>>,
+        ultima_tentativa_redefinicao: Option<DateTime<Utc>>,
         address: String,
         address_number: String,
         complement: String,
@@ -94,7 +93,7 @@ impl NewUsuario {
         city: String,
         cpfcnpj: String,
     ) -> Self {
-        let now = chrono::Utc::now().naive_utc();
+        let now = chrono::Utc::now();
         let senha_hash = bcrypt::hash(senha, bcrypt::DEFAULT_COST).expect("Erro ao hashear senha");
         NewUsuario {
             id: id.unwrap_or_else(|| Ulid::new().to_string()),
@@ -122,7 +121,7 @@ impl NewUsuario {
 
 impl NewUsuarioSemSenha {
     pub fn new(nome_usuario: String, email: String) -> Self {
-        let now = chrono::Utc::now().naive_utc();
+        let now = chrono::Utc::now();
         NewUsuarioSemSenha {
             id: Ulid::new().to_string(),
             nome_usuario,

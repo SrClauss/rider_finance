@@ -36,7 +36,7 @@ pub async fn reset_all_user_data_handler(cookie_jar: CookieJar) -> impl IntoResp
         let _ = diesel::delete(crate::schema::configuracoes::dsl::configuracoes.filter(crate::schema::configuracoes::dsl::id_usuario.eq(Some(user_id.clone())))).execute(conn_tx)?;
 
         // Recreate initial categories (only Corrida Uber and Corrida 99 as per new seed)
-        let now = chrono::Utc::now().naive_utc();
+        let now = chrono::Utc::now();
         let defaults = vec![
             crate::models::NewCategoria { id: ulid::Ulid::new().to_string(), id_usuario: Some(user_id.clone()), nome: "Corrida Uber".to_string(), tipo: "entrada".to_string(), icone: Some("icon-uber".to_string()), cor: Some("#000000".to_string()), criado_em: now, atualizado_em: now },
             crate::models::NewCategoria { id: ulid::Ulid::new().to_string(), id_usuario: Some(user_id.clone()), nome: "Corrida 99".to_string(), tipo: "entrada".to_string(), icone: Some("icon-99".to_string()), cor: Some("#111111".to_string()), criado_em: now, atualizado_em: now },

@@ -25,8 +25,8 @@ pub struct UsuarioMeResponse {
     pub province: String,
     pub city: String,
     pub cpfcnpj: Option<String>,
-    pub criado_em: Option<chrono::NaiveDateTime>,
-    pub atualizado_em: Option<chrono::NaiveDateTime>,
+    pub criado_em: Option<chrono::DateTime<chrono::Utc>>,
+    pub atualizado_em: Option<chrono::DateTime<chrono::Utc>>,
     pub configuracoes: Vec<Configuracao>,
     pub assinaturas: Vec<Assinatura>,
 }

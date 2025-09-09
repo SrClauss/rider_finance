@@ -1,15 +1,14 @@
-use crate::utils::date_utils::parse_datetime;
 use axum::{Json, extract::{Path, Query}};
 use crate::db;
 use crate::models::SessaoTrabalho;
 use crate::schema::sessoes_trabalho::dsl::*;
 use diesel::prelude::*;
-
+use chrono::{DateTime, Utc};
 #[derive(serde::Deserialize, serde::Serialize, Clone)]
 pub struct NovaSessaoPayload {
     pub id_usuario: String,
     pub inicio: String, // Alterado para String para aceitar do frontend
-    pub fim: Option<chrono::NaiveDateTime>,
+    pub fim: Option<DateTime<Utc>>,
     pub total_minutos: Option<i32>,
     pub local_inicio: Option<String>,
     pub local_fim: Option<String>,
@@ -24,16 +23,9 @@ pub struct NovaSessaoPayload {
 
 pub async fn criar_sessao_handler(Json(payload): Json<NovaSessaoPayload>) -> Json<SessaoTrabalho> {
     let conn = &mut db::establish_connection();
-    let now = chrono::Local::now().naive_local();
+    let now: DateTime<Utc> = chrono::Utc::now();
 
-    // Parse da data de início
-    let inicio_dt = match chrono::NaiveDateTime::parse_from_str(&payload.inicio, "%Y-%m-%dT%H:%M") {
-        Ok(dt) => dt,
-        Err(_e) => {
-            // Fallback para now se parsing falhar
-            now
-        }
-    };
+    let inicio_dt: DateTime<Utc> = payload.inicio.parse::<DateTime<Utc>>().unwrap_or(now);
 
     let nova = crate::models::sessao_trabalho::NewSessaoTrabalho {
         id: ulid::Ulid::new().to_string(),
@@ -120,21 +112,16 @@ pub async fn deletar_sessao_handler(Path(id_param): Path<String>) -> Json<bool> 
 // Novo: iniciar sessão (cria sessão ativa com fim = None)
 pub async fn iniciar_sessao_handler(Json(payload): Json<NovaSessaoPayload>) -> Json<SessaoTrabalho> {
     let conn = &mut db::establish_connection();
-    let now = chrono::Local::now().naive_local();
+    let now: DateTime<Utc> = chrono::Utc::now();
 
-    // Parse da data de início
-    let inicio_dt = match parse_datetime(&payload.inicio) {
-        Ok(dt) => dt,
-        Err(_e) => {
-            // Fallback para now se parsing falhar
-            now
-        }
-    };
+
+
+    let dt_inicio = payload.inicio.parse::<DateTime<Utc>>().unwrap_or(now);
 
     let nova = crate::models::sessao_trabalho::NewSessaoTrabalho {
         id: ulid::Ulid::new().to_string(),
         id_usuario: payload.id_usuario,
-        inicio: inicio_dt,
+        inicio: dt_inicio,
         fim: None,
         total_minutos: None,
         local_inicio: payload.local_inicio,
@@ -173,29 +160,21 @@ pub async fn encerrar_sessao_handler(Json(payload): Json<EncerrarPayload>) -> Js
     let conn = &mut db::establish_connection();
     use crate::schema::transacoes::dsl as t_dsl;
 
-    // Converte strings para NaiveDateTime
-    let inicio_dt = match parse_datetime(&payload.inicio) {
-        Ok(dt) => dt,
-        Err(_e) => {
-            return Json(None);
-        }
-    };
+    // Converte strings para DateTime<Utc>
+    let inicio_dt =payload.inicio.parse::<DateTime<Utc>>().unwrap_or(chrono::Utc::now());
 
-    let fim_dt = match parse_datetime(&payload.fim) {
-        Ok(dt) => dt,
-        Err(_e) => {
-            return Json(None);
-        }
-    };
+    let fim_dt = payload.fim.parse::<DateTime<Utc>>().unwrap_or(chrono::Utc::now());
 
     // Busca sessao
     match sessoes_trabalho.filter(id.eq(&payload.id_sessao)).first::<crate::models::SessaoTrabalho>(conn) {
         Ok(s) => {
             // Busca todas as transações do usuário no período
             let todas_transacoes: Vec<crate::models::transacao::Transacao> = t_dsl::transacoes
-                .filter(t_dsl::id_usuario.eq(&s.id_usuario)
-                    .and(t_dsl::data.ge(inicio_dt))
-                    .and(t_dsl::data.le(fim_dt)))
+                .filter(
+                    t_dsl::id_usuario.eq(&s.id_usuario)
+                        .and(diesel::expression_methods::ExpressionMethods::ge(&t_dsl::data, inicio_dt))
+                        .and(diesel::expression_methods::ExpressionMethods::le(&t_dsl::data, fim_dt))
+                )
                 .load(conn)
                 .unwrap_or_default();
 
@@ -253,7 +232,7 @@ pub async fn get_sessao_com_transacoes_handler(Path(id_param): Path<String>) -> 
     if let Ok(s) = sessoes_trabalho.filter(id.eq(id_param.clone())).first::<crate::models::SessaoTrabalho>(conn) {
         use crate::schema::transacoes::dsl as t_dsl;
         use crate::schema::categorias::dsl as c_dsl;
-        let fim_dt = s.fim.unwrap_or(chrono::Utc::now().naive_utc());
+        let fim_dt = s.fim.unwrap_or(chrono::Utc::now());
         let trans: Vec<crate::models::transacao::Transacao> = t_dsl::transacoes
             .filter(t_dsl::id_usuario.eq(&s.id_usuario).and(t_dsl::data.ge(s.inicio)).and(t_dsl::data.le(fim_dt)))
             .load(conn)

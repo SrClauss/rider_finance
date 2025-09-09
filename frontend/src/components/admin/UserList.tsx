@@ -85,7 +85,16 @@ export default function UserList() {
   const theme = useTheme();
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'));
 
-  const formatDate = (d?: string | null) => d ? new Date(d).toLocaleDateString() : '—';
+  const formatDate = (d?: string | null) => {
+    if (!d) return '—';
+    // Assumindo que datas do admin vêm em UTC, converter para local
+    try {
+      const date = new Date(d);
+      return date.toLocaleDateString();
+    } catch {
+      return '—';
+    }
+  };
 
   return (
     <Box>

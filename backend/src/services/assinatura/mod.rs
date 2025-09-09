@@ -56,7 +56,7 @@ pub async fn renovar_assinatura_por_usuario(id_usuario_param: String, meses: i64
 
     // Operação de DB feita de forma síncrona, mas função é async para facilitar chamada interna
     let conn = &mut db::establish_connection();
-    let hoje = Utc::now().naive_utc();
+    let hoje = Utc::now();
     let delta = Duration::days(30 * meses);
 
     match assinaturas

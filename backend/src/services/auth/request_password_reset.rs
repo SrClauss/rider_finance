@@ -32,7 +32,7 @@ pub async fn request_password_reset_handler(Json(payload): Json<RequestPasswordR
 
     match usuario_result {
         Ok(usuario) => {
-            let now = Utc::now().naive_utc();
+            let now = Utc::now();
             let pode_reenviar = now - usuario.ultima_tentativa_redefinicao > Duration::hours(4);
             if !pode_reenviar {
                 return Json("Já foi solicitado recentemente. Aguarde 4 horas para nova tentativa.".to_string());
