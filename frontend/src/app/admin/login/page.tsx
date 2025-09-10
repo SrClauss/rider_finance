@@ -53,9 +53,9 @@ export default function AdminLoginPage() {
         setCaptchaToken(res.data.token);
         setCaptchaImage(`data:image/png;base64,${res.data.png}`);
       }
-      } catch (_e) {
-        // ignore
-      }
+      } catch {
+            // ignore
+          }
   }
 
   useEffect(() => {

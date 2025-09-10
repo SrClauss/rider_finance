@@ -10,6 +10,7 @@ use crate::models::{Categoria, NewCategoria};
 
 use crate::schema::transacoes::dsl as trans_dsl;
 use chrono::{DateTime, Utc};
+use diesel::pg::PgConnection;
 
 #[derive(Deserialize)]
 pub struct CreateCategoriaPayload {
@@ -234,6 +235,49 @@ pub async fn preview_delete_categoria_handler(Path(id_param): Path<String>, jar:
         .unwrap_or(0);
 
     Json(PreviewDeleteResponse { transactions_count: count })
+}
+
+/// Ensure the default categories exist for a given user id.
+/// Idempotent: will only insert missing categories.
+pub fn ensure_default_categories_for_user(conn: &mut PgConnection, user_id: &str) {
+    use crate::schema::categorias::dsl as cat_dsl;
+    use crate::models::NewCategoria;
+
+    let now_cat = chrono::Utc::now();
+    // Fetch existing names for user
+    let existing_cats: Vec<String> = cat_dsl::categorias
+        .filter(cat_dsl::id_usuario.eq(Some(user_id.to_string())))
+        .select(cat_dsl::nome)
+        .load::<String>(conn)
+        .unwrap_or_default();
+
+    if !existing_cats.contains(&"Corrida Uber".to_string()) {
+        let new_cat = NewCategoria {
+            id: ulid::Ulid::new().to_string(),
+            id_usuario: Some(user_id.to_string()),
+            nome: "Corrida Uber".to_string(),
+            tipo: "entrada".to_string(),
+            icone: Some("icon-uber".to_string()),
+            cor: Some("#000000".to_string()),
+            criado_em: now_cat,
+            atualizado_em: now_cat,
+        };
+        let _ = diesel::insert_into(cat_dsl::categorias).values(&new_cat).execute(conn);
+    }
+
+    if !existing_cats.contains(&"Corrida 99".to_string()) {
+        let new_cat = NewCategoria {
+            id: ulid::Ulid::new().to_string(),
+            id_usuario: Some(user_id.to_string()),
+            nome: "Corrida 99".to_string(),
+            tipo: "entrada".to_string(),
+            icone: Some("icon-99".to_string()),
+            cor: Some("#111111".to_string()),
+            criado_em: now_cat,
+            atualizado_em: now_cat,
+        };
+        let _ = diesel::insert_into(cat_dsl::categorias).values(&new_cat).execute(conn);
+    }
 }
 
 #[derive(Deserialize)]

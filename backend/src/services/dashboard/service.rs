@@ -47,6 +47,14 @@ pub struct DashboardStats {
     pub horas_mes: Option<i32>,
     pub horas_mes_passado: Option<i32>,
 
+    // Quilometragem (km)
+    pub km_hoje: Option<f64>,
+    pub km_ontem: Option<f64>,
+    pub km_semana: Option<f64>,
+    pub km_semana_passada: Option<f64>,
+    pub km_mes: Option<f64>,
+    pub km_mes_passado: Option<f64>,
+
     pub eficiencia: Option<i32>,
     pub meta_diaria: Option<i32>,
     pub meta_semanal: Option<i32>,
@@ -64,6 +72,8 @@ pub struct DashboardStats {
     pub lucro_30dias: Vec<i32>,
     pub corridas_30dias: Vec<u32>,
     pub horas_30dias: Vec<i32>,
+    pub km_7dias: Vec<f64>,
+    pub km_30dias: Vec<f64>,
     pub projecao_mes: Option<i32>,
     pub projecao_semana: Option<i32>,
     pub trend_method: String,
@@ -269,6 +279,7 @@ pub fn compute_dashboard_stats(conn: &mut diesel::PgConnection, id_usuario: &str
     let mut lucro_7dias = Vec::with_capacity(7);
     let mut corridas_7dias = Vec::with_capacity(7);
     let mut horas_7dias = Vec::with_capacity(7);
+    let mut km_7dias = Vec::with_capacity(7);
     for i in (0..7).rev() {
         let dia = now.date() - Duration::days(i);
         let inicio_dia = Utc.from_utc_datetime(&dia.and_hms_opt(0, 0, 0).unwrap());
@@ -299,11 +310,20 @@ pub fn compute_dashboard_stats(conn: &mut diesel::PgConnection, id_usuario: &str
             .filter(sessao_dsl::inicio.le(fim_dia))
             .select(diesel::dsl::sum(sessao_dsl::total_minutos))
             .first::<Option<i64>>(conn).unwrap_or(Some(0)).unwrap_or(0) as i32 / 60;
+        // quilometragem do dia
+        let km_dia: f64 = transacao_dsl::transacoes
+            .filter(transacao_dsl::id_usuario.eq(id_usuario))
+            .filter(transacao_dsl::data.ge(inicio_dia))
+            .filter(transacao_dsl::data.le(fim_dia))
+            .select(diesel::dsl::sum(transacao_dsl::km))
+            .first::<Option<f64>>(conn).unwrap_or(Some(0.0)).unwrap_or(0.0);
+
         ganhos_7dias.push(ganhos_dia);
         gastos_7dias.push(gastos_dia);
         lucro_7dias.push(ganhos_dia - gastos_dia);
         corridas_7dias.push(corridas_dia);
         horas_7dias.push(horas_dia);
+        km_7dias.push(km_dia);
     }
 
     // Arrays dos últimos 30 dias corridos
@@ -313,6 +333,7 @@ pub fn compute_dashboard_stats(conn: &mut diesel::PgConnection, id_usuario: &str
     let mut lucro_30dias = Vec::new();
     let mut corridas_30dias = Vec::new();
     let mut horas_30dias = Vec::new();
+    let mut km_30dias = Vec::new();
     for i in (0..30).rev() {
         let data_dia = now.date() - Duration::days(i);
         ultimos_30_dias_labels.push(data_dia.format("%d/%m").to_string());
@@ -344,11 +365,19 @@ pub fn compute_dashboard_stats(conn: &mut diesel::PgConnection, id_usuario: &str
             .filter(sessao_dsl::inicio.le(fim_dia))
             .select(diesel::dsl::sum(sessao_dsl::total_minutos))
             .first::<Option<i64>>(conn).unwrap_or(Some(0)).unwrap_or(0) as i32 / 60;
+        let km_dia: f64 = transacao_dsl::transacoes
+            .filter(transacao_dsl::id_usuario.eq(id_usuario))
+            .filter(transacao_dsl::data.ge(inicio_dia))
+            .filter(transacao_dsl::data.le(fim_dia))
+            .select(diesel::dsl::sum(transacao_dsl::km))
+            .first::<Option<f64>>(conn).unwrap_or(Some(0.0)).unwrap_or(0.0);
+
         ganhos_30dias.push(ganhos_dia);
         gastos_30dias.push(gastos_dia);
         lucro_30dias.push(ganhos_dia - gastos_dia);
         corridas_30dias.push(corridas_dia);
         horas_30dias.push(horas_dia);
+        km_30dias.push(km_dia);
     }
 
     // Projeção do mês corrente
@@ -499,6 +528,8 @@ pub fn compute_dashboard_stats(conn: &mut diesel::PgConnection, id_usuario: &str
         }
     }
 
+    
+
     // Tendência usando média móvel conforme configuração
     let trend_regression_from_i32 = |data: &Vec<i32>| -> Option<i32> {
         if data.len() < 2 {
@@ -579,6 +610,49 @@ pub fn compute_dashboard_stats(conn: &mut diesel::PgConnection, id_usuario: &str
     let fim_mes_passado = inicio_mes_passado + Duration::days(dias_mes_passado - 1);
     let inicio_mes_passado_ndt = Utc.from_utc_datetime(&inicio_mes_passado.and_hms_opt(0,0,0).unwrap());
     let fim_mes_passado_ndt = Utc.from_utc_datetime(&fim_mes_passado.and_hms_opt(23,59,59).unwrap());
+
+    // Soma de km para períodos agregados (agora que variáveis de data estão em escopo)
+    let km_hoje: f64 = transacao_dsl::transacoes
+        .filter(transacao_dsl::id_usuario.eq(id_usuario))
+        .filter(transacao_dsl::data.ge(inicio_hoje))
+        .filter(transacao_dsl::data.le(fim_hoje))
+        .select(diesel::dsl::sum(transacao_dsl::km))
+        .first::<Option<f64>>(conn).unwrap_or(Some(0.0)).unwrap_or(0.0);
+
+    let km_ontem: f64 = transacao_dsl::transacoes
+        .filter(transacao_dsl::id_usuario.eq(id_usuario))
+        .filter(transacao_dsl::data.ge(inicio_ontem))
+        .filter(transacao_dsl::data.le(fim_ontem))
+        .select(diesel::dsl::sum(transacao_dsl::km))
+        .first::<Option<f64>>(conn).unwrap_or(Some(0.0)).unwrap_or(0.0);
+
+    let km_semana: f64 = transacao_dsl::transacoes
+        .filter(transacao_dsl::id_usuario.eq(id_usuario))
+        .filter(transacao_dsl::data.ge(inicio_semana_ndt))
+        .filter(transacao_dsl::data.le(fim_semana_ndt))
+        .select(diesel::dsl::sum(transacao_dsl::km))
+        .first::<Option<f64>>(conn).unwrap_or(Some(0.0)).unwrap_or(0.0);
+
+    let km_semana_passada: f64 = transacao_dsl::transacoes
+        .filter(transacao_dsl::id_usuario.eq(id_usuario))
+        .filter(transacao_dsl::data.ge(inicio_semana_passada_ndt))
+        .filter(transacao_dsl::data.le(fim_semana_passada_ndt))
+        .select(diesel::dsl::sum(transacao_dsl::km))
+        .first::<Option<f64>>(conn).unwrap_or(Some(0.0)).unwrap_or(0.0);
+
+    let km_mes: f64 = transacao_dsl::transacoes
+        .filter(transacao_dsl::id_usuario.eq(id_usuario))
+        .filter(transacao_dsl::data.ge(inicio_mes_ndt))
+        .filter(transacao_dsl::data.le(fim_mes_ndt))
+        .select(diesel::dsl::sum(transacao_dsl::km))
+        .first::<Option<f64>>(conn).unwrap_or(Some(0.0)).unwrap_or(0.0);
+
+    let km_mes_passado: f64 = transacao_dsl::transacoes
+        .filter(transacao_dsl::id_usuario.eq(id_usuario))
+        .filter(transacao_dsl::data.ge(inicio_mes_passado_ndt))
+        .filter(transacao_dsl::data.le(fim_mes_passado_ndt))
+        .select(diesel::dsl::sum(transacao_dsl::km))
+        .first::<Option<f64>>(conn).unwrap_or(Some(0.0)).unwrap_or(0.0);
 
     // construir mapa de platforms
     let mut platforms_map: HashMap<String, PlatformResult> = HashMap::new();
@@ -663,6 +737,14 @@ pub fn compute_dashboard_stats(conn: &mut diesel::PgConnection, id_usuario: &str
         gastos_mes: soma_periodo("saida", id_usuario, inicio_mes_ndt, fim_mes_ndt, conn),
         gastos_mes_passado: soma_periodo("saida", id_usuario, inicio_mes_passado_ndt, fim_mes_passado_ndt, conn),
 
+    // km aggregates
+    km_hoje: Some(km_hoje),
+    km_ontem: Some(km_ontem),
+    km_semana: Some(km_semana),
+    km_semana_passada: Some(km_semana_passada),
+    km_mes: Some(km_mes),
+    km_mes_passado: Some(km_mes_passado),
+
         lucro_hoje: soma_periodo("entrada", id_usuario, inicio_hoje, fim_hoje, conn).zip(soma_periodo("saida", id_usuario, inicio_hoje, fim_hoje, conn)).map(|(g, s)| g - s),
         lucro_ontem: soma_periodo("entrada", id_usuario, inicio_ontem, fim_ontem, conn).zip(soma_periodo("saida", id_usuario, inicio_ontem, fim_ontem, conn)).map(|(g, s)| g - s),
         lucro_semana: soma_periodo("entrada", id_usuario, inicio_semana_ndt, fim_semana_ndt, conn).zip(soma_periodo("saida", id_usuario, inicio_semana_ndt, fim_semana_ndt, conn)).map(|(g, s)| g - s),
@@ -695,12 +777,14 @@ pub fn compute_dashboard_stats(conn: &mut diesel::PgConnection, id_usuario: &str
         lucro_7dias,
         corridas_7dias,
         horas_7dias,
+    km_7dias,
         ultimos_30_dias_labels,
         ganhos_30dias,
         gastos_30dias,
         lucro_30dias,
         corridas_30dias,
         horas_30dias,
+    km_30dias,
         projecao_mes,
         projecao_semana,
         trend_method: projecao_metodo,

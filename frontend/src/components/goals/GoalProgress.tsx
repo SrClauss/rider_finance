@@ -153,7 +153,7 @@ export const GoalProgress: React.FC<GoalProgressProps> = ({ meta, isActive }) =>
     // Para metas positivas: quando atingem o alvo, marcar como concluída e registrar `concluida_em`,
     // mas NÃO definir `concluida_com` ainda — este campo será preenchido quando a meta expirar (data_fim).
     if (!isMetaEconomia && isConcluida && !meta.eh_concluida && !persistFlags.current[meta.id]?.concluded) {
-      const now = toBackendLocalString(getCurrentDateTime(userTimezone), userTimezone);
+  const now = toBackendLocalString(getCurrentDateTime(), userTimezone);
       dispatchMetas({ ...meta, eh_concluida: true, concluida_em: now }, 'update');
       persistFlags.current[meta.id] = { ...(persistFlags.current[meta.id] || {}), concluded: true };
   const payload: { eh_concluida: boolean; concluida_em: string } = { eh_concluida: true, concluida_em: now };
@@ -165,7 +165,7 @@ export const GoalProgress: React.FC<GoalProgressProps> = ({ meta, isActive }) =>
       // Atualiza contexto: agora não está concluída (ultrapassou)
       dispatchMetas({ ...meta, eh_concluida: false, concluida_com: totalAtingido }, 'update');
       persistFlags.current[meta.id] = { ...(persistFlags.current[meta.id] || {}), economia_exceeded: true };
-  const payload = { eh_concluida: false, concluida_com: totalAtingido, atualizado_em: toBackendLocalString(getCurrentDateTime(userTimezone), userTimezone) };
+  const payload = { eh_concluida: false, concluida_com: totalAtingido, atualizado_em: toBackendLocalString(getCurrentDateTime(), userTimezone) };
       void persistUpdate(payload);
     }
 
@@ -174,7 +174,7 @@ export const GoalProgress: React.FC<GoalProgressProps> = ({ meta, isActive }) =>
     // Para metas negativas, também registrar `concluida_em` (momento do fim) — assim a UI
     // passa a considerar a meta 'concluída' somente após a data final.
     if (isExpirada && meta.eh_ativa && !persistFlags.current[meta.id]?.expired) {
-      const nowIso = toBackendLocalString(getCurrentDateTime(userTimezone), userTimezone);
+  const nowIso = toBackendLocalString(getCurrentDateTime(), userTimezone);
   const updatePayload: { eh_ativa: boolean; concluida_com: number; atualizado_em: string; concluida_em?: string } = { eh_ativa: false, concluida_com: totalAtingido, atualizado_em: nowIso };
       if (isMetaEconomia) {
         updatePayload.concluida_em = nowIso;
@@ -187,7 +187,7 @@ export const GoalProgress: React.FC<GoalProgressProps> = ({ meta, isActive }) =>
     return () => {
       mounted = false;
     };
-  }, [isConcluida, isExpirada, totalAtingido, dispatchMetas, meta, isMetaEconomia]);
+  }, [isConcluida, isExpirada, totalAtingido, dispatchMetas, meta, isMetaEconomia, userTimezone]);
 
   // Renderização condicional
   // Para metas negativas (economia), sempre renderizamos a barra de progresso,

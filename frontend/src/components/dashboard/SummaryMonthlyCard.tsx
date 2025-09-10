@@ -66,7 +66,7 @@ export default function SummaryMonthlyCard({
           >
             <Typography variant="body2">Resumo (Mês)</Typography>
             <Typography variant="caption">
-              {formatUtcToLocalDateString(getCurrentDateTime(userTimezone).toISOString(), userTimezone)}
+              {formatUtcToLocalDateString(getCurrentDateTime().toISOString(), userTimezone)}
             </Typography>
           </Box>
         </Box>

@@ -1,5 +1,5 @@
 "use client";
-import React, { use, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { DashboardResponse } from "@/interfaces/DashboardResponse";
 import LoggedLayout from "@/layouts/LoggedLayout";
@@ -16,7 +16,7 @@ import GoalsList from "@/components/dashboard/GoalsList";
 import { Goal } from '@/interfaces/goal';
 import Dashboard30Days from '@/components/charts/Dashboard30Days';
 import CorridasHoras from '@/components/charts/CorridasHoras';
-import { useUsuarioContext } from "@/context/UsuarioContext";
+// useUsuarioContext não é necessário aqui
 
 
 export default function Page() {
@@ -26,7 +26,7 @@ export default function Page() {
   const [error, setError] = useState<string | null>(null);
   const [hasMetas, setHasMetas] = useState<boolean | null>(null);
   const [metas, setMetas] = useState<Goal[]>([]);
-  const usuarioContext = useUsuarioContext();
+  // usuário context não necessário nesta página no momento
 
   useEffect(() => {
     axios.get('/api/dashboard/stats', { withCredentials: true })

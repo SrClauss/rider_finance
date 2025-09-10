@@ -2,7 +2,7 @@ import { DirectionsCarRounded, ShowChart, SpeedRounded, WatchLater } from "@mui/
 import { Box, Card, Divider, Typography } from "@mui/material";
 import InfoCard from "./InfoCard";
 import { JSX } from "react";
-import { getCurrentDateTime, getUserTimezone, formatUtcToLocalString, formatUtcToLocalDateString } from "@/utils/dateUtils";
+import { getCurrentDateTime, getUserTimezone, formatUtcToLocalDateString } from "@/utils/dateUtils";
 import { useUsuarioContext } from "@/context/SessionContext";
 
 export interface SummaryWeeklyCardProps {
@@ -66,7 +66,7 @@ export default function SummaryWeeklyCard({
           >
             <Typography variant="body2">Resumo (Semana)</Typography>
             <Typography variant="caption">
-              {formatUtcToLocalDateString(getCurrentDateTime(userTimezone).toISOString(), userTimezone)}
+              {formatUtcToLocalDateString(getCurrentDateTime().toISOString(), userTimezone)}
             </Typography>
           </Box>
         </Box>

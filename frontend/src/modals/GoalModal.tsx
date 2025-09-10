@@ -5,7 +5,7 @@ import useFormReducer from "@/lib/useFormReducer";
 import { Goal } from "@/interfaces/goal";
 import { useMetasContext } from "@/context/MetasContext";
 import { useUsuarioContext } from "@/context/SessionContext";
-import {  getCurrentDateTime, parseUtcToDate, timeZones, getUserTimezone, convertToUtc } from "@/utils/dateUtils";
+import { parseUtcToDate, getUserTimezone, convertToUtc } from "@/utils/dateUtils";
 
 
 type GoalModalProps = {
@@ -118,7 +118,7 @@ export default function GoalModal(props: GoalModalProps) {
     } else if (open) {
       reset();
     }
-  }, [open, goal, reset, setState]);
+  }, [open, goal, reset, setState, timezone]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target as HTMLInputElement;

@@ -44,6 +44,16 @@ export default function QuickHealthIndicators({ data }: Props) {
   const ganhosPorHora = horasHoje > 0 ? ganhosHoje / horasHoje : null;
   const ganhoMedioPorCorrida = corridasHoje > 0 ? ganhosHoje / corridasHoje : null;
 
+  // quilometragem
+  const kmHoje = data.km_hoje ?? null;
+  const kmSemana = data.km_semana ?? null;
+  const kmMes = data.km_mes ?? null;
+
+  // ganho por km: usar ganhos / km quando disponível (checando zero)
+  const ganhoPorKmHoje = (ganhosHoje > 0 && kmHoje && kmHoje > 0) ? (ganhosHoje / kmHoje) : null;
+  const ganhoPorKmSemana = (data.ganhos_semana > 0 && kmSemana && kmSemana > 0) ? (data.ganhos_semana / kmSemana) : null;
+  const ganhoPorKmMes = (data.ganhos_mes > 0 && kmMes && kmMes > 0) ? (data.ganhos_mes / kmMes) : null;
+
   const renderIcon = (backendIcon: string | null, backendColor: string | null, fallbackName: string, fallbackMUI: React.ReactNode) => {
     const iconName = backendIcon || categorias.find(c => c.nome === fallbackName)?.icone || '';
     // Detecta classes customizadas do projeto (icon-uber, icon-99) e as usa diretamente
@@ -109,6 +119,30 @@ export default function QuickHealthIndicators({ data }: Props) {
               <Typography sx={{ fontSize: '0.8rem', fontWeight: 700 }}>Ganho / Corrida</Typography>
               <Typography sx={{ fontSize: '0.95rem', color: 'success.main', fontWeight: 700 }}>{ganhoMedioPorCorrida !== null ? formatarMoeda(Math.round(ganhoMedioPorCorrida)) : '—'}</Typography>
               <Typography variant="caption" color="text.secondary">{corridasHoje} corridas hoje</Typography>
+            </Box>
+          </CardContent>
+        </Card>
+        
+        {/* Ganho / KM */}
+        <Card sx={{ flex: '1 1 calc(50% - 8px)', maxWidth: 'calc(50% - 8px)', minWidth: 140, bgcolor: 'background.paper', height: 92 }}>
+          <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 1, height: '100%' }}>
+            {renderIcon(null, null, 'ganho_por_km', <PaidIcon fontSize="small" />)}
+            <Box>
+              <Typography sx={{ fontSize: '0.8rem', fontWeight: 700 }}>Ganho / KM</Typography>
+              <Typography sx={{ fontSize: '0.95rem', color: 'success.main', fontWeight: 700 }}>{ganhoPorKmHoje !== null ? formatarMoeda(Number(ganhoPorKmHoje.toFixed(2))) : '—'}</Typography>
+              <Typography variant="caption" color="text.secondary">Sem: {ganhoPorKmSemana !== null ? formatarMoeda(Number(ganhoPorKmSemana.toFixed(2))) : '—'} • Mês: {ganhoPorKmMes !== null ? formatarMoeda(Number(ganhoPorKmMes.toFixed(2))) : '—'}</Typography>
+            </Box>
+          </CardContent>
+        </Card>
+
+        {/* Quilometragem total */}
+        <Card sx={{ flex: '1 1 calc(50% - 8px)', maxWidth: 'calc(50% - 8px)', minWidth: 140, bgcolor: 'background.paper', height: 92 }}>
+          <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 1, height: '100%' }}>
+            {renderIcon(null, null, 'quilometragem_total', <DirectionsCarIcon fontSize="small" />)}
+            <Box>
+              <Typography sx={{ fontSize: '0.8rem', fontWeight: 700 }}>Quilometragem (km)</Typography>
+              <Typography sx={{ fontSize: '0.95rem', color: 'success.main', fontWeight: 700 }}>{kmHoje !== null ? Number(kmHoje).toFixed(2) : '—'}</Typography>
+              <Typography variant="caption" color="text.secondary">Sem: {kmSemana !== null ? Number(kmSemana).toFixed(2) : '—'} • Mês: {kmMes !== null ? Number(kmMes).toFixed(2) : '—'}</Typography>
             </Box>
           </CardContent>
         </Card>

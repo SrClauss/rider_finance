@@ -99,7 +99,7 @@ export default function SummaryLast7DaysCard({
           >
             <Typography variant="body2">Resumo (7 dias)</Typography>
             <Typography variant="caption">
-              {formatUtcToLocalDateString(getCurrentDateTime(userTimezone).toISOString(), userTimezone)}
+              {formatUtcToLocalDateString(getCurrentDateTime().toISOString(), userTimezone)}
             </Typography>
           </Box>
         </Box>

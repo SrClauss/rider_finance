@@ -61,7 +61,7 @@ export default function UserList() {
   const [createMovPorDia, setCreateMovPorDia] = useState<number | ''>('');
   const [createMeses, setCreateMeses] = useState<number | ''>('');
   const [createMesesAssinatura, setCreateMesesAssinatura] = useState<number | ''>(1);
-  const [createGerarCpf, setCreateGerarCpf] = useState(false);
+  // estado de gerar CPF removido (não utilizado)
   const [createCpf, setCreateCpf] = useState('');
 
   const requestDeleteUser = (id: string, username?: string) => {
@@ -104,7 +104,8 @@ export default function UserList() {
         gerar_cpf: createCpf ? false : true,
       };
       const res = await fetch('/api/admin/seed-movimentacao', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), credentials: 'include' });
-      const json = await res.json().catch(() => ({} as any));
+      type SeedApiResponse = { status?: string; mensagem?: string; user?: { id?: string; nome_usuario?: string; email?: string; cpfcnpj?: string } };
+      const json = await res.json().catch(() => ({} as SeedApiResponse)) as SeedApiResponse;
       if (!res.ok || json.status !== 'ok') {
         throw new Error(json?.mensagem || 'Erro ao criar usuário');
       }
@@ -116,13 +117,13 @@ export default function UserList() {
         try {
           const ev = new CustomEvent('user:created', { detail: u });
           window.dispatchEvent(ev);
-        } catch (e) { /* ignore in non-browser contexts */ }
+    } catch { /* ignore in non-browser contexts */ }
       } else {
         setToast({ open: true, severity: 'success', message: 'Usuário seed criado com sucesso' });
       }
       setCreateOpen(false);
       await load();
-    } catch (err: unknown) {
+  } catch (err: unknown) {
       const msg = String(err instanceof Error ? err.message : err);
       setToast({ open: true, severity: 'error', message: msg });
     } finally {
@@ -156,7 +157,7 @@ export default function UserList() {
 
   // Fecha o modal de criação se outro componente disparar o evento 'user:created'
   useEffect(() => {
-    const handler = (e: Event) => {
+    const handler = () => {
       setCreateOpen(false);
       // Recarrega a lista por segurança
       load();
@@ -322,7 +323,7 @@ export default function UserList() {
               } else {
                 setToast({ open: true, severity: 'success', message: 'CPF válido' });
               }
-            } catch (e) { setToast({ open: true, severity: 'error', message: 'Erro ao validar CPF' }); }
+            } catch { setToast({ open: true, severity: 'error', message: 'Erro ao validar CPF' }); }
           }}>Validar CPF</Button>
         </Box>
         </Box>

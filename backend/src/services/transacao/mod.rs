@@ -108,6 +108,7 @@ pub struct UpdateTransacaoPayload {
     pub descricao: Option<String>,
     pub data: Option<chrono::DateTime<chrono::Utc>>, // Aceitar diretamente DateTime<Utc>
     pub eventos: Option<i32>,
+    pub km: Option<f64>,
 }
 
 use crate::schema::transacoes;
@@ -120,6 +121,7 @@ pub struct TransacaoChangeset {
     pub descricao: Option<String>,
     pub data: Option<chrono::DateTime<chrono::Utc>>, // Mantém como DateTime<Utc> para o Diesel
     pub eventos: Option<i32>,
+    pub km: Option<f64>,
 }
 
 pub async fn update_transacao_handler(
@@ -141,6 +143,7 @@ pub async fn update_transacao_handler(
         descricao: payload.descricao,
         data: data_utc, // Gravar diretamente como DateTime<Utc>
         eventos: payload.eventos,
+    km: payload.km,
     };
 
     diesel
@@ -163,6 +166,7 @@ pub async fn update_transacao_handler(
                     id_categoria: t.id_categoria,
                     valor: t.valor,
                     eventos: t.eventos,
+                    km: t.km,
                     tipo: t.tipo,
                     descricao: t.descricao,
                     data: t.data,
@@ -199,6 +203,7 @@ pub struct CreateTransacaoPayload {
     pub descricao: Option<String>,
     pub data: Option<String>, // Alterado para String para aceitar formato do frontend
     pub eventos: Option<i32>,
+    pub km: Option<f64>,
 }
 
 #[derive(Serialize)]
@@ -209,6 +214,7 @@ pub struct TransacaoResponse {
     pub id_categoria: String,
     pub valor: i32,
     pub eventos: i32,
+    pub km: Option<f64>,
     pub tipo: String,
     pub descricao: Option<String>,
     pub data: chrono::DateTime<chrono::Utc>,
@@ -259,6 +265,7 @@ pub async fn create_transacao_handler(
         id_categoria: payload.id_categoria,
         valor: payload.valor,
         eventos: payload.eventos.unwrap_or(1),
+    km: payload.km.or(Some(0.0)),
         tipo: payload.tipo,
         descricao: payload.descricao,
         data: nova_data,
@@ -282,6 +289,7 @@ pub async fn create_transacao_handler(
         id_categoria: nova_transacao.id_categoria.clone(),
         valor: nova_transacao.valor,
         eventos: nova_transacao.eventos,
+    km: nova_transacao.km,
         descricao: nova_transacao.descricao.clone(),
         tipo: nova_transacao.tipo.clone(),
         data: nova_transacao.data,
@@ -297,6 +305,7 @@ pub async fn create_transacao_handler(
         id_categoria: nova_transacao.id_categoria,
         valor: nova_transacao.valor,
         eventos: nova_transacao.eventos,
+    km: nova_transacao.km,
         tipo: nova_transacao.tipo,
         descricao: nova_transacao.descricao,
         data: nova_transacao.data,
@@ -316,6 +325,7 @@ pub async fn get_transacao_handler(Path(
                     id_categoria: t.id_categoria,
                     valor: t.valor,
                     eventos: t.eventos,
+                    km: t.km,
                     tipo: t.tipo,
                     descricao: t.descricao,
                     data: t.data,
@@ -394,6 +404,7 @@ pub async fn list_transacoes_handler(
                     id_categoria: t.id_categoria,
                     valor: t.valor,
                     eventos: t.eventos,
+                    km: t.km,
                     tipo: t.tipo,
                     descricao: t.descricao,
                     data: t.data,
@@ -423,6 +434,7 @@ pub async fn list_transacoes_handler(
                 id_categoria: t.id_categoria,
                 valor: t.valor,
                 eventos: t.eventos,
+                km: t.km,
                 tipo: t.tipo,
                 descricao: t.descricao,
                 data: t.data,
@@ -492,6 +504,7 @@ pub async fn list_transacoes_handler(
             id_categoria: t.id_categoria,
             valor: t.valor,
             eventos: t.eventos,
+            km: t.km,
             tipo: t.tipo,
             descricao: t.descricao,
             data: t.data,

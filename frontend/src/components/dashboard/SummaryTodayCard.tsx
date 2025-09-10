@@ -2,7 +2,7 @@ import { DirectionsCarRounded, ShowChart, SpeedRounded, WatchLater } from "@mui/
 import { JSX } from "react";
 import { Box, Card, Divider, Typography } from "@mui/material";
 import InfoCard from "./InfoCard";
-import { getCurrentDateTime, getUserTimezone } from "@/utils/dateUtils";
+import { getCurrentDateTime } from "@/utils/dateUtils";
 import { useUsuarioContext } from "@/context/SessionContext";
 
 // Definir e exportar a interface para as props
@@ -29,8 +29,7 @@ export default function SummaryTodayCard({
   corridas_ontem,
   horas_ontem,
 }: SummaryTodayCardProps): JSX.Element {
-  const { configuracoes } = useUsuarioContext();
-  const userTimezone = getUserTimezone(configuracoes);
+  useUsuarioContext();
   
   const calculatePercentage = (current: number | null, previous: number | null) => {
     if (!previous || previous === 0) return 0;
@@ -95,7 +94,7 @@ export default function SummaryTodayCard({
           >
             <Typography variant="body2">Resumo (Hoje)</Typography>
             <Typography variant="caption">
-              {getCurrentDateTime(userTimezone).toLocaleDateString("pt-BR", {
+              {getCurrentDateTime().toLocaleDateString("pt-BR", {
                 day: "2-digit",
                 month: "2-digit",
                 year: "numeric",

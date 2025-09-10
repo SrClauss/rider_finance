@@ -158,10 +158,13 @@ export function useRenovacaoCheckout() {
       
       let msg = 'Erro ao criar checkout';
       try {
-        if (error && typeof error === 'object') {
-          const response = (error as any)?.response;
-          const data = response?.data;
-          msg = data?.mensagem || data?.message || extractErrorMessage(error) || msg;
+        // Usar type guard para axios errors
+        if (axios.isAxiosError(error)) {
+          const data = (error.response && error.response.data) as Record<string, unknown> | undefined;
+          msg = (data && (data['mensagem'] as string | undefined)) || (data && (data['message'] as string | undefined)) || extractErrorMessage(error) || msg;
+        } else if (error && typeof error === 'object') {
+          const data = (error as unknown as Record<string, unknown>)?.['response'] as Record<string, unknown> | undefined;
+          msg = (data && (data['mensagem'] as string | undefined)) || (data && (data['message'] as string | undefined)) || extractErrorMessage(error) || msg;
         }
       } catch {
         // ignore

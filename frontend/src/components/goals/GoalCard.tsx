@@ -15,7 +15,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import type { SxProps, Theme } from '@mui/material';
 import { useUsuarioContext } from '@/context/SessionContext';
-import { getUserTimezone, formatUtcToLocalString, parseUtcToDate } from '@/utils/dateUtils';
+import { getUserTimezone, parseUtcToDate } from '@/utils/dateUtils';
 
 interface GoalCardProps {
   goal: Goal;
@@ -39,16 +39,6 @@ const GoalCard: React.FC<GoalCardProps> = ({ goal, onEdit, onDelete, sx }) => {
   useEffect(() => {
     setLocalGoal(goal);
   }, [goal]);
-
-  // Formata data para exibição usando timezone do usuário
-  const formatDate = (dateString: string | null | undefined): string => {
-    if (!dateString) return '-';
-    try {
-      return formatUtcToLocalString(dateString, userTimezone);
-    } catch {
-      return String(dateString);
-    }
-  };
 
   const localDataInicio = parseUtcToDate(goal.data_inicio, userTimezone);
   const localDataFim = goal.data_fim ? parseUtcToDate(goal.data_fim, userTimezone) : null;
