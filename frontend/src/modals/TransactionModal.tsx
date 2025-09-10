@@ -20,7 +20,7 @@ import { useUsuarioContext } from '@/context/UsuarioContext';
 import { useMetasContext } from '@/context/MetasContext';
 import { useSession } from '@/context/SessionContext';
 import { timeZones, getCurrentDateTime, formatDateToUtc, getCurrentUtcDateTime, parseUtcToDate, convertToUtc } from '@/utils/dateUtils';
-import axios from '@/utils/axiosConfig';
+import axios from 'axios'
 import useFormReducer from '@/lib/useFormReducer';
 import { extractErrorMessage } from '@/lib/errorUtils';
 import '@fortawesome/fontawesome-free/css/all.min.css';
