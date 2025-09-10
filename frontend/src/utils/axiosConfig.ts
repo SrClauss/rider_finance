@@ -1,8 +1,19 @@
 import axios from 'axios';
 
+// Configuração dinâmica da baseURL baseada no ambiente
+const getBaseURL = () => {
+  // Em produção, usar URLs relativas (sem baseURL)
+  if (typeof window !== 'undefined') {
+    // Client-side: usar URL relativa para aproveitar o proxy nginx
+    return '';
+  }
+  // Server-side (SSR): usar a URL interna do container
+  return process.env.BACKEND_INTERNAL_URL || '';
+};
+
 // Configuração global do Axios
 const axiosInstance = axios.create({
-  baseURL: 'http://localhost', // Substitua pela URL base da sua API
+  baseURL: getBaseURL(),
   withCredentials: true,
 });
 

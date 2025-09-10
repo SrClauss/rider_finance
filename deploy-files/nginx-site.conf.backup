@@ -1,0 +1,64 @@
+# BACKUP - Arquivo de referência
+# Este arquivo não é mais usado no docker-compose.yml
+# Toda configuração agora está consolidada no nginx-docker.conf
+
+# Configuração original para referência futura
+#user  nobody;
+worker_processes  auto;
+
+# Atualizando o caminho do log de erros para um diretório válido
+error_log /var/log/nginx/error.log;
+# Adicionar comando para criar o diretório de logs
+RUN mkdir -p /etc/nginx/logs
+
+#pid        logs/nginx.pid;
+
+events {
+    worker_connections  1024;
+}
+
+http {
+    include       mime.types;
+    default_type  application/octet-stream;
+    sendfile        on;
+    keepalive_timeout 65;
+     #user  nobody;
+    worker_processes  auto;
+
+     # Atualizando o caminho do log de erros para um diretório válido
+    error_log /var/log/nginx/error.log;
+
+     #pid        logs/nginx.pid;
+
+    events {
+        worker_connections  1024;
+    }
+
+    http {
+        include       mime.types;
+        default_type  application/octet-stream;
+        sendfile        on;
+        keepalive_timeout 65;
+        client_max_body_size 10M;
+
+        # map for websocket upgrade header
+        map $http_upgrade $connection_upgrade {
+            default upgrade;
+            ''      close;
+        }
+
+        # Gzip compression
+        gzip on;
+        gzip_types text/plain text/css application/json application/javascript text_xml application_xml application_xml+rss text/javascript;
+
+        # Upstream servers (use Docker service names when running in compose)
+        upstream backend {
+            server backend:8000;
+        }
+        upstream frontend {
+            server frontend:3000;
+        }
+
+        # ... resto da configuração original ...
+    }
+}

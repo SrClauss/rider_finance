@@ -61,8 +61,8 @@ export const UsuarioProvider = ({ children }: { children: ReactNode }) => {
 							chave: "timezone",
 							valor: "America/Sao_Paulo (UTC-03:00)",
 							eh_publica: false,
-							criado_em: getCurrentDateTime(timeZones["UTC±00:00"]).toString(),
-							atualizado_em: getCurrentDateTime(timeZones["UTC±00:00"]).toString(),
+							criado_em: getCurrentDateTime(timeZones["UTC±00:00"]).toISOString(),
+							atualizado_em: getCurrentDateTime(timeZones["UTC±00:00"]).toISOString(),
 						};
 						try {
 							const res = await axios.post<Configuracao>("/api/configuracao", configuracao, { withCredentials: true });

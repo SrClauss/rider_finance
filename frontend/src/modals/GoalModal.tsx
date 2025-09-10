@@ -50,7 +50,7 @@ export default function GoalModal(props: GoalModalProps) {
   valor_atual: '0,00',
     unidade: "",
     // data_inicio default para agora (local, formato datetime-local)
-    data_inicio: getCurrentDateTime(timezone).toString().slice(0, 16),
+    data_inicio: getCurrentDateTime(timezone).toISOString().slice(0, 16),
     data_fim: "",
     eh_ativa: true,
     eh_concluida: false,
@@ -79,8 +79,8 @@ export default function GoalModal(props: GoalModalProps) {
         data_inicio: goal.data_inicio ? (() => {
           try {
             return parseUtcToDate(goal.data_inicio as string, timezone).toISOString().slice(0, 16);
-          } catch { return getCurrentDateTime(timezone).toString().slice(0, 16); }
-        })() : getCurrentDateTime(timezone).toString().slice(0, 16),
+          } catch { return getCurrentDateTime(timezone).toISOString().slice(0, 16); }
+        })() : getCurrentDateTime(timezone).toISOString().slice(0, 16),
         data_fim: goal.data_fim ? (() => {
           try {
             return parseUtcToDate(goal.data_fim as string, timezone).toISOString().slice(0, 16);
