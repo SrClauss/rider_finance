@@ -53,12 +53,11 @@ services:
       dockerfile: Dockerfile
     container_name: rider_finance_frontend
     environment:
-      NODE_ENV: development
+      NODE_ENV: production
+      # Para requisições server-side (SSR), usar URL interna do backend
       BACKEND_INTERNAL_URL: "http://backend:8000"
-      # Dentro dos containers, 'localhost' referencia o próprio container.
-      # Apontamos a URL pública para o serviço nginx na rede Docker para
-      # que SSR e outros fetches que usam NEXT_PUBLIC_APP_URL atinjam o proxy.
-      NEXT_PUBLIC_APP_URL: "http://nginx"
+      # Para requisições client-side, deixar vazio para usar URLs relativas
+      NEXT_PUBLIC_API_URL: ""
     ports:
       - "3000:3000"
     depends_on:
