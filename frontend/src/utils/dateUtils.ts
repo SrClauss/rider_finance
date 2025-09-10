@@ -64,9 +64,9 @@ export function parseUtcToDate(utcString: string, timezone: TimeZone): Date {
 
 
 export function getCurrentDateTime(timezone: TimeZone): Date {
-  const now = new Date();
-  const localDate = new Date(now.getTime() + (timezone.hours * 60 + timezone.minutes) * 60000);
-  return localDate;
+  // new Date() já retorna a data/hora no horário local do navegador
+  // Não precisamos fazer conversões adicionais
+  return new Date();
 }
 export function getCurrentUtcDateTime(): string {
   const now = new Date();

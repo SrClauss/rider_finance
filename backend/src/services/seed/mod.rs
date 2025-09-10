@@ -473,13 +473,13 @@ fn validate_cpf_alg(cpf: &str) -> bool {
     let nums: Vec<u32> = c.chars().map(|ch| ch.to_digit(10).unwrap()).collect();
     // first digit
     let mut sum = 0u32;
-    for i in 0..9 { sum += nums[i] * (10 - i as u32); }
+    for (i, &num) in nums.iter().enumerate().take(9) { sum += num * (10 - i as u32); }
     let mut d1 = 11 - (sum % 11);
     if d1 >= 10 { d1 = 0; }
     if d1 != nums[9] { return false; }
     // second
     let mut sum2 = 0u32;
-    for i in 0..10 { sum2 += nums[i] * (11 - i as u32); }
+    for (i, &num) in nums.iter().enumerate().take(10) { sum2 += num * (11 - i as u32); }
     let mut d2 = 11 - (sum2 % 11);
     if d2 >= 10 { d2 = 0; }
     if d2 != nums[10] { return false; }
@@ -502,13 +502,13 @@ pub async fn seed_movimentacao_handler(Json(req): Json<SeedRequest>) -> Json<See
     }
 
     // Defaults numéricos: se não fornecidos, usar 0 (conforme solicitado)
-    let entradas_default: i32 = req.movimentacoes_por_dia.unwrap_or(0).max(0).min(100);
-    let meses: i32 = req.meses.unwrap_or(0).max(0).min(12);
+    let entradas_default: i32 = req.movimentacoes_por_dia.unwrap_or(0).clamp(0, 100);
+    let meses: i32 = req.meses.unwrap_or(0).clamp(0, 12);
     let senha_para_registro = req.senha.clone();
-    let meses_assinatura: i32 = req.meses_assinatura.unwrap_or(0).max(0).min(24);
+    let meses_assinatura: i32 = req.meses_assinatura.unwrap_or(0).clamp(0, 24);
 
     // Recria um payload de registro para usar o fluxo existente
-    let cpf_to_use = if req.gerar_cpf.unwrap_or(false) { cpf::gerar_cpf_valido() } else { cpf::gerar_cpf_valido() };
+    let cpf_to_use = cpf::gerar_cpf_valido();
 
     let payload = RegisterPayload {
         nome_usuario: req.nome_usuario.clone(),
@@ -653,11 +653,9 @@ pub async fn seed_movimentacao_handler(Json(req): Json<SeedRequest>) -> Json<See
                 if existing_categories.contains(&"Abastecimento".to_string()) {
                     categorias_dsl::categorias.filter(categorias_dsl::id_usuario.eq(Some(id_user.clone()))).filter(categorias_dsl::nome.eq("Abastecimento")).select(categorias_dsl::id).first::<String>(conn).unwrap_or(id_categoria_abastecimento.clone())
                 } else { id_categoria_abastecimento.clone() }
-            } else {
-                if existing_categories.contains(&"Alimentação".to_string()) {
-                    categorias_dsl::categorias.filter(categorias_dsl::id_usuario.eq(Some(id_user.clone()))).filter(categorias_dsl::nome.eq("Alimentação")).select(categorias_dsl::id).first::<String>(conn).unwrap_or(id_categoria_alimentacao.clone())
-                } else { id_categoria_alimentacao.clone() }
-            };
+            } else if existing_categories.contains(&"Alimentação".to_string()) {
+                categorias_dsl::categorias.filter(categorias_dsl::id_usuario.eq(Some(id_user.clone()))).filter(categorias_dsl::nome.eq("Alimentação")).select(categorias_dsl::id).first::<String>(conn).unwrap_or(id_categoria_alimentacao.clone())
+            } else { id_categoria_alimentacao.clone() };
             let now = chrono::Utc::now();
             let new_tx = NewTransacao { id: ulid::Ulid::new().to_string(), id_usuario: id_user.clone(), id_categoria: categoria_id, valor: (valor_val * 100.0).round() as i32, eventos: 1, tipo: "saida".to_string(), descricao: Some("Seed saida".to_string()), data: inicio_val, criado_em: now, atualizado_em: now };
             batch_transacoes_day.push(new_tx);

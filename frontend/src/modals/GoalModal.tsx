@@ -50,7 +50,15 @@ export default function GoalModal(props: GoalModalProps) {
   valor_atual: '0,00',
     unidade: "",
     // data_inicio default para agora (local, formato datetime-local)
-    data_inicio: getCurrentDateTime(timezone).toISOString().slice(0, 16),
+    data_inicio: (() => {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      return `${year}-${month}-${day}T${hours}:${minutes}`;
+    })(),
     data_fim: "",
     eh_ativa: true,
     eh_concluida: false,
@@ -78,12 +86,28 @@ export default function GoalModal(props: GoalModalProps) {
         // converte as datas do backend para o formato do input datetime-local (YYYY-MM-DDTHH:mm)
         data_inicio: goal.data_inicio ? (() => {
           try {
-            return parseUtcToDate(goal.data_inicio as string, timezone).toISOString().slice(0, 16);
-          } catch { return getCurrentDateTime(timezone).toISOString().slice(0, 16); }
-        })() : getCurrentDateTime(timezone).toISOString().slice(0, 16),
+            return parseUtcToDate(goal.data_inicio as string, timezone).toLocaleString('sv-SE').slice(0, 16);
+          } catch { 
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            return `${year}-${month}-${day}T${hours}:${minutes}`;
+          }
+        })() : (() => {
+          const now = new Date();
+          const year = now.getFullYear();
+          const month = String(now.getMonth() + 1).padStart(2, '0');
+          const day = String(now.getDate()).padStart(2, '0');
+          const hours = String(now.getHours()).padStart(2, '0');
+          const minutes = String(now.getMinutes()).padStart(2, '0');
+          return `${year}-${month}-${day}T${hours}:${minutes}`;
+        })(),
         data_fim: goal.data_fim ? (() => {
           try {
-            return parseUtcToDate(goal.data_fim as string, timezone).toISOString().slice(0, 16);
+            return parseUtcToDate(goal.data_fim as string, timezone).toLocaleString('sv-SE').slice(0, 16);
           } catch { return ""; }
         })() : "",
         eh_ativa: goal.eh_ativa ?? true,

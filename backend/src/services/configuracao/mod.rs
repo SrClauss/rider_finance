@@ -77,7 +77,7 @@ pub async fn create_configuracao_handler(Json(payload): Json<CreateConfiguracaoP
     diesel::insert_into(configuracoes)
         .values(&nova_configuracao)
         .get_result(conn)
-        .map(|config| AxumJson(config))
+        .map(AxumJson)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
 }   
 pub async fn checkout_info_handler() -> AxumJson<serde_json::Value> {

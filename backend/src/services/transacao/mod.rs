@@ -133,7 +133,7 @@ pub async fn update_transacao_handler(
 
     // Certificar que a data está em UTC antes de salvar
     let data_utc = payload.data.map(|d| d.with_timezone(&Utc));
-    println!("Atualizando transação com data em UTC: {:?}", data_utc);
+    println!("Atualizando transação com data em UTC: {data_utc:?}");
 
     let changeset = TransacaoChangeset {
         valor: payload.valor,
@@ -235,11 +235,11 @@ pub async fn create_transacao_handler(
     let user_id = claims.sub.clone();
     let nova_data: chrono::DateTime<chrono::Utc> = match payload.data {
         Some(ref data_str) => {
-            println!("Recebendo data do payload: {}", data_str);
+            println!("Recebendo data do payload: {data_str}");
             chrono::DateTime::parse_from_rfc3339(data_str)
                 .map(|dt| {
                     let utc_date = dt.with_timezone(&chrono::Utc);
-                    println!("Convertendo data para UTC: {}", utc_date);
+                    println!("Convertendo data para UTC: {utc_date}");
                     utc_date
                 })
                 .unwrap_or_else(|_| {
@@ -266,7 +266,7 @@ pub async fn create_transacao_handler(
         atualizado_em: now,
     };
     
-    println!("Criando transação com data UTC: {}", nova_data);
+    println!("Criando transação com data UTC: {nova_data}");
     println!("Timezone da data: {}", nova_data.timezone());
     
     let _result = diesel
@@ -377,15 +377,12 @@ pub async fn list_transacoes_handler(
         filtro.data_inicio.is_none() &&
         filtro.data_fim.is_none();
 
-    if is_simple_query && page <= 2 {
-        if
-            let Some(cached_transactions) = crate::cache::transacao::get_cached_transactions(
-                &user_id,
-                page,
-                page_size
-            ).await
-        {
-            // Buscar total do banco se necessário (cache não tem total)
+    if is_simple_query && page == 1 {
+        if let Some(cached_transactions) = crate::cache::transacao::get_cached_transactions(
+            &user_id,
+            page,
+            page_size
+        ).await {
             let count_query = transacoes.filter(id_usuario.eq(&user_id)).into_boxed();
             let total: i64 = count_query.count().get_result(conn).unwrap_or(0);
 
@@ -410,6 +407,34 @@ pub async fn list_transacoes_handler(
                 items,
             });
         }
+    } else if is_simple_query && page == 2 {
+        // Carregar diretamente do banco de dados para a página 2
+        let count_query = transacoes.filter(id_usuario.eq(&user_id)).into_boxed();
+        let total: i64 = count_query.count().get_result(conn).unwrap_or(0);
+        let items: Vec<TransacaoResponse> = transacoes.filter(id_usuario.eq(&user_id))
+            .offset(offset as i64)
+            .limit(page_size as i64)
+            .load::<Transacao>(conn)
+            .unwrap_or_default()
+            .into_iter()
+            .map(|t| TransacaoResponse {
+                id: t.id,
+                id_usuario: t.id_usuario,
+                id_categoria: t.id_categoria,
+                valor: t.valor,
+                eventos: t.eventos,
+                tipo: t.tipo,
+                descricao: t.descricao,
+                data: t.data,
+            })
+            .collect();
+
+        return Json(PaginatedTransacoes {
+            total: total as usize,
+            page,
+            page_size,
+            items,
+        });
     }
 
     // Cache miss ou consulta com filtros - usar lógica original
@@ -434,8 +459,8 @@ pub async fn list_transacoes_handler(
     }
 
     let total: i64 = count_query.count().get_result(conn).unwrap_or(0);
-
-    // Monta query base para busca paginada
+    
+    // Monta query base para busca paginada com os mesmos filtros
     let mut data_query = transacoes.filter(id_usuario.eq(&user_id)).into_boxed();
     if let Some(ref cat) = filtro.id_categoria {
         data_query = data_query.filter(id_categoria.eq(cat));
@@ -453,16 +478,13 @@ pub async fn list_transacoes_handler(
     } else if let Some(dt_fim) = filtro.data_fim {
         data_query = data_query.filter(data.le(dt_fim));
     }
-
-    let results = data_query
+    
+    let items: Vec<TransacaoResponse> = data_query
         .order(data.desc())
-        .limit(page_size as i64)
         .offset(offset as i64)
+        .limit(page_size as i64)
         .load::<Transacao>(conn)
-        .unwrap_or_default();
-
-    let items = results
-        .clone()
+        .unwrap_or_default()
         .into_iter()
         .map(|t| TransacaoResponse {
             id: t.id,
@@ -475,11 +497,6 @@ pub async fn list_transacoes_handler(
             data: t.data,
         })
         .collect();
-
-    // Salvar no cache se é primeira página sem filtros
-    if is_simple_query && page == 1 {
-        crate::cache::transacao::set_cached_transactions(&user_id, results).await;
-    }
 
     Json(PaginatedTransacoes {
         total: total as usize,

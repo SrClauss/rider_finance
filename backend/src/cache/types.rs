@@ -165,6 +165,12 @@ impl TransactionCacheData {
     }
 }
 
+impl Default for TransactionCacheData {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Estatísticas de uso do cache
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CacheStats {

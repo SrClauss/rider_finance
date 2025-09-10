@@ -20,7 +20,7 @@ use crate::services::dashboard::service::DashboardStats;
 
 /// Cache global singleton para toda a aplicação
 pub static RIDER_CACHE: once_cell::sync::Lazy<RiderCache> = 
-    once_cell::sync::Lazy::new(|| RiderCache::new());
+    once_cell::sync::Lazy::new(RiderCache::new);
 
 /// Estrutura principal do sistema de cache
 #[derive(Clone)]
@@ -55,8 +55,8 @@ impl RiderCache {
     pub async fn invalidate_user_caches(&self, user_id: &str) {
         info!("Invalidando todos os caches do usuário: {}", user_id);
         
-        let tx_key = format!("transactions:{}", user_id);
-        let dashboard_key = format!("dashboard:{}", user_id);
+        let tx_key = format!("transactions:{user_id}");
+        let dashboard_key = format!("dashboard:{user_id}");
         
         self.transactions.remove(&tx_key).await;
         self.dashboard.remove(&dashboard_key).await;
@@ -73,6 +73,12 @@ impl RiderCache {
             transactions_hit_rate: 0.0,
             dashboard_hit_rate: 0.0,
         }
+    }
+}
+
+impl Default for RiderCache {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

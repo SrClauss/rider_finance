@@ -150,6 +150,10 @@ function TransactionsPageInner() {
   return (
     <Box sx={{ maxWidth: 700, mx: "auto", p: { xs: 2, md: 4 } }}>
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
+      <pre>
+
+        {JSON.stringify(transactions.length, null, 2)}
+      </pre>
         <Stack direction="row" alignItems="center" spacing={1}>
           <Typography variant="h4" fontWeight={700} color="#fff">
             Transações

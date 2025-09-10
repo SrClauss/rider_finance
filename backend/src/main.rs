@@ -1,4 +1,4 @@
-use axum::{ Router, routing::{ post, get, put, delete, patch }, response::Response, http::StatusCode };
+use axum::{ Router, routing::{ post, get, put, delete, patch }, http::StatusCode };
 use backend::services::auth::logout::logout_handler;
 use backend::services::auth::login::login_handler;
 use backend::services::auth::register::register_user_handler;

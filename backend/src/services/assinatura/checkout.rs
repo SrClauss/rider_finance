@@ -92,7 +92,7 @@ pub async fn criar_checkout_asaas(payload: CheckoutPayload) -> Result<CheckoutRe
     let status = res.status();
     let resp_body: serde_json::Value = res.json().await.map_err(|e| format!("Erro ao ler resposta Asaas: {e}"))?;
     let payment_url = resp_body.get("paymentUrl").and_then(|v| v.as_str()).map(|s| s.to_string());
-    println!("data: {:?}", resp_body);
+    println!("data: {resp_body:?}");
     
     if status.is_success() {
         Ok(CheckoutResponse {

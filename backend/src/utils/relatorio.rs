@@ -57,8 +57,7 @@ pub fn gerar_pdf(_transacoes: &[Transacao], usuario_id: &str, conn: &mut diesel:
 
     let opts = PdfSaveOptions::default();
     let mut warnings: Vec<PdfWarnMsg> = Vec::new();
-    let bytes = doc.save(&opts, &mut warnings);
-    bytes
+    doc.save(&opts, &mut warnings)
 }
 
 pub fn gerar_xlsx(transacoes: &[Transacao], usuario_id: &str, conn: &mut diesel::PgConnection) -> Vec<u8> {

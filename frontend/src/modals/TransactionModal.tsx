@@ -68,7 +68,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
   // Estado do formulário usando useFormReducer
   // Para o campo datetime-local, precisamos de formato YYYY-MM-DDTHH:mm
   const getLocalDateTimeString = () => {
-    const now = getCurrentDateTime(timezone);
+    const now = new Date();
     return now.toISOString().slice(0, 16);
   };
 

@@ -14,7 +14,7 @@ use serde_json::Value;
     ) -> axum::response::Response {
      
         eprintln!("--- Webhook headers start ---");
-        eprintln!("{:#?}", headers); // imprime em formato debug (com quebra de linhas)
+        eprintln!("{headers:#?}"); // imprime em formato debug (com quebra de linhas)
         let expected = match std::env::var("ASAAS_WEBHOOK_TOKEN") {
             Ok(v) => v,
             Err(_) => {
