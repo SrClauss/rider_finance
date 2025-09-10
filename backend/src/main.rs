@@ -1,4 +1,4 @@
-use axum::{ Router, routing::{ post, get, put, delete, patch } };
+use axum::{ Router, routing::{ post, get, put, delete, patch }, response::Response, http::StatusCode };
 use backend::services::auth::logout::logout_handler;
 use backend::services::auth::login::login_handler;
 use backend::services::auth::register::register_user_handler;
@@ -46,7 +46,13 @@ async fn main() {
     use backend::services::auth::get_me::get_me_handler;
     use backend::services::meta::metas_ativas_com_transacoes_handler;
 
+    // Health check handler
+    async fn health_handler() -> Result<&'static str, StatusCode> {
+        Ok("healthy")
+    }
+
     let app = Router::new()
+        .route("/health", get(health_handler))
         .route(
             "/api/relatorio/transacoes",
             post(backend::services::transacao::relatorio_transacoes_handler)
