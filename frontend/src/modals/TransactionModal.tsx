@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { use, useMemo } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -16,16 +16,15 @@ import {
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import { Transaction } from '@/interfaces/Transaction';
-import { useCategoriaContext } from '@/context/CategoriaContext';
+import { useUsuarioContext } from '@/context/UsuarioContext';
 import { useMetasContext } from '@/context/MetasContext';
-import { formatForDateTimeLocal, parseDateTime, toBackendLocalString } from '@/utils/dateUtils';
 import { useSession } from '@/context/SessionContext';
-import axios from 'axios';
+import { timeZones, getCurrentDateTime, formatDateToUtc, getCurrentUtcDateTime, parseUtcToDate, convertToUtc } from '@/utils/dateUtils';
+import axios from '@/utils/axiosConfig';
 import useFormReducer from '@/lib/useFormReducer';
 import { extractErrorMessage } from '@/lib/errorUtils';
-
-// Import FontAwesome CSS (certifique-se de que está instalado)
 import '@fortawesome/fontawesome-free/css/all.min.css';
+
 
 interface TransactionModalProps {
   open: boolean;
@@ -50,9 +49,6 @@ interface FormState {
 // FormAction removed — using useFormReducer
 
 // Função para obter data/hora local no formato correto para datetime-local
-const getCurrentLocalDateTime = () => {
-  return formatForDateTimeLocal(new Date());
-};
 // reducer replaced by useFormReducer (see bottom)
 
 /**
@@ -65,16 +61,23 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
   transaction,
 }) => {
   const isEditing = Boolean(transaction);
-  const { categorias } = useCategoriaContext();
+  const { categorias } = useUsuarioContext();
   const { dispatchTransacoes } = useMetasContext();
+  const timezone = timeZones[useUsuarioContext().configuracoes.find(c => c.chave === 'time_zone')?.valor || 'America/Sao_Paulo (UTC-03:00)'];
 
   // Estado do formulário usando useFormReducer
+  // Para o campo datetime-local, precisamos de formato YYYY-MM-DDTHH:mm
+  const getLocalDateTimeString = () => {
+    const now = getCurrentDateTime(timezone);
+    return now.toISOString().slice(0, 16);
+  };
+
   const { state: formState, setField, reset, setError, setLoading } = useFormReducer<FormState>({
     valor: '',
     tipo: '',
     descricao: '',
     id_categoria: '',
-    data: getCurrentLocalDateTime(),
+    data: getLocalDateTimeString(),
     eventos: '1',
   });
 
@@ -83,11 +86,19 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
     let mounted = true;
     if (transaction && open) {
       if (!mounted) return;
-      setField('valor', transaction.valor ? String(transaction.valor) : '');
+      setField('valor', transaction.valor ? String(transaction.valor / 100) : '');
       setField('tipo', transaction.tipo || '');
       setField('descricao', transaction.descricao || '');
       setField('id_categoria', transaction.id_categoria || '');
-      setField('data', transaction.data ? formatForDateTimeLocal(parseDateTime(transaction.data)) : getCurrentLocalDateTime());
+      
+      // Para edição: converter UTC do backend para formato local datetime-local
+      if (transaction.data) {
+        const localDate = parseUtcToDate(transaction.data, timezone);
+        setField('data', localDate.toISOString().slice(0, 16));
+      } else {
+        setField('data', getLocalDateTimeString());
+      }
+      
       setField('eventos', transaction.eventos ? String(transaction.eventos) : '1');
     } else if (!transaction && open) {
       reset();
@@ -107,29 +118,31 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
   // Função para submeter o formulário
   const handleSubmit = async () => {
     // Validações básicas
-      if (!formState.id_categoria) {
-        setError('Categoria inválida');
-        return;
-      }
-      setLoading(true);
+    if (!formState.id_categoria) {
+      setError('Categoria inválida');
+      return;
+    }
+    setLoading(true);
 
     try {
-      // Se há sessão ativa, usar a data/hora atual em vez da selecionada
-      const dataToSend = hasActiveSession
-        ? toBackendLocalString(new Date())
-        : (() => {
-            // Para datetime-local, criar data local sem timezone
-            const [datePart, timePart] = formState.data.split('T');
-            return `${datePart}T${timePart}:00`;
-          })();
+      // Sempre converter a data do input (local) para UTC antes de enviar
+      let dataToSend: string;
+      if (hasActiveSession) {
+        // Se há sessão ativa, usar data/hora atual em UTC
+        dataToSend = getCurrentUtcDateTime();
+      } else {
+        // Se não há sessão ativa, usar a data selecionada convertida para UTC
+        const localDate = new Date(formState.data);
+        dataToSend = convertToUtc(localDate, timezone);
+      }
 
       const payload = {
         id_categoria: formState.id_categoria,
         valor: Number(Math.round(parseFloat(formState.valor) * 100)), // Garantir que seja number
-  tipo: selectedCategoria?.tipo || '', // Tipo vem da categoria selecionada
-  eventos: Math.max(1, Number(parseInt(formState.eventos || '1', 10) || 1)),
+        tipo: selectedCategoria?.tipo || '', // Tipo vem da categoria selecionada
+        eventos: Math.max(1, Number(parseInt(formState.eventos || '1', 10) || 1)),
         descricao: formState.descricao || undefined, // Usar undefined em vez de null para Option<String>
-        data: dataToSend, // Usar data atual se sessão ativa, senão usar a selecionada
+        data: dataToSend, // Sempre UTC
       };
 
       let response;
@@ -233,10 +246,10 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
           pb: 1,
         }}
       >
-        <Typography 
-          variant="h6" 
-          component="span" 
-          fontWeight={700} 
+        <Typography
+          variant="h6"
+          component="span"
+          fontWeight={700}
           color="primary.main"
         >
           {isEditing ? 'Editar Transação' : 'Nova Transação'}
@@ -313,7 +326,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
                     {/* Ícone FontAwesome antes do nome */}
                     {renderIcon(categoria.icone || undefined, categoria.cor || undefined)}
-                    
+
                     {/* Nome da categoria */}
                     <Typography sx={{ ml: 1 }}>{categoria.nome}</Typography>
 

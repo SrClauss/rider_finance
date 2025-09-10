@@ -4,7 +4,7 @@ use crate::services::auth::login::extract_user_id_from_cookie;
 use crate::models::{Meta, Transacao};
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 use serde::Serialize;
 
 #[derive(Serialize)]
@@ -46,8 +46,8 @@ pub fn buscar_metas_ativas_com_transacoes(conn: &mut PgConnection, usuario_id: &
 
     // Descobre o maior intervalo de datas das metas ativas
     let (min_inicio, max_fim) = {
-        let mut min: Option<NaiveDateTime> = None;
-        let mut max: Option<NaiveDateTime> = None;
+        let mut min: Option<DateTime<Utc>> = None;
+        let mut max: Option<DateTime<Utc>> = None;
         for meta in &metas_ativas {
             if min.is_none() || meta.data_inicio < min.unwrap() {
                 min = Some(meta.data_inicio);

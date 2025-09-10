@@ -1,5 +1,7 @@
 import { Box, Typography, Paper, Chip } from "@mui/material";
 import type { SessaoComTransacoes } from "@/interfaces/SessaoComTransacoes";
+import { formatUtcToLocalDateString, getUserTimezone } from "@/utils/dateUtils";
+import { useUsuarioContext } from "@/context/SessionContext";
 import '@fortawesome/fontawesome-free/css/all.css';
 
 interface Props {
@@ -7,6 +9,9 @@ interface Props {
 }
 
 export default function TransactionListCompact({ transactions }: Props) {
+  const { configuracoes } = useUsuarioContext();
+  const userTimezone = getUserTimezone(configuracoes);
+  
   if (!transactions || transactions.length === 0) {
     return <Typography color="#aaa" sx={{ mt: 4, textAlign: "center" }}>Nenhuma transação encontrada.</Typography>;
   }
@@ -22,7 +27,7 @@ export default function TransactionListCompact({ transactions }: Props) {
                 <Typography fontWeight={600} sx={{ fontSize: 15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tx.descricao || "Sem descrição"}</Typography>
                 <Typography variant="caption" color="#aaa" sx={{ fontSize: 11 }}>{(tx.eventos ?? 1) === 1 ? '1 evento' : `${tx.eventos ?? 1} eventos`}</Typography>
               </Box>
-              <Typography variant="body2" color="#aaa" sx={{ fontSize: 12 }}>{new Date(tx.data).toLocaleDateString("pt-BR")}</Typography>
+              <Typography variant="body2" color="#aaa" sx={{ fontSize: 12 }}>{formatUtcToLocalDateString(tx.data, userTimezone)}</Typography>
             </Box>
             <Chip label={isEntrada ? "Receita" : "Despesa"} color={isEntrada ? "success" : "error"} size="small" sx={{ fontWeight: 700, fontSize: 12 }} />
             <Typography fontWeight={700} color={isEntrada ? "#00e676" : "#ff1744"} sx={{ fontSize: 15, minWidth: 90, textAlign: 'right' }}>

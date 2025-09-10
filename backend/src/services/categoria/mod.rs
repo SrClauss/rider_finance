@@ -7,8 +7,9 @@ use serde::{Serialize, Deserialize};
 use crate::db;
 use crate::schema::categorias::dsl::*;
 use crate::models::{Categoria, NewCategoria};
-use chrono::NaiveDateTime;
+
 use crate::schema::transacoes::dsl as trans_dsl;
+use chrono::{DateTime, Utc};
 
 #[derive(Deserialize)]
 pub struct CreateCategoriaPayload {
@@ -27,8 +28,8 @@ pub struct CategoriaResponse {
     pub tipo: String,
     pub icone: Option<String>,
     pub cor: Option<String>,
-    pub criado_em: NaiveDateTime,
-    pub atualizado_em: NaiveDateTime,
+    pub criado_em: DateTime<Utc>,
+    pub atualizado_em: DateTime<Utc>,
 }
 pub async fn list_categorias_autenticado_handler(jar: CookieJar) -> Json<Vec<CategoriaResponse>> {
     // Extrai token do cookie
@@ -62,7 +63,7 @@ pub async fn list_categorias_autenticado_handler(jar: CookieJar) -> Json<Vec<Cat
 // Internal function to create category (used by seed/tests/internal calls)
 pub async fn create_categoria_internal(Json(payload): Json<CreateCategoriaPayload>) -> Json<CategoriaResponse> {
     let conn = &mut db::establish_connection();
-    let now = chrono::Utc::now().naive_utc();
+    let now = chrono::Utc::now();
     let nova_categoria = NewCategoria {
         id: ulid::Ulid::new().to_string(),
         id_usuario: payload.id_usuario,
@@ -101,7 +102,7 @@ pub async fn create_categoria_handler(jar: CookieJar, Json(payload): Json<Create
 
     // Reuse internal creation logic but with overridden id_usuario when present
     let conn = &mut db::establish_connection();
-    let now = chrono::Utc::now().naive_utc();
+    let now = chrono::Utc::now();
     let nova_categoria = NewCategoria {
         id: ulid::Ulid::new().to_string(),
         id_usuario: usuario_id_val,
@@ -192,7 +193,7 @@ pub async fn update_categoria_handler(Path(id_param): Path<String>, jar: axum_ex
 
             // Execute update via explicit set of columns
             let res = diesel::update(categorias.filter(id.eq(&id_param)).filter(id_usuario.eq(Some(usuario_id_val.clone()))))
-                .set((nome.eq(&new_nome), tipo.eq(&new_tipo), icone.eq(&new_icone), cor.eq(&new_cor), atualizado_em.eq(chrono::Utc::now().naive_utc())))
+                .set((nome.eq(&new_nome), tipo.eq(&new_tipo), icone.eq(&new_icone), cor.eq(&new_cor), atualizado_em.eq(chrono::Utc::now())))
                 .execute(conn);
 
             if res.is_err() {

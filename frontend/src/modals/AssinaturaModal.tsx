@@ -1,4 +1,5 @@
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Typography } from '@mui/material';
+import { parseUtcToDate, getUserTimezone, timeZones } from '@/utils/dateUtils';
 
 interface AssinaturaModalProps {
   open: boolean;
@@ -10,8 +11,12 @@ interface AssinaturaModalProps {
 
 function formatDataExtenso(dataStr?: string | null) {
   if (!dataStr) return '';
-  const data = new Date(dataStr);
-  return data.toLocaleDateString('pt-BR', {
+  
+  // Assume que o backend sempre retorna UTC, então converte para timezone local
+  const timezone = timeZones["America/Sao_Paulo (UTC-03:00)"]; // Usar timezone padrão
+  const localDate = parseUtcToDate(dataStr, timezone);
+  
+  return localDate.toLocaleDateString('pt-BR', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',

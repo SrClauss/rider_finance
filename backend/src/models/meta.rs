@@ -1,6 +1,6 @@
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
-use chrono::{NaiveDateTime};
+use chrono::{DateTime, Utc};
 use crate::models::Usuario;
 use crate::schema::metas;
 
@@ -17,13 +17,13 @@ pub struct Meta {
     pub valor_alvo: i32,
     pub valor_atual: i32,
     pub unidade: Option<String>,
-    pub data_inicio: NaiveDateTime,
-    pub data_fim: Option<NaiveDateTime>,
+    pub data_inicio: DateTime<Utc>,
+    pub data_fim: Option<DateTime<Utc>>,
     pub eh_ativa: bool,
     pub eh_concluida: bool,
-    pub concluida_em: Option<NaiveDateTime>,
-    pub criado_em: NaiveDateTime,
-    pub atualizado_em: NaiveDateTime,
+    pub concluida_em: Option<DateTime<Utc>>,
+    pub criado_em: DateTime<Utc>,
+    pub atualizado_em: DateTime<Utc>,
     pub concluida_com: Option<i32>,
 }
 
@@ -39,12 +39,12 @@ pub struct NewMeta {
     pub valor_alvo: i32,
     pub valor_atual: i32,
     pub unidade: Option<String>,
-    pub data_inicio: NaiveDateTime,
-    pub data_fim: Option<NaiveDateTime>,
+    pub data_inicio: DateTime<Utc>,
+    pub data_fim: Option<DateTime<Utc>>,
     pub eh_ativa: bool,
     pub eh_concluida: bool,
-    pub concluida_em: Option<NaiveDateTime>,
-    pub criado_em: NaiveDateTime,
-    pub atualizado_em: NaiveDateTime,
+    pub concluida_em: Option<DateTime<Utc>>,
+    pub criado_em: DateTime<Utc>,
+    pub atualizado_em: DateTime<Utc>,
     pub concluida_com: Option<i32>,
 }

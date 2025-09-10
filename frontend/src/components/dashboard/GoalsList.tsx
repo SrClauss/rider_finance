@@ -1,6 +1,5 @@
 "use client";
-import React from 'react';
-import dayjs from 'dayjs';
+import React, { useEffect } from 'react';
 import { Box, Card, CardContent, Typography, Chip } from '@mui/material';
 // Swiper for multiple-goal carousel
 import { Swiper, SwiperSlide } from 'swiper/react';
@@ -9,6 +8,9 @@ import 'swiper/css/pagination';
 import { Goal } from '@/interfaces/goal';
 import { useMetasContext } from '@/context/MetasContext';
 import { GoalProgress } from '../goals/GoalProgress';
+import { useUsuarioContext } from '@/context/UsuarioContext';
+import { useUsuarioContext as useUsuarioContextSession } from '@/context/SessionContext';
+import { formatUtcToLocalString, getUserTimezone, parseUtcToDate } from '@/utils/dateUtils';
 
 interface Props {
   metas?: Goal[];
@@ -16,6 +18,32 @@ interface Props {
 
 export default function GoalsList({ metas }: Props) {
   const { dispatchMetas } = useMetasContext();
+  const { configuracoes } = useUsuarioContextSession();
+  const userTimezone = getUserTimezone(configuracoes);
+
+  // Função helper para formatar datas de metas com timezone
+  const formatGoalDate = (dateString: string) => {
+    try {
+      // Parse a data e converte para timezone local
+      const localDate = parseUtcToDate(dateString, userTimezone);
+      return localDate.toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch {
+      return '-';
+    }
+  };
+
+  // Atualiza o contexto com as metas
+  useEffect(() => {
+    if (metas && metas.length > 0) {
+      metas.forEach((m: Goal) => dispatchMetas(m, 'update'));
+    }
+  }, [metas, dispatchMetas]);
 
   // Se metas não foram passadas, não renderiza nada
   if (!metas || metas.length === 0) {
@@ -25,9 +53,6 @@ export default function GoalsList({ metas }: Props) {
       </Box>
     );
   }
-
-  // Atualiza o contexto com as metas
-  metas.forEach((m: Goal) => dispatchMetas(m, 'update'));
 
   const renderCard = (g: Goal) => (
     <Card key={g.id} elevation={2} sx={{ borderRadius: 2, bgcolor: 'background.paper', height: 240, display: 'flex', flexDirection: 'column' }}>
@@ -52,9 +77,9 @@ export default function GoalsList({ metas }: Props) {
 
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, mt: 0.5 }}>
           <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem', fontWeight: 400 }} noWrap>
-            {g.data_inicio && dayjs(g.data_inicio).isValid() ? dayjs(g.data_inicio).format('DD/MM/YY HH:mm') : '-'}
+            {g.data_inicio ? formatGoalDate(g.data_inicio) : '-'}
             {' '}→{' '}
-            {g.data_fim && dayjs(g.data_fim).isValid() ? dayjs(g.data_fim).format('DD/MM/YY HH:mm') : '-'}
+            {g.data_fim ? formatGoalDate(g.data_fim) : '-'}
           </Typography>
 
           <Typography variant="body2" sx={{ fontWeight: 700, color: g.tipo === 'faturamento' || g.tipo === 'lucro' ? 'success.main' : 'error.main', textAlign: 'right' }}>

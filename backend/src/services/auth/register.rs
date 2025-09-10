@@ -21,6 +21,7 @@ use diesel::dsl::exists;
 use diesel::select;
 use diesel::prelude::*;
 use crate::db;
+use crate::services::cpf;
 use crate::schema::usuarios::dsl::*;
 use crate::schema::usuarios::{email, nome_usuario};
 use axum::Json;
@@ -58,7 +59,7 @@ pub async fn register_user_handler(Json(payload): Json<RegisterPayload>) -> Json
         payload.veiculo.clone(),
         None,
         None,
-        Some(chrono::Utc::now().naive_utc()),
+        Some(chrono::Utc::now()),
         payload.address.clone(),
         payload.address_number.clone(),
         payload.complement.clone(),
@@ -67,6 +68,11 @@ pub async fn register_user_handler(Json(payload): Json<RegisterPayload>) -> Json
         payload.city.clone(),
         payload.cpfcnpj.clone(),
     );
+    // Valida CPF antes de inserir
+    if !cpf::validate_cpf_alg(&payload.cpfcnpj) {
+        return Json(RegisterResponse { status: "erro".to_string(), id: None, mensagem: Some("CPF inválido".to_string()) });
+    }
+
     match crate::services::auth::register::register_user(usuario) {
         Ok(user_id) => {
             // --- INÍCIO: Cópia de configurações padrão para o novo usuário ---
@@ -86,7 +92,7 @@ pub async fn register_user_handler(Json(payload): Json<RegisterPayload>) -> Json
                 .filter(cfg_dsl::id_usuario.is_null().and(cfg_dsl::chave.eq_any(&allowed)))
                 .load(conn)
                 .unwrap_or_default();
-            let now = Utc::now().naive_utc();
+            let now = Utc::now();
             // Para idempotência: verifique quais chaves já existem para o usuário e insira apenas as faltantes
             let existing_for_user: Vec<crate::models::configuracao::Configuracao> = cfg_dsl::configuracoes
                 .filter(cfg_dsl::id_usuario.eq(Some(user_id.clone())).and(cfg_dsl::chave.eq_any(&allowed)))

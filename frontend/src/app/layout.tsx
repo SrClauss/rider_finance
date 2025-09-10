@@ -5,7 +5,7 @@ import "@fortawesome/fontawesome-free/css/all.min.css";
 import { ThemeProvider } from "@/theme/ThemeProvider";
 import { SessionProvider } from '@/context/SessionContext';
 import { MetasProvider } from '@/context/MetasContext';
-import { CategoriaProvider } from '@/context/CategoriaContext';
+import { UsuarioProvider } from "@/context/UsuarioContext";
 import InitialDataLoader from '@/components/transitions/InitialDataLoader';
 const inter = Inter({ subsets: ["latin"] });
 
@@ -23,16 +23,16 @@ export default function RootLayout({
     <html lang="pt-BR">
       <body className={inter.className}>
         <ThemeProvider>
-          <SessionProvider>
-            <MetasProvider>
-              <CategoriaProvider>
+          <UsuarioProvider>
+            <SessionProvider>
+              <MetasProvider>
                 <InitialDataLoader>
-                  
+
                   {children}
                 </InitialDataLoader>
-              </CategoriaProvider>
-            </MetasProvider>
-          </SessionProvider>
+              </MetasProvider>
+            </SessionProvider>
+          </UsuarioProvider>
         </ThemeProvider>
       </body>
     </html>

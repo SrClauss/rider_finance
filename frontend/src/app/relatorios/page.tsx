@@ -2,11 +2,12 @@
 import { useState, useEffect } from "react";
 import Toast from '@/components/ui/Toast';
 import axios from "axios";
-import { toBackendLocalString } from '@/utils/dateUtils';
+import { toBackendLocalString, getUserTimezone, convertToUtc } from '@/utils/dateUtils';
 import { Box, Button, Card, CardContent, MenuItem, TextField, Typography, Stack } from "@mui/material";
 import LoggedLayout from "@/layouts/LoggedLayout";
 import { RelatorioTransacoesRequest, TransacaoFiltro } from "@/interfaces/RelatorioTransacoesRequest";
-import { useCategoriaContext, carregarCategorias } from "@/context/CategoriaContext";
+import { useUsuarioContext } from "@/context/UsuarioContext";
+import { carregarCategorias } from "@/context/UsuarioContext";
 
 const tiposArquivo = [
   { value: "pdf", label: "PDF" },
@@ -18,20 +19,27 @@ export default function RelatoriosPage() {
   const [tipoArquivo, setTipoArquivo] = useState<'pdf' | 'xlsx'>('pdf');
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<{ open: boolean; severity?: 'error' | 'success' | 'info' | 'warning'; message: string }>({ open: false, severity: 'info', message: '' });
-  const { categorias, setCategorias } = useCategoriaContext();
+  const { categorias, setCategorias, configuracoes } = useUsuarioContext();
+  const userTimezone = getUserTimezone(configuracoes.map(c => ({
+    chave: c.chave, 
+    valor: c.valor || ''
+  })));
 
   useEffect(() => {
-    if (categorias.length === 0) {
+    if (!categorias || categorias.length === 0) {
       carregarCategorias().then(setCategorias);
     }
-  }, [categorias.length, setCategorias]);
+  }, [categorias?.length, setCategorias]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFiltros({ ...filtros, [e.target.name]: e.target.value });
   };
 
   const handleDataChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFiltros({ ...filtros, [e.target.name]: e.target.value ? toBackendLocalString(new Date(e.target.value)) : null });
+    setFiltros({ 
+      ...filtros, 
+      [e.target.name]: e.target.value ? convertToUtc(new Date(e.target.value), userTimezone) : null 
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { use, useEffect, useState } from "react";
 import axios from "axios";
 import { DashboardResponse } from "@/interfaces/DashboardResponse";
 import LoggedLayout from "@/layouts/LoggedLayout";
@@ -16,7 +16,7 @@ import GoalsList from "@/components/dashboard/GoalsList";
 import { Goal } from '@/interfaces/goal';
 import Dashboard30Days from '@/components/charts/Dashboard30Days';
 import CorridasHoras from '@/components/charts/CorridasHoras';
-
+import { useUsuarioContext } from "@/context/UsuarioContext";
 
 
 export default function Page() {
@@ -26,6 +26,7 @@ export default function Page() {
   const [error, setError] = useState<string | null>(null);
   const [hasMetas, setHasMetas] = useState<boolean | null>(null);
   const [metas, setMetas] = useState<Goal[]>([]);
+  const usuarioContext = useUsuarioContext();
 
   useEffect(() => {
     axios.get('/api/dashboard/stats', { withCredentials: true })
@@ -59,24 +60,26 @@ export default function Page() {
       <Box sx={{ mb: 1, mt: 4 }}>
         <SectionTitle>Resumo</SectionTitle>
       </Box>
-  <SummarySwiper data={data!} /> {/* Substituir SummaryTodayCard por SummarySwiper */}
 
-  <Box sx={{ mb: 1, mt: 4 }}>
-    <SectionTitle>Indicadores de Saúde</SectionTitle>
-  </Box>
-  <QuickHealthIndicators data={data!} />
 
-  <TopSourcesSwiper topSources={data?.top_sources || null} />
-  <Box sx={{ mt: 2 }}>
-    <ProjectionsCard
-      weekly={data?.projecao_semana ?? 0}
-      monthly={data?.projecao_mes ?? 0}
-      method={data?.trend_method}
-    />
-  </Box>
+      <SummarySwiper data={data!} /> {/* Substituir SummaryTodayCard por SummarySwiper */}
+
+      <Box sx={{ mb: 1, mt: 4 }}>
+        <SectionTitle>Indicadores de Saúde</SectionTitle>
+      </Box>
+      <QuickHealthIndicators data={data!} />
+
+      <TopSourcesSwiper topSources={data?.top_sources || null} />
+      <Box sx={{ mt: 2 }}>
+        <ProjectionsCard
+          weekly={data?.projecao_semana ?? 0}
+          monthly={data?.projecao_mes ?? 0}
+          method={data?.trend_method}
+        />
+      </Box>
 
       {/* título com divider à direita, mais destacado */}
-  <SectionTitle>Últimas transações</SectionTitle>
+      <SectionTitle>Últimas transações</SectionTitle>
       <LastTransactionsCard />
       {hasMetas ? (
         <>
@@ -85,18 +88,12 @@ export default function Page() {
         </>
       ) : null}
 
-  {/* Charts: 30 dias, corridas/horas, sparklines e waterfall */}
-  
-  <SectionTitle>Ganhos / Gastos / Lucro (30 dias)</SectionTitle>
-  <Dashboard30Days data={data!} />
+      {/* Charts: 30 dias, corridas/horas, sparklines e waterfall */}
+      <SectionTitle>Ganhos / Gastos / Lucro (30 dias)</SectionTitle>
+      <Dashboard30Days data={data!} />
 
-  <SectionTitle
-
-  >Corridas e Horas (30 dias)</SectionTitle>
-  <CorridasHoras data={data!} />
-
-
-
+      <SectionTitle>Corridas e Horas (30 dias)</SectionTitle>
+      <CorridasHoras data={data!} />
     </LoggedLayout>
   );
 }

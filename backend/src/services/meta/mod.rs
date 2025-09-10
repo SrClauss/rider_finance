@@ -8,11 +8,11 @@ pub struct CreateMetaPayload {
     pub valor_alvo: i32,
     pub valor_atual: i32,
     pub unidade: Option<String>,
-    pub data_inicio: Option<NaiveDateTime>,
-    pub data_fim: Option<NaiveDateTime>,
+    pub data_inicio: Option<DateTime<Utc>>,
+    pub data_fim: Option<DateTime<Utc>>,
     pub eh_ativa: bool,
     pub eh_concluida: bool,
-    pub concluida_em: Option<NaiveDateTime>,
+    pub concluida_em: Option<DateTime<Utc>>,
     pub concluida_com: Option<i32>,
 }
 
@@ -27,7 +27,7 @@ use crate::schema::metas;
 use crate::schema::metas::dsl::*;
 use diesel::{QueryDsl, RunQueryDsl, ExpressionMethods};
 use crate::models::{Meta, NewMeta};
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 use serde::Deserialize;
 
 #[derive(Deserialize, Default)]
@@ -39,11 +39,11 @@ pub struct UpdateMetaPayload {
     pub valor_alvo: Option<i32>,
     pub valor_atual: Option<i32>,
     pub unidade: Option<String>,
-    pub data_inicio: Option<NaiveDateTime>,
-    pub data_fim: Option<NaiveDateTime>,
+    pub data_inicio: Option<DateTime<Utc>>,
+    pub data_fim: Option<DateTime<Utc>>,
     pub eh_ativa: Option<bool>,
     pub eh_concluida: Option<bool>,
-    pub concluida_em: Option<NaiveDateTime>,
+    pub concluida_em: Option<DateTime<Utc>>,
     pub concluida_com: Option<i32>,
 }
 
@@ -57,13 +57,13 @@ pub struct MetaChangeset {
     pub valor_alvo: Option<i32>,
     pub valor_atual: Option<i32>,
     pub unidade: Option<String>,
-    pub data_inicio: Option<NaiveDateTime>,
-    pub data_fim: Option<NaiveDateTime>,
+    pub data_inicio: Option<DateTime<Utc>>,
+    pub data_fim: Option<DateTime<Utc>>,
     pub eh_ativa: Option<bool>,
     pub eh_concluida: Option<bool>,
-    pub concluida_em: Option<NaiveDateTime>,
-    pub criado_em: Option<NaiveDateTime>,
-    pub atualizado_em: Option<NaiveDateTime>,
+    pub concluida_em: Option<DateTime<Utc>>,
+    pub criado_em: Option<DateTime<Utc>>,
+    pub atualizado_em: Option<DateTime<Utc>>,
     pub concluida_com: Option<i32>,
 }
 
@@ -92,7 +92,7 @@ pub async fn list_metas_cumpridas_handler(Path(id_usuario_param): Path<String>) 
 
 pub async fn create_meta_handler(jar: CookieJar, Json(payload): Json<CreateMetaPayload>) -> Json<Meta> {
     let conn = &mut db::establish_connection();
-    let now = chrono::Utc::now().naive_utc();
+    let now = chrono::Utc::now();
     let user_id = extract_user_id_from_cookie(&jar).expect("Usuário não autenticado");
     let nova_meta = NewMeta {
         id: ulid::Ulid::new().to_string(),
@@ -160,7 +160,7 @@ pub async fn update_meta_handler(Path(id_param): Path<String>, Json(payload): Js
         eh_concluida: payload.eh_concluida,
         concluida_em: payload.concluida_em,
         criado_em: None,
-        atualizado_em: Some(chrono::Utc::now().naive_utc()),
+        atualizado_em: Some(chrono::Utc::now()),
         concluida_com: payload.concluida_com,
     };
     diesel::update(metas.filter(id.eq(&id_param)))

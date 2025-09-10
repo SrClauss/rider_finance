@@ -1,14 +1,24 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
+    admins (id) {
+        id -> Varchar,
+        username -> Varchar,
+        password_hash -> Varchar,
+        criado_em -> Timestamptz,
+        atualizado_em -> Timestamptz,
+    }
+}
+
+diesel::table! {
     assinaturas (id) {
         id -> Varchar,
         id_usuario -> Varchar,
         asaas_subscription_id -> Varchar,
-        periodo_inicio -> Timestamp,
-        periodo_fim -> Timestamp,
-        criado_em -> Timestamp,
-        atualizado_em -> Timestamp,
+        periodo_inicio -> Timestamptz,
+        periodo_fim -> Timestamptz,
+        criado_em -> Timestamptz,
+        atualizado_em -> Timestamptz,
     }
 }
 
@@ -20,8 +30,8 @@ diesel::table! {
         tipo -> Varchar,
         icone -> Nullable<Varchar>,
         cor -> Nullable<Varchar>,
-    criado_em -> Timestamp,
-    atualizado_em -> Timestamp,
+        criado_em -> Timestamptz,
+        atualizado_em -> Timestamptz,
     }
 }
 
@@ -35,8 +45,8 @@ diesel::table! {
         descricao -> Nullable<Varchar>,
         tipo_dado -> Nullable<Varchar>,
         eh_publica -> Bool,
-        criado_em -> Timestamp,
-        atualizado_em -> Timestamp,
+        criado_em -> Timestamptz,
+        atualizado_em -> Timestamptz,
     }
 }
 
@@ -51,14 +61,14 @@ diesel::table! {
         valor_alvo -> Int4,
         valor_atual -> Int4,
         unidade -> Nullable<Varchar>,
-        data_inicio -> Timestamp,
-        data_fim -> Nullable<Timestamp>,
-    eh_ativa -> Bool,
-    eh_concluida -> Bool,
-    concluida_em -> Nullable<Timestamp>,
-    criado_em -> Timestamp,
-    atualizado_em -> Timestamp,
-    concluida_com -> Nullable<Int4>,
+        data_inicio -> Timestamptz,
+        data_fim -> Nullable<Timestamptz>,
+        eh_ativa -> Bool,
+        eh_concluida -> Bool,
+        concluida_em -> Nullable<Timestamptz>,
+        criado_em -> Timestamptz,
+        atualizado_em -> Timestamptz,
+        concluida_com -> Nullable<Int4>,
     }
 }
 
@@ -66,8 +76,8 @@ diesel::table! {
     sessoes_trabalho (id) {
         id -> Varchar,
         id_usuario -> Varchar,
-        inicio -> Timestamp,
-        fim -> Nullable<Timestamp>,
+        inicio -> Timestamptz,
+        fim -> Nullable<Timestamptz>,
         total_minutos -> Nullable<Int4>,
         local_inicio -> Nullable<Varchar>,
         local_fim -> Nullable<Varchar>,
@@ -78,8 +88,8 @@ diesel::table! {
         observacoes -> Nullable<Varchar>,
         clima -> Nullable<Varchar>,
         eh_ativa -> Bool,
-        criado_em -> Timestamp,
-        atualizado_em -> Timestamp,
+        criado_em -> Timestamptz,
+        atualizado_em -> Timestamptz,
     }
 }
 
@@ -88,13 +98,13 @@ diesel::table! {
         id -> Varchar,
         id_usuario -> Varchar,
         id_categoria -> Varchar,
-    valor -> Int4,
-    eventos -> Int4,
+        valor -> Int4,
+        eventos -> Int4,
         descricao -> Nullable<Varchar>,
         tipo -> Varchar,
-        data -> Timestamp,
-        criado_em -> Timestamp,
-        atualizado_em -> Timestamp,
+        data -> Timestamptz,
+        criado_em -> Timestamptz,
+        atualizado_em -> Timestamptz,
     }
 }
 
@@ -108,10 +118,10 @@ diesel::table! {
         telefone -> Varchar,
         veiculo -> Varchar,
         blocked -> Bool,
-        blocked_date -> Nullable<Timestamp>,
-        criado_em -> Timestamp,
-        atualizado_em -> Timestamp,
-        ultima_tentativa_redefinicao -> Timestamp,
+        blocked_date -> Nullable<Timestamptz>,
+        criado_em -> Timestamptz,
+        atualizado_em -> Timestamptz,
+        ultima_tentativa_redefinicao -> Timestamptz,
         address -> Varchar,
         address_number -> Varchar,
         complement -> Varchar,
@@ -119,16 +129,6 @@ diesel::table! {
         province -> Varchar,
         city -> Varchar,
         cpfcnpj -> Varchar,
-    }
-}
-
-diesel::table! {
-    admins (id) {
-        id -> Varchar,
-        username -> Varchar,
-        password_hash -> Varchar,
-        criado_em -> Timestamp,
-        atualizado_em -> Timestamp,
     }
 }
 
@@ -141,6 +141,7 @@ diesel::joinable!(transacoes -> categorias (id_categoria));
 diesel::joinable!(transacoes -> usuarios (id_usuario));
 
 diesel::allow_tables_to_appear_in_same_query!(
+    admins,
     assinaturas,
     categorias,
     configuracoes,

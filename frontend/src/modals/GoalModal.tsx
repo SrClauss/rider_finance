@@ -1,10 +1,12 @@
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, Box, MenuItem, CircularProgress, Alert } from "@mui/material";
 import { useEffect } from "react";
-import axios from "axios";
+import axios from "@/utils/axiosConfig";
 import useFormReducer from "@/lib/useFormReducer";
 import { Goal } from "@/interfaces/goal";
 import { useMetasContext } from "@/context/MetasContext";
-import { formatForDateTimeLocal, parseDateTime, toBackendLocalString } from '@/utils/dateUtils';
+import { useUsuarioContext } from "@/context/SessionContext";
+import { formatDateToUtc, getCurrentDateTime, parseUtcToDate, timeZones, getUserTimezone, convertToUtc } from "@/utils/dateUtils";
+import { time } from "console";
 
 type GoalModalProps = {
   open: boolean;
@@ -37,6 +39,8 @@ type GoalForm = {
 export default function GoalModal(props: GoalModalProps) {
   const { open, onClose, onSaved, goal } = props;
   const { dispatchMetas } = useMetasContext();
+  const { configuracoes } = useUsuarioContext();
+  const timezone = getUserTimezone(configuracoes);
   const { state: form, setField, setState, reset, setLoading, setError } = useFormReducer<GoalForm>({
     titulo: "",
     descricao: "",
@@ -46,7 +50,7 @@ export default function GoalModal(props: GoalModalProps) {
   valor_atual: '0,00',
     unidade: "",
     // data_inicio default para agora (local, formato datetime-local)
-    data_inicio: formatForDateTimeLocal(new Date()),
+    data_inicio: getCurrentDateTime(timezone).toString().slice(0, 16),
     data_fim: "",
     eh_ativa: true,
     eh_concluida: false,
@@ -68,18 +72,18 @@ export default function GoalModal(props: GoalModalProps) {
         descricao: goal.descricao || "",
         tipo: goal.tipo || "faturamento",
         categoria: goal.categoria || "geral",
-  valor_alvo: goal.valor_alvo != null ? formatFromCents(goal.valor_alvo) : '0,00',
-  valor_atual: goal.valor_atual != null ? formatFromCents(goal.valor_atual) : '0,00',
+        valor_alvo: goal.valor_alvo != null ? formatFromCents(goal.valor_alvo) : '0,00',
+        valor_atual: goal.valor_atual != null ? formatFromCents(goal.valor_atual) : '0,00',
         unidade: goal.unidade || "",
         // converte as datas do backend para o formato do input datetime-local (YYYY-MM-DDTHH:mm)
         data_inicio: goal.data_inicio ? (() => {
           try {
-            return formatForDateTimeLocal(parseDateTime(goal.data_inicio as string));
-          } catch { return formatForDateTimeLocal(new Date()); }
-        })() : formatForDateTimeLocal(new Date()),
+            return parseUtcToDate(goal.data_inicio as string, timezone).toISOString().slice(0, 16);
+          } catch { return getCurrentDateTime(timezone).toString().slice(0, 16); }
+        })() : getCurrentDateTime(timezone).toString().slice(0, 16),
         data_fim: goal.data_fim ? (() => {
           try {
-            return formatForDateTimeLocal(parseDateTime(goal.data_fim as string));
+            return parseUtcToDate(goal.data_fim as string, timezone).toISOString().slice(0, 16);
           } catch { return ""; }
         })() : "",
         eh_ativa: goal.eh_ativa ?? true,
@@ -159,19 +163,11 @@ export default function GoalModal(props: GoalModalProps) {
   valor_alvo: Math.round(parseFloat(String(form.valor_alvo).replace(',', '.')) * 100),
   valor_atual: Math.round(parseFloat(String(form.valor_atual).replace(',', '.')) * 100),
         unidade: form.unidade || null,
-        data_inicio: form.data_inicio ? (() => {
-          // Para datetime-local, criar data local sem timezone
-          const [datePart, timePart] = form.data_inicio.split('T');
-          return `${datePart}T${timePart}:00`;
-        })() : null,
-        data_fim: form.data_fim ? (() => {
-          // Para datetime-local, criar data local sem timezone
-          const [datePart, timePart] = form.data_fim.split('T');
-          return `${datePart}T${timePart}:00`;
-        })() : null,
+        data_inicio: form.data_inicio ? convertToUtc(new Date(form.data_inicio), timezone) : null,
+        data_fim: form.data_fim ? convertToUtc(new Date(form.data_fim), timezone) : null,
         eh_ativa: form.eh_ativa,
         eh_concluida: form.eh_concluida,
-  concluida_em: form.concluida_em ? toBackendLocalString(new Date(form.concluida_em)) : null,
+        concluida_em: form.concluida_em ? parseUtcToDate(form.concluida_em, timezone).toISOString().slice(0, 16) : null,
         concluida_com: form.concluida_com ?? null
       };
       let responseData: Goal;

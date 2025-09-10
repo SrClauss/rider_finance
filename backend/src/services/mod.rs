@@ -7,6 +7,7 @@ pub mod categoria;
 pub mod configuracao;
 pub mod webhook;
 pub mod seed;
+pub mod cpf;
 pub mod assinatura;
 pub mod usuario;
 pub mod sessao_trabalho;

@@ -1,6 +1,6 @@
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
-use chrono::{NaiveDateTime};
+use chrono::{DateTime, Utc};
 use crate::models::Usuario;
 use crate::schema::sessoes_trabalho;
 
@@ -11,8 +11,8 @@ use crate::schema::sessoes_trabalho;
 pub struct SessaoTrabalho {
     pub id: String,
     pub id_usuario: String,
-    pub inicio: NaiveDateTime,
-    pub fim: Option<NaiveDateTime>,
+    pub inicio: DateTime<Utc>,
+    pub fim: Option<DateTime<Utc>>,
     pub total_minutos: Option<i32>,
     pub local_inicio: Option<String>,
     pub local_fim: Option<String>,
@@ -23,8 +23,8 @@ pub struct SessaoTrabalho {
     pub observacoes: Option<String>,
     pub clima: Option<String>,
     pub eh_ativa: bool,
-    pub criado_em: NaiveDateTime,
-    pub atualizado_em: NaiveDateTime,
+    pub criado_em: DateTime<Utc>,
+    pub atualizado_em: DateTime<Utc>,
 }
 
 #[derive(Debug, Insertable)]
@@ -32,8 +32,8 @@ pub struct SessaoTrabalho {
 pub struct NewSessaoTrabalho {
     pub id: String,
     pub id_usuario: String,
-    pub inicio: NaiveDateTime,
-    pub fim: Option<NaiveDateTime>,
+    pub inicio: DateTime<Utc>,
+    pub fim: Option<DateTime<Utc>>,
     pub total_minutos: Option<i32>,
     pub local_inicio: Option<String>,
     pub local_fim: Option<String>,
@@ -44,6 +44,6 @@ pub struct NewSessaoTrabalho {
     pub observacoes: Option<String>,
     pub clima: Option<String>,
     pub eh_ativa: bool,
-    pub criado_em: NaiveDateTime,
-    pub atualizado_em: NaiveDateTime,
+    pub criado_em: DateTime<Utc>,
+    pub atualizado_em: DateTime<Utc>,
 }

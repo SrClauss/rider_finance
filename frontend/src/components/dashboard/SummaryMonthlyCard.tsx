@@ -2,6 +2,8 @@ import { DirectionsCarRounded, ShowChart, SpeedRounded, WatchLater } from "@mui/
 import { Box, Card, Divider, Typography } from "@mui/material";
 import InfoCard from "./InfoCard";
 import { JSX } from "react";
+import { getCurrentDateTime, getUserTimezone, formatUtcToLocalDateString } from "@/utils/dateUtils";
+import { useUsuarioContext } from "@/context/SessionContext";
 
 export interface SummaryMonthlyCardProps {
   ganhos_mes: number | null;
@@ -18,6 +20,9 @@ export default function SummaryMonthlyCard({
   horas_mes,
   lucro_mes,
 }: SummaryMonthlyCardProps): JSX.Element {
+  const { configuracoes } = useUsuarioContext();
+  const userTimezone = getUserTimezone(configuracoes);
+
   return (
     <Card
       sx={{
@@ -61,11 +66,7 @@ export default function SummaryMonthlyCard({
           >
             <Typography variant="body2">Resumo (Mês)</Typography>
             <Typography variant="caption">
-              {new Date().toLocaleDateString("pt-BR", {
-                day: "2-digit",
-                month: "2-digit",
-                year: "numeric",
-              })}
+              {formatUtcToLocalDateString(getCurrentDateTime(userTimezone).toISOString(), userTimezone)}
             </Typography>
           </Box>
         </Box>

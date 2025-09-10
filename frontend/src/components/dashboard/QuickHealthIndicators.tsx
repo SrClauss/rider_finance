@@ -6,7 +6,7 @@ import LocalTaxiIcon from '@mui/icons-material/LocalTaxi';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import PaidIcon from '@mui/icons-material/Paid';
 import { DashboardResponse } from "@/interfaces/DashboardResponse";
-import { useCategoriaContext } from '@/context/CategoriaContext';
+import { useUsuarioContext } from "@/context/UsuarioContext";
 import { useTheme } from '@mui/material/styles';
 import { formatarMoeda } from '@/utils/currencyUtils';
 
@@ -19,7 +19,7 @@ const UBER_NAME = "Corrida Uber";
 const N99_NAME = "Corrida 99";
 
 export default function QuickHealthIndicators({ data }: Props) {
-  const { categorias } = useCategoriaContext();
+  const { categorias } = useUsuarioContext();
   const theme = useTheme();
 
   // Usar dados de data.platforms em vez de fetch

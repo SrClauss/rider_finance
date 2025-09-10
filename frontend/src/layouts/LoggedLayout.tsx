@@ -68,7 +68,7 @@ export default function LoggedLayout({ children }: LoggedLayoutProps) {
   };
 
   return (
-    <Container maxWidth={isLargeScreen ? "lg" : false} sx={{ paddingBottom: 10 }}>
+    <Container maxWidth={isLargeScreen ? "lg" : false}>
       <AppBar position="static" color="default" elevation={0} sx={{ bgcolor: "background.paper" }}>
         <Toolbar>
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
@@ -113,7 +113,13 @@ export default function LoggedLayout({ children }: LoggedLayoutProps) {
         <SessionFloatingPanel />
       </Box>
       <Paper
-        sx={{ position: "fixed", bottom: 0, left: 0, right: 0 }}
+        sx={{
+          position: "fixed",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          zIndex: 10, // Garante que a BottomNavigation fique acima
+        }}
         elevation={3}
       >
         <BottomNavigation showLabels value={value} onChange={handleChange}>

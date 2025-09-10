@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import useFormReducer from '@/lib/useFormReducer';
 import { Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button, Box, Stack, CircularProgress, Typography, IconButton, FormControl, InputLabel, Select, MenuItem } from "@mui/material";
-import axios from "axios";
+import axios from '@/utils/axiosConfig';
 import ClearIcon from "@mui/icons-material/Clear";
 import { extractErrorMessage } from '@/lib/errorUtils';
 
@@ -66,14 +66,19 @@ export default function EditProfileModal({ open, initialEmail, initialEndereco, 
 
     setCepLoading(true);
     try {
-      const res = await axios.get(`https://viacep.com.br/ws/${cep}/json/`);
-      const data = res.data;
+      const resp = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+      if (!resp.ok) {
+        setCepError('Falha ao buscar CEP. Tente novamente.');
+        return;
+      }
+      const data = await resp.json();
       if (data.erro) {
         setCepError("CEP não encontrado.");
       } else {
-  setFormState({ endereco: { ...endereco, rua: data.logradouro || endereco.rua, complemento: data.complemento || endereco.complemento, cidade: data.localidade || endereco.cidade, estado: data.uf || endereco.estado, cep } });
+        setFormState({ endereco: { ...endereco, rua: data.logradouro || endereco.rua, complemento: data.complemento || endereco.complemento, cidade: data.localidade || endereco.cidade, estado: data.uf || endereco.estado, cep } });
       }
-    } catch {
+    } catch (e) {
+      console.error('Erro ao consultar ViaCEP:', e);
       setCepError("Falha ao buscar CEP. Tente novamente.");
     } finally {
       setCepLoading(false);
@@ -132,6 +137,7 @@ export default function EditProfileModal({ open, initialEmail, initialEndereco, 
         setError(typeof data === "string" ? data : extracted ?? "Entrada inválida.");
       } else if (status === 401) {
         setError("Você precisa estar autenticado para editar o perfil.");
+        console.warn("Erro 401: Não autenticado. Verifique o token ou sessão do usuário.");
       } else if (status === 409) {
         setError(typeof data === "string" ? data : extracted ?? "Email já em uso.");
       } else {

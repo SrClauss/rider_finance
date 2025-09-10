@@ -1,4 +1,4 @@
-use chrono::{Local, NaiveDateTime, Duration, Datelike};
+use chrono::{DateTime, Datelike, Duration, Local, TimeZone, Utc};
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -91,8 +91,8 @@ pub struct TopSources {
 #[derive(Deserialize, Clone)]
 pub struct DashboardFiltro {
     pub periodo: Option<String>,
-    pub data_inicio: Option<NaiveDateTime>,
-    pub data_fim: Option<NaiveDateTime>,
+    pub data_inicio: Option<DateTime<Utc>>,
+    pub data_fim: Option<DateTime<Utc>>,
     pub tipo: Option<String>,
     pub categoria: Option<String>,
 }
@@ -161,7 +161,7 @@ fn media_excluindo_extremos(data: &[i32], percent: usize) -> i32 {
     (sum as f64 / (slice.len() as f64)).round() as i32
 }
 
-fn soma_periodo(tipo: &str, id_usuario: &str, inicio: NaiveDateTime, fim: NaiveDateTime, conn: &mut diesel::PgConnection) -> Option<i32> {
+fn soma_periodo(tipo: &str, id_usuario: &str, inicio: DateTime<Utc>, fim: DateTime<Utc>, conn: &mut diesel::PgConnection) -> Option<i32> {
     use crate::schema::transacoes::dsl as transacao_dsl_local;
     transacao_dsl_local::transacoes
         .filter(transacao_dsl_local::id_usuario.eq(id_usuario))
@@ -172,7 +172,7 @@ fn soma_periodo(tipo: &str, id_usuario: &str, inicio: NaiveDateTime, fim: NaiveD
         .first::<Option<i64>>(conn).ok().flatten().map(|v| v as i32)
 }
 
-fn soma_corridas(id_usuario: &str, inicio: NaiveDateTime, fim: NaiveDateTime, conn: &mut diesel::PgConnection) -> Option<u32> {
+fn soma_corridas(id_usuario: &str, inicio: DateTime<Utc>, fim: DateTime<Utc>, conn: &mut diesel::PgConnection) -> Option<u32> {
     use crate::schema::transacoes::dsl as transacao_dsl_local;
     transacao_dsl_local::transacoes
         .filter(transacao_dsl_local::id_usuario.eq(id_usuario))
@@ -183,7 +183,7 @@ fn soma_corridas(id_usuario: &str, inicio: NaiveDateTime, fim: NaiveDateTime, co
         .first::<Option<i64>>(conn).ok().flatten().map(|v| v as u32)
 }
 
-fn soma_horas(id_usuario: &str, inicio: NaiveDateTime, fim: NaiveDateTime, conn: &mut diesel::PgConnection) -> Option<i32> {
+fn soma_horas(id_usuario: &str, inicio: DateTime<Utc>, fim: DateTime<Utc>, conn: &mut diesel::PgConnection) -> Option<i32> {
     use crate::schema::sessoes_trabalho::dsl as sessao_dsl_local;
     let minutos = sessao_dsl_local::sessoes_trabalho
         .filter(sessao_dsl_local::id_usuario.eq(id_usuario))
@@ -194,7 +194,7 @@ fn soma_horas(id_usuario: &str, inicio: NaiveDateTime, fim: NaiveDateTime, conn:
     minutos.map(|m| m / 60)
 }
 
-fn top_source_for_period(tipo: &str, inicio: NaiveDateTime, fim: NaiveDateTime, id_usuario: &str, conn: &mut diesel::PgConnection) -> TopSourceItem {
+fn top_source_for_period(tipo: &str, inicio: DateTime<Utc>, fim: DateTime<Utc>, id_usuario: &str, conn: &mut diesel::PgConnection) -> TopSourceItem {
     use crate::schema::transacoes::dsl as trans_dsl;
     use crate::schema::categorias::dsl as cat_dsl;
 
@@ -260,10 +260,9 @@ pub fn compute_dashboard_stats(conn: &mut diesel::PgConnection, id_usuario: &str
     let projecao_percentual_extremos: usize = get_config("projecao_percentual_extremos").and_then(|v| v.parse().ok()).unwrap_or(10);
 
     // OBS: não recebemos mais filtros via params => comportamento padrão:
-    // período padrão: início do dia atual até agora
-    let inicio = NaiveDateTime::new(now.date(), chrono::NaiveTime::from_hms_opt(0,0,0).unwrap());
-    let fim = now;
-
+    // INICIO DO DIA '00:00' ATÉ AGORA
+    let inicio = Utc.from_utc_datetime(&now.date().and_hms_opt(0, 0, 0).unwrap());
+    let fim = Utc.from_utc_datetime(&now);
     // Arrays dos últimos 7 dias
     let mut ganhos_7dias = Vec::with_capacity(7);
     let mut gastos_7dias = Vec::with_capacity(7);
@@ -272,8 +271,8 @@ pub fn compute_dashboard_stats(conn: &mut diesel::PgConnection, id_usuario: &str
     let mut horas_7dias = Vec::with_capacity(7);
     for i in (0..7).rev() {
         let dia = now.date() - Duration::days(i);
-        let inicio_dia = NaiveDateTime::new(dia, chrono::NaiveTime::from_hms_opt(0,0,0).unwrap());
-        let fim_dia = NaiveDateTime::new(dia, chrono::NaiveTime::from_hms_opt(23,59,59).unwrap());
+        let inicio_dia = Utc.from_utc_datetime(&dia.and_hms_opt(0, 0, 0).unwrap());
+        let fim_dia = Utc.from_utc_datetime(&dia.and_hms_opt(23, 59, 59).unwrap());
         let ganhos_dia: i32 = transacao_dsl::transacoes
             .filter(transacao_dsl::id_usuario.eq(id_usuario))
             .filter(transacao_dsl::data.ge(inicio_dia))
@@ -317,8 +316,8 @@ pub fn compute_dashboard_stats(conn: &mut diesel::PgConnection, id_usuario: &str
     for i in (0..30).rev() {
         let data_dia = now.date() - Duration::days(i);
         ultimos_30_dias_labels.push(data_dia.format("%d/%m").to_string());
-        let inicio_dia = NaiveDateTime::new(data_dia, chrono::NaiveTime::from_hms_opt(0,0,0).unwrap());
-        let fim_dia = NaiveDateTime::new(data_dia, chrono::NaiveTime::from_hms_opt(23,59,59).unwrap());
+        let inicio_dia = Utc.from_utc_datetime(&data_dia.and_hms_opt(0, 0, 0).unwrap());
+        let fim_dia = Utc.from_utc_datetime(&data_dia.and_hms_opt(23, 59, 59).unwrap());
         let ganhos_dia: i32 = transacao_dsl::transacoes
             .filter(transacao_dsl::id_usuario.eq(id_usuario))
             .filter(transacao_dsl::data.ge(inicio_dia))
@@ -365,8 +364,8 @@ pub fn compute_dashboard_stats(conn: &mut diesel::PgConnection, id_usuario: &str
     let mut soma_ganhos_mes = 0;
     for i in 0..dias_passados_mes {
         let data_dia = inicio_mes + chrono::Duration::days(i);
-        let inicio_dia = NaiveDateTime::new(data_dia, chrono::NaiveTime::from_hms_opt(0,0,0).unwrap());
-        let fim_dia = NaiveDateTime::new(data_dia, chrono::NaiveTime::from_hms_opt(23,59,59).unwrap());
+        let inicio_dia = Utc.from_utc_datetime(&data_dia.and_hms_opt(0, 0, 0).unwrap());
+        let fim_dia = Utc.from_utc_datetime(&data_dia.and_hms_opt(23, 59, 59).unwrap());
         let ganhos_dia: i32 = transacao_dsl::transacoes
             .filter(transacao_dsl::id_usuario.eq(id_usuario))
             .filter(transacao_dsl::data.ge(inicio_dia))
@@ -388,8 +387,8 @@ pub fn compute_dashboard_stats(conn: &mut diesel::PgConnection, id_usuario: &str
     let mut soma_ganhos_semana = 0;
     for i in 0..dias_passados_semana {
         let data_dia = inicio_semana + chrono::Duration::days(i);
-        let inicio_dia = NaiveDateTime::new(data_dia, chrono::NaiveTime::from_hms_opt(0,0,0).unwrap());
-        let fim_dia = NaiveDateTime::new(data_dia, chrono::NaiveTime::from_hms_opt(23,59,59).unwrap());
+        let inicio_dia = Utc.from_utc_datetime(&data_dia.and_hms_opt(0, 0, 0).unwrap());
+        let fim_dia = Utc.from_utc_datetime(&data_dia.and_hms_opt(23, 59, 59).unwrap());
         let ganhos_dia: i32 = transacao_dsl::transacoes
             .filter(transacao_dsl::id_usuario.eq(id_usuario))
             .filter(transacao_dsl::data.ge(inicio_dia))
@@ -478,8 +477,8 @@ pub fn compute_dashboard_stats(conn: &mut diesel::PgConnection, id_usuario: &str
         .num_days();
     for dia in 1..=dias_no_mes.try_into().unwrap_or(0) {
         if let Some(data_dia) = chrono::NaiveDate::from_ymd_opt(ano_atual, mes_atual, dia) {
-            let inicio_dia = NaiveDateTime::new(data_dia, chrono::NaiveTime::from_hms_opt(0,0,0).unwrap());
-            let fim_dia = NaiveDateTime::new(data_dia, chrono::NaiveTime::from_hms_opt(23,59,59).unwrap());
+            let inicio_dia = Utc.from_utc_datetime(&data_dia.and_hms_opt(0, 0, 0).unwrap());
+            let fim_dia = Utc.from_utc_datetime(&data_dia.and_hms_opt(23, 59, 59).unwrap());
             let ganhos_dia: i32 = transacao_dsl::transacoes
                 .filter(transacao_dsl::id_usuario.eq(id_usuario))
                 .filter(transacao_dsl::data.ge(inicio_dia))
@@ -540,46 +539,46 @@ pub fn compute_dashboard_stats(conn: &mut diesel::PgConnection, id_usuario: &str
     // Datas para períodos
     let hoje = now.date();
     let ontem = hoje - Duration::days(1);
-    let inicio_hoje = NaiveDateTime::new(hoje, chrono::NaiveTime::from_hms_opt(0,0,0).unwrap());
-    let fim_hoje = NaiveDateTime::new(hoje, chrono::NaiveTime::from_hms_opt(23,59,59).unwrap());
-    let inicio_ontem = NaiveDateTime::new(ontem, chrono::NaiveTime::from_hms_opt(0,0,0).unwrap());
-    let fim_ontem = NaiveDateTime::new(ontem, chrono::NaiveTime::from_hms_opt(23,59,59).unwrap());
+    let inicio_hoje = Utc.from_utc_datetime(&hoje.and_hms_opt(0,0,0).unwrap());
+    let fim_hoje = Utc.from_utc_datetime(&hoje.and_hms_opt(23,59,59).unwrap());
+    let inicio_ontem = Utc.from_utc_datetime(&ontem.and_hms_opt(0,0,0).unwrap());
+    let fim_ontem = Utc.from_utc_datetime(&ontem.and_hms_opt(23,59,59).unwrap());
 
     let inicio_7dias = now - Duration::days(7);
     let fim_7dias = now;
-    let inicio_7dias_ndt = NaiveDateTime::new(inicio_7dias.date(), chrono::NaiveTime::from_hms_opt(0,0,0).unwrap());
-    let fim_7dias_ndt = NaiveDateTime::new(fim_7dias.date(), chrono::NaiveTime::from_hms_opt(23,59,59).unwrap());
+    let inicio_7dias_ndt = Utc.from_utc_datetime(&inicio_7dias.date().and_hms_opt(0,0,0).unwrap());
+    let fim_7dias_ndt = Utc.from_utc_datetime(&fim_7dias.date().and_hms_opt(23,59,59).unwrap());
 
     let inicio_30dias = now - Duration::days(30);
     let fim_30dias = now;
-    let inicio_30dias_ndt = NaiveDateTime::new(inicio_30dias.date(), chrono::NaiveTime::from_hms_opt(0,0,0).unwrap());
-    let fim_30dias_ndt = NaiveDateTime::new(fim_30dias.date(), chrono::NaiveTime::from_hms_opt(23,59,59).unwrap());
+    let inicio_30dias_ndt = Utc.from_utc_datetime(&inicio_30dias.date().and_hms_opt(0,0,0).unwrap());
+    let fim_30dias_ndt = Utc.from_utc_datetime(&fim_30dias.date().and_hms_opt(23,59,59).unwrap());
 
     let inicio_semana = hoje - Duration::days(hoje.weekday().num_days_from_monday() as i64);
     let fim_semana = inicio_semana + Duration::days(6);
-    let inicio_semana_ndt = NaiveDateTime::new(inicio_semana, chrono::NaiveTime::from_hms_opt(0,0,0).unwrap());
-    let fim_semana_ndt = NaiveDateTime::new(fim_semana, chrono::NaiveTime::from_hms_opt(23,59,59).unwrap());
+    let inicio_semana_ndt = Utc.from_utc_datetime(&inicio_semana.and_hms_opt(0,0,0).unwrap());
+    let fim_semana_ndt = Utc.from_utc_datetime(&fim_semana.and_hms_opt(23,59,59).unwrap());
 
     let inicio_semana_passada = inicio_semana - Duration::days(7);
     let fim_semana_passada = inicio_semana - Duration::days(1);
-    let inicio_semana_passada_ndt = NaiveDateTime::new(inicio_semana_passada, chrono::NaiveTime::from_hms_opt(0,0,0).unwrap());
-    let fim_semana_passada_ndt = NaiveDateTime::new(fim_semana_passada, chrono::NaiveTime::from_hms_opt(23,59,59).unwrap());
+    let inicio_semana_passada_ndt = Utc.from_utc_datetime(&inicio_semana_passada.and_hms_opt(0,0,0).unwrap());
+    let fim_semana_passada_ndt = Utc.from_utc_datetime(&fim_semana_passada.and_hms_opt(23,59,59).unwrap());
 
     let mes = hoje.month();
     let ano = hoje.year();
     let inicio_mes = chrono::NaiveDate::from_ymd_opt(ano, mes, 1).unwrap();
     let dias_mes = chrono::NaiveDate::from_ymd_opt(ano, mes % 12 + 1, 1).unwrap_or_else(|| chrono::NaiveDate::from_ymd_opt(ano + 1, 1, 1).unwrap()).signed_duration_since(inicio_mes).num_days();
     let fim_mes = inicio_mes + Duration::days(dias_mes - 1);
-    let inicio_mes_ndt = NaiveDateTime::new(inicio_mes, chrono::NaiveTime::from_hms_opt(0,0,0).unwrap());
-    let fim_mes_ndt = NaiveDateTime::new(fim_mes, chrono::NaiveTime::from_hms_opt(23,59,59).unwrap());
+    let inicio_mes_ndt = Utc.from_utc_datetime(&inicio_mes.and_hms_opt(0,0,0).unwrap());
+    let fim_mes_ndt = Utc.from_utc_datetime(&fim_mes.and_hms_opt(23,59,59).unwrap());
 
     let mes_passado = if mes == 1 { 12 } else { mes - 1 };
     let ano_mes_passado = if mes == 1 { ano - 1 } else { ano };
     let inicio_mes_passado = chrono::NaiveDate::from_ymd_opt(ano_mes_passado, mes_passado, 1).unwrap();
     let dias_mes_passado = chrono::NaiveDate::from_ymd_opt(ano_mes_passado, mes_passado % 12 + 1, 1).unwrap_or_else(|| chrono::NaiveDate::from_ymd_opt(ano_mes_passado + 1, 1, 1).unwrap()).signed_duration_since(inicio_mes_passado).num_days();
     let fim_mes_passado = inicio_mes_passado + Duration::days(dias_mes_passado - 1);
-    let inicio_mes_passado_ndt = NaiveDateTime::new(inicio_mes_passado, chrono::NaiveTime::from_hms_opt(0,0,0).unwrap());
-    let fim_mes_passado_ndt = NaiveDateTime::new(fim_mes_passado, chrono::NaiveTime::from_hms_opt(23,59,59).unwrap());
+    let inicio_mes_passado_ndt = Utc.from_utc_datetime(&inicio_mes_passado.and_hms_opt(0,0,0).unwrap());
+    let fim_mes_passado_ndt = Utc.from_utc_datetime(&fim_mes_passado.and_hms_opt(23,59,59).unwrap());
 
     // construir mapa de platforms
     let mut platforms_map: HashMap<String, PlatformResult> = HashMap::new();
@@ -714,8 +713,8 @@ pub fn compute_dashboard_stats(conn: &mut diesel::PgConnection, id_usuario: &str
 pub fn compute_platforms(conn: &mut diesel::PgConnection, id_usuario: &str, names_csv: Option<String>) -> HashMap<String, PlatformResult> {
     let now = Local::now().naive_local();
     let hoje = now.date();
-    let inicio_hoje = NaiveDateTime::new(hoje, chrono::NaiveTime::from_hms_opt(0,0,0).unwrap());
-    let fim_hoje = NaiveDateTime::new(hoje, chrono::NaiveTime::from_hms_opt(23,59,59).unwrap());
+    let inicio_hoje = Utc.from_utc_datetime(&hoje.and_hms_opt(0, 0, 0).unwrap());
+    let fim_hoje = Utc.from_utc_datetime(&hoje.and_hms_opt(23, 59, 59).unwrap());
 
     let mut results: HashMap<String, PlatformResult> = HashMap::new();
     if let Some(names_csv) = names_csv {

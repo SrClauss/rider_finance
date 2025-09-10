@@ -10,21 +10,21 @@ import LoggedLayout from "@/layouts/LoggedLayout";
 import TransactionList from "@/components/transactions/TransactionList";
 import TransactionModal from "@/modals/TransactionModal";
 import CategoriaModal from "@/modals/CategoriaModal";
-
+import { useUsuarioContext } from "@/context/UsuarioContext";
 import ConfirmDeleteModal from "@/modals/ConfirmDeleteModal";
 import type { Transaction } from "@/interfaces/Transaction";
 import axios from "axios";
 import dayjs from "dayjs";
-import { CategoriaProvider, useCategoriaContext, carregarCategorias } from "@/context/CategoriaContext";
+import { convertToUtc, getUserTimezone } from "@/utils/dateUtils";
+
 
 
 export default function TransactionsPage() {
   return (
-    <CategoriaProvider>
-      <LoggedLayout>
+     <LoggedLayout>
         <TransactionsPageInner />
       </LoggedLayout>
-    </CategoriaProvider>
+    
   );
 }
 
@@ -62,7 +62,11 @@ function TransactionsPageInner() {
     resetFiltros();
   };
 
-  const { categorias, setCategorias } = useCategoriaContext();
+  const { categorias, setCategorias, carregarCategorias, configuracoes } = useUsuarioContext();
+  const userTimezone = getUserTimezone(configuracoes.map(c => ({
+    chave: c.chave, 
+    valor: c.valor || ''
+  })));
   // Função chamada ao clicar em deletar
   const handleDeleteClick = (id: string) => {
     setSelectedDeleteId(id);
@@ -112,8 +116,14 @@ function TransactionsPageInner() {
     if (filtros.idCategoria) params.id_categoria = filtros.idCategoria;
     if (filtros.descricao) params.descricao = filtros.descricao;
     if (filtros.tipo) params.tipo = filtros.tipo;
-    if (filtros.dataInicio) params.data_inicio = dayjs(String(filtros.dataInicio)).format("YYYY-MM-DDTHH:mm:ss");
-    if (filtros.dataFim) params.data_fim = dayjs(String(filtros.dataFim)).format("YYYY-MM-DDTHH:mm:ss");
+    if (filtros.dataInicio) {
+      const localDate = new Date(filtros.dataInicio);
+      params.data_inicio = convertToUtc(localDate, userTimezone);
+    }
+    if (filtros.dataFim) {
+      const localDate = new Date(filtros.dataFim);
+      params.data_fim = convertToUtc(localDate, userTimezone);
+    }
     try {
       const res = await axios.post("/api/transacoes", params, { withCredentials: true });
       setTransactions(Array.isArray(res.data?.items) ? res.data.items : []);

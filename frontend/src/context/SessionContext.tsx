@@ -1,11 +1,10 @@
 'use client'
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import axios from 'axios';
+import React, { createContext, useContext, useState, useEffect, ReactNode, use } from 'react';
+import axios from '@/utils/axiosConfig';
+import { isAxiosError } from 'axios';
 import { SessaoComTransacoes } from '@/interfaces/SessaoComTransacoes';
-import { getCurrentDateTime } from '@/utils/dateUtils';
 import { usePathname } from 'next/navigation';
-
-
+import { getCurrentDateTime, timeZones, getCurrentUtcDateTime, convertToUtc } from '@/utils/dateUtils';
 
 export const SessionContext = createContext<{
   sessao?: SessaoComTransacoes | null;
@@ -80,7 +79,16 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     let mounted = true;
     const init = async () => {
       try {
-        const me = await axios.get('/api/me', { withCredentials: true });
+        const me = await axios.get('/api/me', { withCredentials: true }).catch((error) => {
+          if (isAxiosError(error) && error.response?.status === 401) {
+            // Erro 401 tratado silenciosamente
+            if (mounted) setSessao(null);
+          } else {
+            // Logar apenas erros inesperados
+            if (mounted) console.debug("Erro inesperado ao buscar /api/me:", error);
+          }
+          return null;
+        });
         const userId = me?.data?.id;
         if (!userId) {
           if (mounted) setSessao(null);
@@ -101,24 +109,38 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
           }
         }
         // fetch list of sessions for user and try to find active one
-        const list = await axios.get(`/api/sessao/list/${userId}`, { withCredentials: true });
-        if (!mounted) return;
-        if (Array.isArray(list.data)) {
-          type SessaoListItem = { id: string; eh_ativa: boolean };
-          const active = list.data.find((s: SessaoListItem) => s.eh_ativa === true) as SessaoListItem | undefined;
-          if (active && active.id) {
-            // fetch session with transactions
-            const r = await axios.get(`/api/sessao/com-transacoes/${active.id}`, { withCredentials: true });
-            if (!mounted) return;
-            if (r.data) {
-              setSessao(r.data as SessaoComTransacoes);
-              return;
+        try {
+          const list = await axios.get(`/api/sessao/list/${userId}`, { withCredentials: true });
+          if (!mounted) return;
+          if (Array.isArray(list.data)) {
+            type SessaoListItem = { id: string; eh_ativa: boolean };
+            const active = list.data.find((s: SessaoListItem) => s.eh_ativa === true) as SessaoListItem | undefined;
+            if (active && active.id) {
+              try {
+                // fetch session with transactions
+                const r = await axios.get(`/api/sessao/com-transacoes/${active.id}`, { withCredentials: true });
+                if (!mounted) return;
+                if (r.data) {
+                  setSessao(r.data as SessaoComTransacoes);
+                  return;
+                }
+              } catch (error) {
+                console.error("Erro ao buscar sessão ativa com transações:", error);
+              }
             }
           }
+        } catch (error) {
+          console.error("Erro ao buscar lista de sessões:", error);
         }
         if (mounted) setSessao(null);
-      } catch {
-        if (mounted) setSessao(null);
+      } catch (error) {
+        if (isAxiosError(error) && error.response?.status === 401) {
+          // Erro 401 tratado silenciosamente
+          setSessao(null);
+        } else {
+          // Logar apenas erros inesperados
+          console.debug("Erro inesperado ao carregar sessão:", error);
+        }
       }
     };
     init();
@@ -184,10 +206,13 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       }
       // build body
       type SessaoCreateBody = Partial<SessaoComTransacoes['sessao']>;
-  const localTime = getCurrentDateTime();
+      
+      // Sempre enviar UTC para o backend
+      const utcTime = payload?.inicio ?? getCurrentUtcDateTime();
+
       const body: SessaoCreateBody = {
         id_usuario: userId ?? undefined,
-        inicio: payload?.inicio ?? localTime,
+        inicio: utcTime,
         local_inicio: payload?.local_inicio ?? null,
         plataforma: payload?.plataforma ?? null,
         observacoes: payload?.observacoes ?? null,
@@ -197,16 +222,23 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
         total_gastos: 0,
         eh_ativa: true,
       };
-      const res = await axios.post('/api/sessao/start', body, { withCredentials: true });
-      if (res.data) {
+      const res = await axios.post('/api/sessao/start', body, { withCredentials: true }).catch((error) => {
+        console.error("Erro ao iniciar sessão:", error);
+        setLoading(false);
+        return null;
+      });
+      if (res?.data) {
         // if server returns SessaoTrabalho or SessaoComTransacoes, normalize
         if (res.data.transacoes) {
           setSessao(res.data as SessaoComTransacoes);
         } else {
           // server may return only session; fetch with transacoes
           if (res.data.id) {
-            const r = await axios.get(`/api/sessao/com-transacoes/${res.data.id}`, { withCredentials: true });
-            if (r.data) setSessao(r.data as SessaoComTransacoes);
+            const r = await axios.get(`/api/sessao/com-transacoes/${res.data.id}`, { withCredentials: true }).catch((error) => {
+              console.error("Erro ao buscar sessão com transações:", error);
+              return null;
+            });
+            if (r?.data) setSessao(r.data as SessaoComTransacoes);
             else setSessao(null);
           }
         }
@@ -214,7 +246,6 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
         try {
           const inicio = res.data.inicio ?? (res.data.sessao && res.data.sessao.inicio);
           if (inicio) {
-            // Agora que usamos horário local, não precisamos adicionar 'Z'
             let startMs: number;
             if (inicio.includes('T') && !inicio.includes('Z') && !inicio.includes('+')) {
               startMs = new Date(inicio).getTime();
@@ -224,10 +255,9 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
             const now = Date.now();
             const initialElapsed = Math.max(0, Math.floor((now - startMs) / 1000));
             setElapsedSeconds(initialElapsed);
-            // log removido
           }
-        } catch {
-          // log removido
+        } catch (error) {
+          console.error("Erro ao calcular tempo decorrido:", error);
         }
         try { localStorage.setItem('rf_active_session', JSON.stringify({ id: res.data.id, inicio: res.data.inicio })); } catch {}
       }
@@ -242,11 +272,12 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     if (!sessao || !sessao.sessao || !sessao.sessao.id) return;
     setLoading(true);
     try {
-  const localTime = getCurrentDateTime();
+      // Sempre enviar UTC para o backend
+      const utcTime = getCurrentUtcDateTime();
       const payload = {
         id_sessao: sessao.sessao.id,
         inicio: sessao.sessao.inicio,
-        fim: localTime,
+        fim: utcTime,
         ...(localFim && { local_fim: localFim })
       };
       const res = await axios.post('/api/sessao/stop', payload, { withCredentials: true });
@@ -333,4 +364,15 @@ export const useSession = () => {
   const ctx = useContext(SessionContext);
   if (!ctx) throw new Error('useSession must be used within SessionProvider');
   return ctx;
+};
+
+export const useUsuarioContext = (): { sessao?: SessaoComTransacoes | null; setSessao?: (s: SessaoComTransacoes | null) => void; configuracoes: { chave: string; valor: string }[] } => {
+  const ctx = useSession();
+  if (!ctx) throw new Error('useUsuarioContext must be used within SessionProvider');
+  return {
+    ...ctx,
+    configuracoes: [
+      { chave: 'time_zone', valor: 'America/Sao_Paulo (UTC-03:00)' },
+    ],
+  };
 };

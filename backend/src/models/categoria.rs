@@ -1,7 +1,7 @@
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
 use ulid::Ulid;
-use chrono::{NaiveDateTime};
+use chrono::{DateTime, Utc};
 use crate::models::Usuario;
 use crate::schema::categorias;
 
@@ -16,8 +16,8 @@ pub struct Categoria {
     pub tipo: String,
     pub icone: Option<String>,
     pub cor: Option<String>,
-    pub criado_em: NaiveDateTime,
-    pub atualizado_em: NaiveDateTime,
+    pub criado_em: DateTime<Utc>,
+    pub atualizado_em: DateTime<Utc>,
 }
 
 #[derive(Debug, Insertable)]
@@ -29,13 +29,13 @@ pub struct NewCategoria {
     pub tipo: String,
     pub icone: Option<String>,
     pub cor: Option<String>,
-    pub criado_em: NaiveDateTime,
-    pub atualizado_em: NaiveDateTime,
+    pub criado_em: DateTime<Utc>,
+    pub atualizado_em: DateTime<Utc>,
 }
 
 impl NewCategoria {
     pub fn new(nome: String, tipo: String) -> Self {
-        let now = chrono::Utc::now().naive_utc();
+        let now = chrono::Utc::now();
         NewCategoria {
             id: Ulid::new().to_string(),
             id_usuario: None,

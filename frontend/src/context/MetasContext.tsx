@@ -106,12 +106,13 @@ export const MetasProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
     // PRIMEIRA ETAPA: Filtrar por período (datas)
     const transacoesNoPeriodo = metasETransacoes.transacoes.filter(t => {
-      // Usar timestamps para evitar problemas de timezone
-      const dataTransacao = new Date(t.data).getTime();
-      const dataInicio = new Date(meta.data_inicio!).getTime();
-      const dataFim = meta.data_fim ? new Date(meta.data_fim).getTime() : null;
+      // Como backend armazena em UTC e frontend recebe UTC, 
+      // fazer comparação direta com strings ISO é seguro
+      const dataTransacao = t.data;
+      const dataInicio = meta.data_inicio;
+      const dataFim = meta.data_fim;
 
-      // Verifica se está dentro do período usando timestamps
+      // Verifica se está dentro do período usando strings ISO (UTC)
       if (dataTransacao < dataInicio) return false;
       if (dataFim && dataTransacao > dataFim) return false;
 
