@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import useFormReducer from '@/lib/useFormReducer';
 import { Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button, Box, Stack, CircularProgress, Typography, IconButton, FormControl, InputLabel, Select, MenuItem } from "@mui/material";
-import axios from '@/utils/axiosConfig';
+import axios from 'axios';
 import ClearIcon from "@mui/icons-material/Clear";
 import { extractErrorMessage } from '@/lib/errorUtils';
 

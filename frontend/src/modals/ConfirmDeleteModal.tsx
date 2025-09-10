@@ -1,7 +1,7 @@
 import React from 'react';
 import useFormReducer from '@/lib/useFormReducer';
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Typography, Box } from "@mui/material";
-import axios from '@/utils/axiosConfig';
+import axios from 'axios';
 import { extractErrorMessage } from '@/lib/errorUtils';
 import { useMetasContext } from '@/context/MetasContext';
 import { Transacao } from '@/interfaces/transacao';

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo } from 'react';
 import useFormReducer from '@/lib/useFormReducer';
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, MenuItem, Typography, Stack } from '@mui/material';
-import axios from '@/utils/axiosConfig';
+import axios from 'axios';
 import type { Categoria } from '@/interfaces/Categoria';
 
 type Props = {

@@ -1,6 +1,6 @@
 'use client'
 import React, { createContext, useContext, useState, useEffect, ReactNode, use } from 'react';
-import axios from '@/utils/axiosConfig';
+import axios from 'axios';
 import { isAxiosError } from 'axios';
 import { SessaoComTransacoes } from '@/interfaces/SessaoComTransacoes';
 import { usePathname } from 'next/navigation';

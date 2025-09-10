@@ -1,12 +1,12 @@
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, Box, MenuItem, CircularProgress, Alert } from "@mui/material";
 import { useEffect } from "react";
-import axios from "@/utils/axiosConfig";
+import axios from "axios";
 import useFormReducer from "@/lib/useFormReducer";
 import { Goal } from "@/interfaces/goal";
 import { useMetasContext } from "@/context/MetasContext";
 import { useUsuarioContext } from "@/context/SessionContext";
-import { formatDateToUtc, getCurrentDateTime, parseUtcToDate, timeZones, getUserTimezone, convertToUtc } from "@/utils/dateUtils";
-import { time } from "console";
+import {  getCurrentDateTime, parseUtcToDate, timeZones, getUserTimezone, convertToUtc } from "@/utils/dateUtils";
+
 
 type GoalModalProps = {
   open: boolean;
