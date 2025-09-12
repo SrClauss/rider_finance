@@ -106,7 +106,7 @@ export default function LoggedLayout({ children }: LoggedLayoutProps) {
           </Box>
         </Toolbar>
       </AppBar>
-      <Box sx={{ my: 0.5 }}>
+      <Box sx={{ mb: 10 }}>
         {children}
         <SessionFloatingPanel />
       </Box>
@@ -128,7 +128,7 @@ export default function LoggedLayout({ children }: LoggedLayoutProps) {
               icon={tab.icon}
               sx={{
                 minWidth: "auto",
-                mt: 5,
+
                 padding: "6px 8px",
                 "& .MuiBottomNavigationAction-label": {
                   fontSize: "0.5rem",
