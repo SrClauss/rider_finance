@@ -9,7 +9,7 @@ export interface SummaryMonthlyCardProps {
   ganhos_mes: number | null;
   gastos_mes: number | null;
   corridas_mes: number | null;
-  horas_mes: number | null;
+  km_mes: number | null;
   lucro_mes: number | null;
 }
 
@@ -17,7 +17,7 @@ export default function SummaryMonthlyCard({
   ganhos_mes,
   gastos_mes,
   corridas_mes,
-  horas_mes,
+  km_mes,
   lucro_mes,
 }: SummaryMonthlyCardProps): JSX.Element {
   const { configuracoes } = useUsuarioContext();
@@ -121,9 +121,13 @@ export default function SummaryMonthlyCard({
           icon={<SpeedRounded sx={{ color: "info.main", fontWeight: "bold" }} />}
         />
         <InfoCard
-          title="Horas"
-          value={horas_mes ? horas_mes : "-"}
-          icon={<WatchLater sx={{ color: "warning.main", fontWeight: "bold" }} />}
+          title="km"
+          value={
+            km_mes != null
+              ? (km_mes >= 100 ? Math.round(km_mes).toLocaleString("pt-BR") : km_mes.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }))  
+              : "-"
+          }
+          icon={<DirectionsCarRounded sx={{ color: "warning.main", fontWeight: "bold" }} />}
         />
       </Box>
       <Divider sx={{ marginY: 1, bgcolor: "white" }} />

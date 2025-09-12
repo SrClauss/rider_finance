@@ -15,12 +15,12 @@ export default function SummarySwiper({ data }: { data: DashboardResponse }) {
           ganhos_hoje={data.ganhos_hoje}
           gastos_hoje={data.gastos_hoje}
           corridas_hoje={data.corridas_hoje}
-          horas_hoje={data.horas_hoje}
+          km_hoje={data.km_hoje ?? null}
           lucro_hoje={data.lucro_hoje}
           ganhos_ontem={data.ganhos_ontem}
           gastos_ontem={data.gastos_ontem}
           corridas_ontem={data.corridas_ontem}
-          horas_ontem={data.horas_ontem}
+          km_ontem={data.km_ontem ?? null}
         />
       </SwiperSlide>
       <SwiperSlide>
@@ -28,7 +28,7 @@ export default function SummarySwiper({ data }: { data: DashboardResponse }) {
           ganhos_semana={data.ganhos_semana}
           gastos_semana={data.gastos_semana}
           corridas_semana={data.corridas_semana}
-          horas_semana={data.horas_semana}
+          km_semana={data.km_semana ?? null}
           lucro_semana={data.lucro_semana}
         />
       </SwiperSlide>
@@ -38,7 +38,7 @@ export default function SummarySwiper({ data }: { data: DashboardResponse }) {
           ganhos_mes={data.ganhos_mes}
           gastos_mes={data.gastos_mes}
           corridas_mes={data.corridas_mes}
-          horas_mes={data.horas_mes}
+          km_mes={data.km_mes ?? null}
           lucro_mes={data.lucro_mes}
         />
       </SwiperSlide>
@@ -47,11 +47,11 @@ export default function SummarySwiper({ data }: { data: DashboardResponse }) {
           ganhos_7dias={data.ganhos_7dias}
           gastos_7dias={data.gastos_7dias}
           corridas_7dias={data.corridas_7dias}
-          horas_7dias={data.horas_7dias}
+          km_7dias={data.km_7dias ?? []}
           ganhos_semana_passada={data.ganhos_semana_passada}
           gastos_semana_passada={data.gastos_semana_passada}
           corridas_semana_passada={data.corridas_semana_passada}
-          horas_semana_passada={data.horas_semana_passada}
+          km_semana_passada={data.km_semana_passada ?? null}
         />
       </SwiperSlide>
       <SwiperSlide>
@@ -59,11 +59,11 @@ export default function SummarySwiper({ data }: { data: DashboardResponse }) {
           ganhos_30dias={data.ganhos_30dias}
           gastos_30dias={data.gastos_30dias}
           corridas_30dias={data.corridas_30dias}
-          horas_30dias={data.horas_30dias}
+          km_30dias={data.km_30dias ?? []}
           ganhos_mes_passado={data.ganhos_mes_passado}
           gastos_mes_passado={data.gastos_mes_passado}
           corridas_mes_passado={data.corridas_mes_passado}
-          horas_mes_passado={data.horas_mes_passado}
+          km_mes_passado={data.km_mes_passado ?? null}
         />
       </SwiperSlide>
     </Swiper>

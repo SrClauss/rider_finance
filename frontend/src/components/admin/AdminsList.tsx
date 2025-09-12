@@ -1,6 +1,6 @@
 "use client";
 import React, { useCallback, useEffect, useState } from 'react';
-import { Box, TextField, IconButton, Table, TableHead, TableRow, TableCell, TableBody, Button, CircularProgress, Pagination } from '@mui/material';
+import { Box, TextField, IconButton, Table, TableHead, TableRow, TableCell, TableBody, Button, CircularProgress, Pagination, useTheme, useMediaQuery } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import Toast from '@/components/ui/Toast';
 
@@ -67,6 +67,9 @@ export default function AdminsList() {
 
   useEffect(() => { load(); }, [load]);
 
+  const theme = useTheme();
+  const isSmall = useMediaQuery(theme.breakpoints.down('sm'));
+
   const doDelete = async (id: string, username?: string) => {
     if (username === 'admin') { setToast({ open: true, severity: 'error', message: 'Remoção do super-admin não é permitida.' }); return; }
     if (!confirm('Deseja realmente excluir este administrador?')) return;
@@ -87,12 +90,23 @@ export default function AdminsList() {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
-        <TextField label="Pesquisar" value={q} onChange={(e) => setQ(e.target.value)} />
-        <IconButton onClick={() => { setPage(1); load(); }}><SearchIcon /></IconButton>
-      </Box>
+      {/* header responsivo */}
+      {isSmall ? (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 2 }}>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <TextField label="Pesquisar" value={q} onChange={(e) => setQ(e.target.value)} sx={{ flex: 1 }} size="small" />
+            <IconButton onClick={() => { setPage(1); load(); }} aria-label="buscar"><SearchIcon /></IconButton>
+          </Box>
+        </Box>
+      ) : (
+        <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+          <TextField label="Pesquisar" value={q} onChange={(e) => setQ(e.target.value)} />
+          <IconButton onClick={() => { setPage(1); load(); }}><SearchIcon /></IconButton>
+        </Box>
+      )}
       {loading ? <CircularProgress /> : (
-        <Table>
+        <Box sx={{ width: '100%', overflowX: 'auto' }}>
+          <Table sx={{ minWidth: 400 }}>
            <TableHead>
              <TableRow>
                <TableCell>Usuário</TableCell>
@@ -106,13 +120,14 @@ export default function AdminsList() {
                  
                 <TableCell>
                   <Box sx={{ display: 'flex', gap: 1 }}>
-                    <Button color="error" onClick={() => doDelete(a.id, a.usuario)}>Excluir</Button>
+                    <Button color="error" onClick={() => doDelete(a.id, a.usuario)} size={isSmall ? 'small' : 'medium'}>Excluir</Button>
                   </Box>
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
-        </Table>
+          </Table>
+        </Box>
       )}
       <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
         <Pagination count={Math.max(1, Math.ceil((data.total || 0) / (data.per_page || 20)))} page={page} onChange={(_,v) => setPage(v)} />

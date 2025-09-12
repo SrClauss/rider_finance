@@ -128,6 +128,7 @@ export default function LoggedLayout({ children }: LoggedLayoutProps) {
               icon={tab.icon}
               sx={{
                 minWidth: "auto",
+                mt: 5,
                 padding: "6px 8px",
                 "& .MuiBottomNavigationAction-label": {
                   fontSize: "0.5rem",

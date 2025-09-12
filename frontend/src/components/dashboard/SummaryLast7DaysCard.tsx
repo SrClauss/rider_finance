@@ -9,22 +9,22 @@ export interface SummaryLast7DaysCardProps {
   ganhos_7dias: number[];
   gastos_7dias: number[];
   corridas_7dias: number[];
-  horas_7dias: number[];
+  km_7dias: number[];
   ganhos_semana_passada: number | null;
   gastos_semana_passada: number | null;
   corridas_semana_passada: number | null;
-  horas_semana_passada: number | null;
+  km_semana_passada: number | null;
 }
 
 export default function SummaryLast7DaysCard({
   ganhos_7dias,
   gastos_7dias,
   corridas_7dias,
-  horas_7dias,
+  km_7dias,
   ganhos_semana_passada,
   gastos_semana_passada,
   corridas_semana_passada,
-  horas_semana_passada,
+  km_semana_passada,
 }: SummaryLast7DaysCardProps): JSX.Element {
   const { configuracoes } = useUsuarioContext();
   const userTimezone = getUserTimezone(configuracoes);
@@ -32,7 +32,7 @@ export default function SummaryLast7DaysCard({
   const totalGanhos = ganhos_7dias.reduce((sum, val) => sum + val, 0);
   const totalGastos = gastos_7dias.reduce((sum, val) => sum + val, 0);
   const totalCorridas = corridas_7dias.reduce((sum, val) => sum + val, 0);
-  const totalHoras = horas_7dias.reduce((sum, val) => sum + val, 0);
+  const totalKm = km_7dias.reduce((sum, val) => sum + val, 0);
   const totalLucro = totalGanhos - totalGastos;
 
   const calculatePercentage = (current: number, previous: number | null) => {
@@ -54,7 +54,7 @@ export default function SummaryLast7DaysCard({
   const ganhosPercent = calculatePercentage(totalGanhos, ganhos_semana_passada);
   const gastosPercent = calculatePercentage(totalGastos, gastos_semana_passada);
   const corridasPercent = calculatePercentage(totalCorridas, corridas_semana_passada);
-  const horasPercent = calculatePercentage(totalHoras, horas_semana_passada);
+  const horasPercent = calculatePercentage(totalKm, km_semana_passada);
 
   return (
     <Card
@@ -154,9 +154,13 @@ export default function SummaryLast7DaysCard({
           icon={<SpeedRounded sx={{ color: "info.main", fontWeight: "bold" }} />}
         />
         <InfoCard
-          title="Horas"
-          value={totalHoras.toString()}
-          icon={<WatchLater sx={{ color: "warning.main", fontWeight: "bold" }} />}
+          title="km"
+          value={
+            totalKm >= 100
+              ? Math.round(totalKm).toLocaleString("pt-BR")  
+              : (totalKm).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })  
+          }
+          icon={<DirectionsCarRounded sx={{ color: "warning.main", fontWeight: "bold" }} />}
         />
       </Box>
       <Divider sx={{ marginY: 1, bgcolor: "white" }} />
@@ -174,7 +178,7 @@ export default function SummaryLast7DaysCard({
         <Typography variant="caption" color={getColor(ganhosPercent)}>{formatPercentage(ganhosPercent)}</Typography>
         <Typography variant="caption" color={getColor(gastosPercent)}>{formatPercentage(gastosPercent)}</Typography>
         <Typography variant="caption" color={getColor(corridasPercent)}>{formatPercentage(corridasPercent)}</Typography>
-        <Typography variant="caption" color={getColor(horasPercent)}>{formatPercentage(horasPercent)}</Typography>
+  <Typography variant="caption" color={getColor(horasPercent)}>{formatPercentage(horasPercent)}</Typography>
       </Box>
     </Card>
   );

@@ -202,17 +202,35 @@ export default function UserList() {
 
   return (
     <Box>
-    <Box sx={{ display: 'flex', gap: 1, mb: 2, alignItems: 'center' }}>
-  <TextField label="Pesquisar por nome" value={q} onChange={(e) => setField('q', e.target.value)} />
-  <TextField label="CPF" value={cpf} onChange={(e) => setField('cpf', e.target.value)} />
-  <IconButton color="primary" onClick={() => { setField('page', 1); load(); }}><SearchIcon /></IconButton>
-  <Box sx={{ flex: 1 }} />
-  <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-    <TextField label="Valor assinatura (R$)" value={assinaturaValor} onChange={(e) => setAssinaturaValor(e.target.value)} size="small" sx={{ width: 160 }} />
-    <Button onClick={saveAssinatura} variant="outlined" disabled={assinaturaLoading}>{assinaturaLoading ? 'Salvando...' : 'Salvar assinatura'}</Button>
-  </Box>
-  <Button variant="contained" onClick={openCreateModal}>Criar usuário seed</Button>
-    </Box>
+      {/* Header: responsivo - empilha em telas pequenas */}
+      {isSmall ? (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 2 }}>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <TextField label="Pesquisar por nome" value={q} onChange={(e) => setField('q', e.target.value)} sx={{ flex: 1 }} size="small" />
+            <IconButton color="primary" onClick={() => { setField('page', 1); load(); }} aria-label="buscar"><SearchIcon /></IconButton>
+          </Box>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <TextField label="CPF" value={cpf} onChange={(e) => setField('cpf', e.target.value)} sx={{ flex: 1 }} size="small" />
+            <Button variant="contained" onClick={openCreateModal} size="small">Criar</Button>
+          </Box>
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+            <TextField label="Valor assinatura (R$)" value={assinaturaValor} onChange={(e) => setAssinaturaValor(e.target.value)} size="small" sx={{ flex: 1 }} />
+            <Button onClick={saveAssinatura} variant="outlined" disabled={assinaturaLoading} size="small">{assinaturaLoading ? 'Salvando...' : 'Salvar'}</Button>
+          </Box>
+        </Box>
+      ) : (
+        <Box sx={{ display: 'flex', gap: 1, mb: 2, alignItems: 'center' }}>
+          <TextField label="Pesquisar por nome" value={q} onChange={(e) => setField('q', e.target.value)} />
+          <TextField label="CPF" value={cpf} onChange={(e) => setField('cpf', e.target.value)} />
+          <IconButton color="primary" onClick={() => { setField('page', 1); load(); }}><SearchIcon /></IconButton>
+          <Box sx={{ flex: 1 }} />
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+            <TextField label="Valor assinatura (R$)" value={assinaturaValor} onChange={(e) => setAssinaturaValor(e.target.value)} size="small" sx={{ width: 160 }} />
+            <Button onClick={saveAssinatura} variant="outlined" disabled={assinaturaLoading}>{assinaturaLoading ? 'Salvando...' : 'Salvar assinatura'}</Button>
+          </Box>
+          <Button variant="contained" onClick={openCreateModal}>Criar usuário seed</Button>
+        </Box>
+      )}
 
       {loading ? <CircularProgress /> : (
         isSmall ? (
@@ -247,7 +265,8 @@ export default function UserList() {
         ) : (
           // Table view for larger screens
           <>
-            <Table>
+            <Box sx={{ width: '100%', overflowX: 'auto' }}>
+              <Table sx={{ minWidth: 700 }}>
               <TableHead>
                 <TableRow>
                   <TableCell>Nome</TableCell>
@@ -275,7 +294,8 @@ export default function UserList() {
                   </TableRow>
                 ))}
               </TableBody>
-            </Table>
+              </Table>
+            </Box>
           </>
         )
       )}

@@ -65,9 +65,7 @@ export default function Page() {
 
       <SummarySwiper data={data!} /> {/* Substituir SummaryTodayCard por SummarySwiper */}
 
-      <Box sx={{ mb: 1, mt: 4 }}>
-        <SectionTitle>Indicadores de Saúde</SectionTitle>
-      </Box>
+     
       <QuickHealthIndicators data={data!} />
 
       <TopSourcesSwiper topSources={data?.top_sources || null} />
