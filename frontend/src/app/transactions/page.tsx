@@ -14,7 +14,7 @@ import { useUsuarioContext } from "@/context/UsuarioContext";
 import ConfirmDeleteModal from "@/modals/ConfirmDeleteModal";
 import type { Transaction } from "@/interfaces/Transaction";
 import axios from "axios";
-import dayjs from "dayjs";
+// dayjs removed (not used in this module)
 import { convertToUtc, getUserTimezone } from "@/utils/dateUtils";
 
 
@@ -102,9 +102,9 @@ function TransactionsPageInner() {
   // Carrega categorias ao entrar na página, se ainda não estiverem carregadas
   useEffect(() => {
     if (!categorias || categorias.length === 0) {
-      carregarCategorias().then(setCategorias).catch(() => {});
+      (async () => { const cats = await carregarCategorias().catch(() => []); setCategorias(cats); })();
     }
-  }, [categorias, setCategorias]);
+  }, [categorias, setCategorias, carregarCategorias]);
 
   const fetchTransacoes = useCallback(async (overridePage?: number) => {
     setLoading(true);
@@ -133,7 +133,7 @@ function TransactionsPageInner() {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, filtros.idCategoria, filtros.descricao, filtros.tipo, filtros.dataInicio, filtros.dataFim]);
+  }, [page, pageSize, filtros.idCategoria, filtros.descricao, filtros.tipo, filtros.dataInicio, filtros.dataFim, userTimezone]);
 
   useEffect(() => {
     fetchTransacoes();

@@ -102,6 +102,10 @@ async fn main() {
             "/api/configuracao/{id}",
             put(backend::services::configuracao::update_configuracao_handler)
         )
+        .route(
+            "/api/configuracao/valor_assinatura",
+            patch(backend::services::configuracao::update_valor_assinatura_handler)
+        )
         .route("/api/checkout-info", get(checkout_info_handler))
         .route("/api/usuario/{id}", get(usuario_completo_handler))
         .route("/api/webhook/asaas", post(backend::services::webhook::receber_webhook))

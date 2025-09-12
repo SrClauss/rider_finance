@@ -13,7 +13,6 @@ import {
   Box,
   Container,
   IconButton,
-  Tooltip,
   useMediaQuery,
 } from "@mui/material";
 import DashboardIcon from "@mui/icons-material/Dashboard";
@@ -22,7 +21,6 @@ import GpsFixedIcon from "@mui/icons-material/GpsFixed";
 import AssessmentIcon from "@mui/icons-material/Assessment";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import LogoutIcon from "@mui/icons-material/Logout";
-import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import GpsIcon from "@/components/icons/GPSIcon";
 
 // drawerWidth removed as it wasn't used
@@ -130,6 +128,7 @@ export default function LoggedLayout({ children }: LoggedLayoutProps) {
               icon={tab.icon}
               sx={{
                 minWidth: "auto",
+                mt: 5,
                 padding: "6px 8px",
                 "& .MuiBottomNavigationAction-label": {
                   fontSize: "0.5rem",

@@ -63,9 +63,8 @@ export function parseUtcToDate(utcString: string, timezone: TimeZone): Date {
 }
 
 
-export function getCurrentDateTime(timezone: TimeZone): Date {
-  // new Date() já retorna a data/hora no horário local do navegador
-  // Não precisamos fazer conversões adicionais
+export function getCurrentDateTime(): Date {
+  // Retorna a data/hora atual do navegador. Não usa timezone.
   return new Date();
 }
 export function getCurrentUtcDateTime(): string {
@@ -91,7 +90,6 @@ export function toBackendLocalString(date: Date, timezone: TimeZone): string {
  * @returns String formatada no padrão brasileiro
  */
 export function formatUtcToLocalString(utcDateString: string, timezone: TimeZone): string {
-  const utcDate = new Date(utcDateString);
   const localDate = parseUtcToDate(utcDateString, timezone);
   
   return localDate.toLocaleString('pt-BR', {

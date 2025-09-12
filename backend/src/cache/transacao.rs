@@ -142,6 +142,7 @@ mod tests {
             id_categoria: "cat1".to_string(),
             valor,
             eventos: 1,
+            km: Some(0.0),
             descricao: Some("Teste".to_string()),
             tipo: "entrada".to_string(),
             data: Utc::now(),

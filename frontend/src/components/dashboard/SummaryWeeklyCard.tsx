@@ -2,14 +2,14 @@ import { DirectionsCarRounded, ShowChart, SpeedRounded, WatchLater } from "@mui/
 import { Box, Card, Divider, Typography } from "@mui/material";
 import InfoCard from "./InfoCard";
 import { JSX } from "react";
-import { getCurrentDateTime, getUserTimezone, formatUtcToLocalString, formatUtcToLocalDateString } from "@/utils/dateUtils";
+import { getCurrentDateTime, getUserTimezone, formatUtcToLocalDateString } from "@/utils/dateUtils";
 import { useUsuarioContext } from "@/context/SessionContext";
 
 export interface SummaryWeeklyCardProps {
   ganhos_semana: number | null;
   gastos_semana: number | null;
   corridas_semana: number | null;
-  horas_semana: number | null;
+  km_semana: number | null;
   lucro_semana: number | null;
 }
 
@@ -17,7 +17,7 @@ export default function SummaryWeeklyCard({
   ganhos_semana,
   gastos_semana,
   corridas_semana,
-  horas_semana,
+  km_semana,
   lucro_semana,
 }: SummaryWeeklyCardProps): JSX.Element {
   const { configuracoes } = useUsuarioContext();
@@ -66,7 +66,7 @@ export default function SummaryWeeklyCard({
           >
             <Typography variant="body2">Resumo (Semana)</Typography>
             <Typography variant="caption">
-              {formatUtcToLocalDateString(getCurrentDateTime(userTimezone).toISOString(), userTimezone)}
+              {formatUtcToLocalDateString(getCurrentDateTime().toISOString(), userTimezone)}
             </Typography>
           </Box>
         </Box>
@@ -121,9 +121,13 @@ export default function SummaryWeeklyCard({
           icon={<SpeedRounded sx={{ color: "info.main", fontWeight: "bold" }} />}
         />
         <InfoCard
-          title="Horas"
-          value={horas_semana ? horas_semana : "-"}
-          icon={<WatchLater sx={{ color: "warning.main", fontWeight: "bold" }} />}
+          title="km"
+          value={
+            km_semana != null
+              ? (km_semana >= 100 ? Math.round(km_semana).toLocaleString("pt-BR") : km_semana.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }))  
+              : "-"
+          }
+          icon={<DirectionsCarRounded sx={{ color: "warning.main", fontWeight: "bold" }} />}
         />
       </Box>
       <Divider sx={{ marginY: 1, bgcolor: "white" }} />

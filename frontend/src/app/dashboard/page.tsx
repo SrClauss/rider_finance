@@ -1,5 +1,5 @@
 "use client";
-import React, { use, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { DashboardResponse } from "@/interfaces/DashboardResponse";
 import LoggedLayout from "@/layouts/LoggedLayout";
@@ -16,7 +16,7 @@ import GoalsList from "@/components/dashboard/GoalsList";
 import { Goal } from '@/interfaces/goal';
 import Dashboard30Days from '@/components/charts/Dashboard30Days';
 import CorridasHoras from '@/components/charts/CorridasHoras';
-import { useUsuarioContext } from "@/context/UsuarioContext";
+// useUsuarioContext não é necessário aqui
 
 
 export default function Page() {
@@ -26,7 +26,7 @@ export default function Page() {
   const [error, setError] = useState<string | null>(null);
   const [hasMetas, setHasMetas] = useState<boolean | null>(null);
   const [metas, setMetas] = useState<Goal[]>([]);
-  const usuarioContext = useUsuarioContext();
+  // usuário context não necessário nesta página no momento
 
   useEffect(() => {
     axios.get('/api/dashboard/stats', { withCredentials: true })
@@ -56,6 +56,7 @@ export default function Page() {
 
   return (
     <LoggedLayout>
+
       {/* título 'Resumo' com divider à direita, conforme modificações do usuário */}
       <Box sx={{ mb: 1, mt: 4 }}>
         <SectionTitle>Resumo</SectionTitle>
@@ -64,9 +65,7 @@ export default function Page() {
 
       <SummarySwiper data={data!} /> {/* Substituir SummaryTodayCard por SummarySwiper */}
 
-      <Box sx={{ mb: 1, mt: 4 }}>
-        <SectionTitle>Indicadores de Saúde</SectionTitle>
-      </Box>
+     
       <QuickHealthIndicators data={data!} />
 
       <TopSourcesSwiper topSources={data?.top_sources || null} />

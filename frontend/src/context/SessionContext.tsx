@@ -1,10 +1,10 @@
 'use client'
-import React, { createContext, useContext, useState, useEffect, ReactNode, use } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import axios from 'axios';
 import { isAxiosError } from 'axios';
 import { SessaoComTransacoes } from '@/interfaces/SessaoComTransacoes';
 import { usePathname } from 'next/navigation';
-import { getCurrentDateTime, timeZones, getCurrentUtcDateTime, convertToUtc } from '@/utils/dateUtils';
+import { getCurrentUtcDateTime } from '@/utils/dateUtils';
 
 export const SessionContext = createContext<{
   sessao?: SessaoComTransacoes | null;

@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import Toast from '@/components/ui/Toast';
 import axios from "axios";
-import { toBackendLocalString, getUserTimezone, convertToUtc } from '@/utils/dateUtils';
+import { getUserTimezone, convertToUtc } from '@/utils/dateUtils';
 import { Box, Button, Card, CardContent, MenuItem, TextField, Typography, Stack } from "@mui/material";
 import LoggedLayout from "@/layouts/LoggedLayout";
 import { RelatorioTransacoesRequest, TransacaoFiltro } from "@/interfaces/RelatorioTransacoesRequest";
@@ -27,9 +27,11 @@ export default function RelatoriosPage() {
 
   useEffect(() => {
     if (!categorias || categorias.length === 0) {
-      carregarCategorias().then(setCategorias);
+      // carregarCategorias é uma função externa que retorna Promise<Categoria[]>
+      // inclui-la nas deps evita o warning de exhaustive-deps
+      (async () => { const cats = await carregarCategorias(); setCategorias(cats); })();
     }
-  }, [categorias?.length, setCategorias]);
+  }, [categorias, setCategorias]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFiltros({ ...filtros, [e.target.name]: e.target.value });

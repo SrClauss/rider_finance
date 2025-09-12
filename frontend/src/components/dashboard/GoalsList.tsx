@@ -8,9 +8,8 @@ import 'swiper/css/pagination';
 import { Goal } from '@/interfaces/goal';
 import { useMetasContext } from '@/context/MetasContext';
 import { GoalProgress } from '../goals/GoalProgress';
-import { useUsuarioContext } from '@/context/UsuarioContext';
 import { useUsuarioContext as useUsuarioContextSession } from '@/context/SessionContext';
-import { formatUtcToLocalString, getUserTimezone, parseUtcToDate } from '@/utils/dateUtils';
+import { getUserTimezone, parseUtcToDate } from '@/utils/dateUtils';
 
 interface Props {
   metas?: Goal[];

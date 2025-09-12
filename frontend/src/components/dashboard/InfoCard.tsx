@@ -40,12 +40,18 @@ export default function InfoCard({
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
+          maxWidth: 100,
         }}
       >
-        <Typography variant="caption" marginBottom={1} color="text.secondary">
+        <Typography
+          variant="caption"
+          marginBottom={1}
+          color="text.secondary"
+          sx={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontSize: '0.7rem' }}
+        >
           {title}
         </Typography>
-        <Typography variant="caption">{value}</Typography>
+        <Typography variant="caption" sx={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontSize: '0.9rem' }}>{value}</Typography>
       </Box>
     </Box>
   );

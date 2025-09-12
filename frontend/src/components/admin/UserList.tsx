@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useCallback, useState } from "react";
+import { useGlobalConfig } from '@/context/GlobalConfigContext';
 import useFormReducer from '@/lib/useFormReducer';
 import { UsuarioListItem } from "@/interfaces/Usuario";
 import { Box, TextField, IconButton, Table, TableHead, TableRow, TableCell, TableBody, Button, CircularProgress, Pagination, Chip, Accordion, AccordionSummary, AccordionDetails, Typography, useTheme, useMediaQuery, Dialog, DialogTitle, DialogContent, DialogActions } from "@mui/material";
@@ -17,6 +18,10 @@ export default function UserList() {
   const page = Number(state.page ?? 1);
   const loading = Boolean(state.loading);
   const [data, setData] = useState<{ items: UsuarioListItem[]; total: number; page: number; per_page: number }>({ items: [] as UsuarioListItem[], total: 0, page: 1, per_page: 20 });
+  const { valor: globalValor, loading: globalLoading, updateValor, setValor } = useGlobalConfig();
+  // Estado para gestão do valor da assinatura (global)
+  const [assinaturaValor, setAssinaturaValor] = useState<string>('');
+  const [assinaturaLoading, setAssinaturaLoading] = useState(false);
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -28,6 +33,11 @@ export default function UserList() {
   }, [page, q, cpf, setLoading]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Sincroniza valor local com o valor global provido pelo GlobalConfigContext
+  useEffect(() => {
+    setAssinaturaValor(globalValor ?? '');
+  }, [globalValor]);
   
   const doBlock = async (id: string) => {
     setLoading(true);
@@ -61,7 +71,7 @@ export default function UserList() {
   const [createMovPorDia, setCreateMovPorDia] = useState<number | ''>('');
   const [createMeses, setCreateMeses] = useState<number | ''>('');
   const [createMesesAssinatura, setCreateMesesAssinatura] = useState<number | ''>(1);
-  const [createGerarCpf, setCreateGerarCpf] = useState(false);
+  // estado de gerar CPF removido (não utilizado)
   const [createCpf, setCreateCpf] = useState('');
 
   const requestDeleteUser = (id: string, username?: string) => {
@@ -77,6 +87,19 @@ export default function UserList() {
   const openCreateModal = () => {
   setCreateNome(''); setCreateNomeCompleto(''); setCreateEmail(''); setCreateSenha(''); setCreateMovPorDia(''); setCreateMeses(''); setCreateMesesAssinatura(1);
     setCreateOpen(true);
+  };
+
+  const saveAssinatura = async () => {
+    setAssinaturaLoading(true);
+    try {
+      await updateValor(assinaturaValor);
+      setToast({ open: true, severity: 'success', message: 'Valor da assinatura atualizado' });
+    } catch (err: unknown) {
+      const msg = String(err instanceof Error ? err.message : err);
+      setToast({ open: true, severity: 'error', message: msg });
+    } finally {
+      setAssinaturaLoading(false);
+    }
   };
 
   const createSeedUser = async () => {
@@ -104,7 +127,8 @@ export default function UserList() {
         gerar_cpf: createCpf ? false : true,
       };
       const res = await fetch('/api/admin/seed-movimentacao', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), credentials: 'include' });
-      const json = await res.json().catch(() => ({} as any));
+      type SeedApiResponse = { status?: string; mensagem?: string; user?: { id?: string; nome_usuario?: string; email?: string; cpfcnpj?: string } };
+      const json = await res.json().catch(() => ({} as SeedApiResponse)) as SeedApiResponse;
       if (!res.ok || json.status !== 'ok') {
         throw new Error(json?.mensagem || 'Erro ao criar usuário');
       }
@@ -116,13 +140,13 @@ export default function UserList() {
         try {
           const ev = new CustomEvent('user:created', { detail: u });
           window.dispatchEvent(ev);
-        } catch (e) { /* ignore in non-browser contexts */ }
+    } catch { /* ignore in non-browser contexts */ }
       } else {
         setToast({ open: true, severity: 'success', message: 'Usuário seed criado com sucesso' });
       }
       setCreateOpen(false);
       await load();
-    } catch (err: unknown) {
+  } catch (err: unknown) {
       const msg = String(err instanceof Error ? err.message : err);
       setToast({ open: true, severity: 'error', message: msg });
     } finally {
@@ -156,7 +180,7 @@ export default function UserList() {
 
   // Fecha o modal de criação se outro componente disparar o evento 'user:created'
   useEffect(() => {
-    const handler = (e: Event) => {
+    const handler = () => {
       setCreateOpen(false);
       // Recarrega a lista por segurança
       load();
@@ -178,13 +202,35 @@ export default function UserList() {
 
   return (
     <Box>
-    <Box sx={{ display: 'flex', gap: 1, mb: 2, alignItems: 'center' }}>
-  <TextField label="Pesquisar por nome" value={q} onChange={(e) => setField('q', e.target.value)} />
-  <TextField label="CPF" value={cpf} onChange={(e) => setField('cpf', e.target.value)} />
-  <IconButton color="primary" onClick={() => { setField('page', 1); load(); }}><SearchIcon /></IconButton>
-  <Box sx={{ flex: 1 }} />
-  <Button variant="contained" onClick={openCreateModal}>Criar usuário seed</Button>
-    </Box>
+      {/* Header: responsivo - empilha em telas pequenas */}
+      {isSmall ? (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 2 }}>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <TextField label="Pesquisar por nome" value={q} onChange={(e) => setField('q', e.target.value)} sx={{ flex: 1 }} size="small" />
+            <IconButton color="primary" onClick={() => { setField('page', 1); load(); }} aria-label="buscar"><SearchIcon /></IconButton>
+          </Box>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <TextField label="CPF" value={cpf} onChange={(e) => setField('cpf', e.target.value)} sx={{ flex: 1 }} size="small" />
+            <Button variant="contained" onClick={openCreateModal} size="small">Criar</Button>
+          </Box>
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+            <TextField label="Valor assinatura (R$)" value={assinaturaValor} onChange={(e) => setAssinaturaValor(e.target.value)} size="small" sx={{ flex: 1 }} />
+            <Button onClick={saveAssinatura} variant="outlined" disabled={assinaturaLoading} size="small">{assinaturaLoading ? 'Salvando...' : 'Salvar'}</Button>
+          </Box>
+        </Box>
+      ) : (
+        <Box sx={{ display: 'flex', gap: 1, mb: 2, alignItems: 'center' }}>
+          <TextField label="Pesquisar por nome" value={q} onChange={(e) => setField('q', e.target.value)} />
+          <TextField label="CPF" value={cpf} onChange={(e) => setField('cpf', e.target.value)} />
+          <IconButton color="primary" onClick={() => { setField('page', 1); load(); }}><SearchIcon /></IconButton>
+          <Box sx={{ flex: 1 }} />
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+            <TextField label="Valor assinatura (R$)" value={assinaturaValor} onChange={(e) => setAssinaturaValor(e.target.value)} size="small" sx={{ width: 160 }} />
+            <Button onClick={saveAssinatura} variant="outlined" disabled={assinaturaLoading}>{assinaturaLoading ? 'Salvando...' : 'Salvar assinatura'}</Button>
+          </Box>
+          <Button variant="contained" onClick={openCreateModal}>Criar usuário seed</Button>
+        </Box>
+      )}
 
       {loading ? <CircularProgress /> : (
         isSmall ? (
@@ -219,7 +265,8 @@ export default function UserList() {
         ) : (
           // Table view for larger screens
           <>
-            <Table>
+            <Box sx={{ width: '100%', overflowX: 'auto' }}>
+              <Table sx={{ minWidth: 700 }}>
               <TableHead>
                 <TableRow>
                   <TableCell>Nome</TableCell>
@@ -247,7 +294,8 @@ export default function UserList() {
                   </TableRow>
                 ))}
               </TableBody>
-            </Table>
+              </Table>
+            </Box>
           </>
         )
       )}
@@ -322,7 +370,7 @@ export default function UserList() {
               } else {
                 setToast({ open: true, severity: 'success', message: 'CPF válido' });
               }
-            } catch (e) { setToast({ open: true, severity: 'error', message: 'Erro ao validar CPF' }); }
+            } catch { setToast({ open: true, severity: 'error', message: 'Erro ao validar CPF' }); }
           }}>Validar CPF</Button>
         </Box>
         </Box>

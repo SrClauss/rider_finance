@@ -9,22 +9,22 @@ export interface SummaryLast30DaysCardProps {
   ganhos_30dias: number[];
   gastos_30dias: number[];
   corridas_30dias: number[];
-  horas_30dias: number[];
+  km_30dias: number[];
   ganhos_mes_passado: number | null;
   gastos_mes_passado: number | null;
   corridas_mes_passado: number | null;
-  horas_mes_passado: number | null;
+  km_mes_passado: number | null;
 }
 
 export default function SummaryLast30DaysCard({
   ganhos_30dias,
   gastos_30dias,
   corridas_30dias,
-  horas_30dias,
+  km_30dias,
   ganhos_mes_passado,
   gastos_mes_passado,
   corridas_mes_passado,
-  horas_mes_passado,
+  km_mes_passado,
 }: SummaryLast30DaysCardProps): JSX.Element {
   const { configuracoes } = useUsuarioContext();
   const userTimezone = getUserTimezone(configuracoes);
@@ -32,7 +32,7 @@ export default function SummaryLast30DaysCard({
   const totalGanhos = ganhos_30dias.reduce((sum, val) => sum + val, 0);
   const totalGastos = gastos_30dias.reduce((sum, val) => sum + val, 0);
   const totalCorridas = corridas_30dias.reduce((sum, val) => sum + val, 0);
-  const totalHoras = horas_30dias.reduce((sum, val) => sum + val, 0);
+  const totalKm = km_30dias.reduce((sum, val) => sum + val, 0);
   const totalLucro = totalGanhos - totalGastos;
 
   const calculatePercentage = (current: number, previous: number | null) => {
@@ -54,7 +54,7 @@ export default function SummaryLast30DaysCard({
   const ganhosPercent = calculatePercentage(totalGanhos, ganhos_mes_passado);
   const gastosPercent = calculatePercentage(totalGastos, gastos_mes_passado);
   const corridasPercent = calculatePercentage(totalCorridas, corridas_mes_passado);
-  const horasPercent = calculatePercentage(totalHoras, horas_mes_passado);
+  const horasPercent = calculatePercentage(totalKm, km_mes_passado);
 
   return (
     <Card
@@ -99,7 +99,7 @@ export default function SummaryLast30DaysCard({
           >
             <Typography variant="body2">Resumo (30 dias)</Typography>
             <Typography variant="caption">
-              {formatUtcToLocalDateString(getCurrentDateTime(userTimezone).toISOString(), userTimezone)}
+              {formatUtcToLocalDateString(getCurrentDateTime().toISOString(), userTimezone)}
             </Typography>
           </Box>
         </Box>
@@ -154,9 +154,13 @@ export default function SummaryLast30DaysCard({
           icon={<SpeedRounded sx={{ color: "info.main", fontWeight: "bold" }} />}
         />
         <InfoCard
-          title="Horas"
-          value={totalHoras.toString()}
-          icon={<WatchLater sx={{ color: "warning.main", fontWeight: "bold" }} />}
+          title="km"
+          value={
+            totalKm >= 100
+              ? Math.round(totalKm).toLocaleString("pt-BR")  
+              : (totalKm).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })  
+          }
+          icon={<DirectionsCarRounded sx={{ color: "warning.main", fontWeight: "bold" }} />}
         />
       </Box>
       <Divider sx={{ marginY: 1, bgcolor: "white" }} />
@@ -174,7 +178,7 @@ export default function SummaryLast30DaysCard({
         <Typography variant="caption" color={getColor(ganhosPercent)}>{formatPercentage(ganhosPercent)}</Typography>
         <Typography variant="caption" color={getColor(gastosPercent)}>{formatPercentage(gastosPercent)}</Typography>
         <Typography variant="caption" color={getColor(corridasPercent)}>{formatPercentage(corridasPercent)}</Typography>
-        <Typography variant="caption" color={getColor(horasPercent)}>{formatPercentage(horasPercent)}</Typography>
+  <Typography variant="caption" color={getColor(horasPercent)}>{formatPercentage(horasPercent)}</Typography>
       </Box>
     </Card>
   );

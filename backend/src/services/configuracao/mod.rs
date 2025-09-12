@@ -2,6 +2,10 @@
 use axum::Json;
 use diesel::prelude::*;
 use serde_json::json;
+use axum_extra::extract::cookie::CookieJar;
+use jsonwebtoken::decode as decode_jwt;
+use jsonwebtoken::DecodingKey;
+use jsonwebtoken::Validation;
 use ulid::Ulid;
 use chrono::Utc;
 use crate::db::establish_connection;
@@ -200,6 +204,43 @@ pub async fn update_configuracao_handler(
         .get_result(conn)
         .map(Json)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
+}
+
+
+#[axum::debug_handler]
+pub async fn update_valor_assinatura_handler(
+    jar: CookieJar,
+    Json(payload): Json<UpdateValor>,
+) -> Result<Json<Configuracao>, (StatusCode, String)> {
+    let conn = &mut establish_connection();
+    // Atualiza a configuração global onde id_usuario IS NULL e chave == "valor_assinatura"
+    let now = Utc::now();
+    use crate::models::configuracao::ConfiguracaoChangeset;
+    let changeset = ConfiguracaoChangeset {
+        valor: payload.valor,
+        categoria: None,
+        descricao: None,
+        tipo_dado: None,
+        eh_publica: None,
+        atualizado_em: Some(now),
+    };
+    let token = jar.get("auth_token").map(|c| c.value().to_string()).unwrap_or_default();
+    let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "secret".to_string());
+    let claims = decode_jwt::<crate::services::dashboard::api::Claims>(token.as_str(), &DecodingKey::from_secret(secret.as_ref()), &Validation::default())
+        .map(|data| data.claims)
+        .unwrap_or_else(|_| crate::services::dashboard::api::Claims { sub: "".to_string(), email: "".to_string(), exp: 0 });
+
+    if claims.sub.is_empty() {
+        return Err((StatusCode::UNAUTHORIZED, "Unauthorized".to_string()));
+    }
+
+    let reserved_ulid = "01K3E3VRQ0FAXB6XMC94ZQ9GHA".to_string();
+    diesel::update(configuracoes.filter(crate::schema::configuracoes::id.eq(reserved_ulid)))
+        .set(&changeset)
+        .get_result(conn)
+        .map(Json)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
+
 }
 
 

@@ -5,7 +5,7 @@ import axios, { isAxiosError } from "axios";
 import { Categoria } from "../interfaces/Categoria";
 import { Configuracao } from "@/interfaces/Configuracao";
 import { Usuario } from "@/interfaces/Usuario";
-import { timeZones, parseUtcToDate, TimeZone, convertToUtc, getCurrentDateTime } from "@/utils/dateUtils";
+import { timeZones, parseUtcToDate, getCurrentDateTime, TimeZone } from "@/utils/dateUtils";
 
 type UsuarioContextType = {
 	categorias: Categoria[];
@@ -61,8 +61,8 @@ export const UsuarioProvider = ({ children }: { children: ReactNode }) => {
 							chave: "timezone",
 							valor: "America/Sao_Paulo (UTC-03:00)",
 							eh_publica: false,
-							criado_em: getCurrentDateTime(timeZones["UTC±00:00"]).toISOString(),
-							atualizado_em: getCurrentDateTime(timeZones["UTC±00:00"]).toISOString(),
+							criado_em: getCurrentDateTime().toISOString(),
+							atualizado_em: getCurrentDateTime().toISOString(),
 						};
 						try {
 							const res = await axios.post<Configuracao>("/api/configuracao", configuracao, { withCredentials: true });

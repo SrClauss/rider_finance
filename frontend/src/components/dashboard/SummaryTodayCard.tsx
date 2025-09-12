@@ -2,7 +2,7 @@ import { DirectionsCarRounded, ShowChart, SpeedRounded, WatchLater } from "@mui/
 import { JSX } from "react";
 import { Box, Card, Divider, Typography } from "@mui/material";
 import InfoCard from "./InfoCard";
-import { getCurrentDateTime, getUserTimezone } from "@/utils/dateUtils";
+import { getCurrentDateTime } from "@/utils/dateUtils";
 import { useUsuarioContext } from "@/context/SessionContext";
 
 // Definir e exportar a interface para as props
@@ -10,27 +10,26 @@ export interface SummaryTodayCardProps {
   ganhos_hoje: number | null;
   gastos_hoje: number | null;
   corridas_hoje: number | null;
-  horas_hoje: number | null;
+  km_hoje: number | null;
   lucro_hoje: number | null;
   ganhos_ontem: number | null;
   gastos_ontem: number | null;
   corridas_ontem: number | null;
-  horas_ontem: number | null;
+  km_ontem: number | null;
 }
 
 export default function SummaryTodayCard({
   ganhos_hoje,
   gastos_hoje,
   corridas_hoje,
-  horas_hoje,
+  km_hoje,
   lucro_hoje,
   ganhos_ontem,
   gastos_ontem,
   corridas_ontem,
-  horas_ontem,
+  km_ontem,
 }: SummaryTodayCardProps): JSX.Element {
-  const { configuracoes } = useUsuarioContext();
-  const userTimezone = getUserTimezone(configuracoes);
+  useUsuarioContext();
   
   const calculatePercentage = (current: number | null, previous: number | null) => {
     if (!previous || previous === 0) return 0;
@@ -51,7 +50,7 @@ export default function SummaryTodayCard({
   const ganhosPercent = calculatePercentage(ganhos_hoje, ganhos_ontem);
   const gastosPercent = calculatePercentage(gastos_hoje, gastos_ontem);
   const corridasPercent = calculatePercentage(corridas_hoje, corridas_ontem);
-  const horasPercent = calculatePercentage(horas_hoje, horas_ontem);
+  const kmPercent = calculatePercentage(km_hoje, km_ontem);
   return (
     <Card
       sx={{
@@ -95,7 +94,7 @@ export default function SummaryTodayCard({
           >
             <Typography variant="body2">Resumo (Hoje)</Typography>
             <Typography variant="caption">
-              {getCurrentDateTime(userTimezone).toLocaleDateString("pt-BR", {
+              {getCurrentDateTime().toLocaleDateString("pt-BR", {
                 day: "2-digit",
                 month: "2-digit",
                 year: "numeric",
@@ -155,9 +154,13 @@ export default function SummaryTodayCard({
           icon={<SpeedRounded sx={{ color: "info.main", fontWeight: "bold" }} />}
         />
         <InfoCard
-          title="Horas"
-          value={horas_hoje ? horas_hoje : "-"}
-          icon={<WatchLater sx={{ color: "warning.main", fontWeight: "bold" }} />}
+          title="km"
+          value={
+            km_hoje != null
+              ? (km_hoje >= 100 ? Math.round(km_hoje).toLocaleString("pt-BR") : km_hoje.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }))  
+              : "-"
+          }
+          icon={<DirectionsCarRounded sx={{ color: "warning.main", fontWeight: "bold" }} />}
         />
       </Box>
       <Divider sx={{ marginY: 1, bgcolor: "white" }} />
@@ -175,7 +178,7 @@ export default function SummaryTodayCard({
         <Typography variant="caption" color={getColor(ganhosPercent)}>{formatPercentage(ganhosPercent)}</Typography>
         <Typography variant="caption" color={getColor(gastosPercent)}>{formatPercentage(gastosPercent)}</Typography>
         <Typography variant="caption" color={getColor(corridasPercent)}>{formatPercentage(corridasPercent)}</Typography>
-        <Typography variant="caption" color={getColor(horasPercent)}>{formatPercentage(horasPercent)}</Typography>
+  <Typography variant="caption" color={getColor(kmPercent)}>{formatPercentage(kmPercent)}</Typography>
       </Box>
 
     </Card>

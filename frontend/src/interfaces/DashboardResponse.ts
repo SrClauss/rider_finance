@@ -53,6 +53,15 @@ export interface DashboardResponse {
   lucro_mes_array?: number[];
   corridas_mes_array?: number[];
   trend_method: string;
+  // quilometragem (km)
+  km_hoje?: number | null;
+  km_ontem?: number | null;
+  km_semana?: number | null;
+  km_semana_passada?: number | null;
+  km_mes?: number | null;
+  km_mes_passado?: number | null;
+  km_7dias?: number[];
+  km_30dias?: number[];
   platforms?: { [key: string]: { ganhos: number; corridas: number; icone?: string; cor?: string; periodo?: string } };
   top_sources?: {
     receitas: Array<{

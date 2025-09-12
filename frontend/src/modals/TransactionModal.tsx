@@ -1,4 +1,4 @@
-import React, { use, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -19,7 +19,7 @@ import { Transaction } from '@/interfaces/Transaction';
 import { useUsuarioContext } from '@/context/UsuarioContext';
 import { useMetasContext } from '@/context/MetasContext';
 import { useSession } from '@/context/SessionContext';
-import { timeZones, getCurrentDateTime, formatDateToUtc, getCurrentUtcDateTime, parseUtcToDate, convertToUtc } from '@/utils/dateUtils';
+import { timeZones, getCurrentUtcDateTime, parseUtcToDate, convertToUtc } from '@/utils/dateUtils';
 import axios from 'axios'
 import useFormReducer from '@/lib/useFormReducer';
 import { extractErrorMessage } from '@/lib/errorUtils';
@@ -42,6 +42,7 @@ interface FormState {
   id_categoria: string;
   data: string;
   eventos?: string;
+  km?: string;
   [key: string]: unknown;
 }
 
@@ -79,6 +80,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
     id_categoria: '',
     data: getLocalDateTimeString(),
     eventos: '1',
+  km: '',
   });
 
   // Carregar transação para edição quando o modal abrir ou quando a transação mudar
@@ -100,11 +102,12 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
       }
       
       setField('eventos', transaction.eventos ? String(transaction.eventos) : '1');
+  setField('km', transaction.km ? String(transaction.km) : '');
     } else if (!transaction && open) {
       reset();
     }
     return () => { mounted = false; };
-  }, [transaction, open, setField, reset]);
+  }, [transaction, open, setField, reset, timezone]);
 
   // (efeito duplicado removido)
 
@@ -143,6 +146,10 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
         eventos: Math.max(1, Number(parseInt(formState.eventos || '1', 10) || 1)),
         descricao: formState.descricao || undefined, // Usar undefined em vez de null para Option<String>
         data: dataToSend, // Sempre UTC
+        // quilometragem: enviar somente se categoria é entrada e o campo não estiver vazio
+        km: (selectedCategoria?.tipo === 'entrada' && formState.km && String(formState.km).trim() !== '')
+          ? (() => { const v = String(formState.km).replace(',', '.'); const n = parseFloat(v); return Number.isFinite(n) ? n : undefined; })()
+          : undefined,
       };
 
       let response;
@@ -304,7 +311,15 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
             <Select
               label="Categoria"
               value={formState.id_categoria}
-              onChange={(e) => setField('id_categoria', e.target.value as string)}
+              onChange={(e) => {
+                const newCatId = e.target.value as string;
+                setField('id_categoria', newCatId);
+                // Se mudar categoria e a nova categoria não for do tipo 'entrada', limpar km
+                const newCat = categorias.find((c) => c.id === newCatId) ?? null;
+                if (!newCat || newCat.tipo !== 'entrada') {
+                  setField('km', '');
+                }
+              }}
               renderValue={(val) => {
                 const cat = categorias.find((c) => c.id === val);
                 if (!cat) return <Typography color="text.secondary">Selecione uma categoria</Typography>;
@@ -374,6 +389,25 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
               },
             }}
           />
+
+          {/* Campo Quilometragem (visível apenas para categorias do tipo 'entrada') */}
+          {selectedCategoria?.tipo === 'entrada' && (
+            <TextField
+              label="Quilometragem (km)"
+              type="text"
+              fullWidth
+              variant="outlined"
+              placeholder="Ex: 12.5"
+              value={formState.km as string}
+              onChange={(e) => setField('km', e.target.value)}
+              helperText="Informe a quilometragem para corridas (use ponto ou vírgula para decimais)"
+              slotProps={{
+                input: {
+                  sx: { borderRadius: 2 },
+                },
+              }}
+            />
+          )}
         </Box>
       </DialogContent>
 

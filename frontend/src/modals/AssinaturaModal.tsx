@@ -1,5 +1,5 @@
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Typography } from '@mui/material';
-import { parseUtcToDate, getUserTimezone, timeZones } from '@/utils/dateUtils';
+import { parseUtcToDate, timeZones } from '@/utils/dateUtils';
 
 interface AssinaturaModalProps {
   open: boolean;

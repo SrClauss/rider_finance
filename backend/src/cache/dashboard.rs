@@ -42,6 +42,12 @@ pub fn apply_transaction_to_dashboard(dashboard: &mut DashboardStats, transacao:
             dashboard.corridas_ontem = Some(dashboard.corridas_ontem.unwrap_or(0) + transacao.transacao.eventos as u32);
             dashboard.corridas_semana = Some(dashboard.corridas_semana.unwrap_or(0) + transacao.transacao.eventos as u32);
             dashboard.corridas_mes = Some(dashboard.corridas_mes.unwrap_or(0) + transacao.transacao.eventos as u32);
+            // km: soma direta (transacao.transacao.km é Option<f64>)
+            let tx_km = transacao.transacao.km.unwrap_or(0.0);
+            dashboard.km_hoje = Some(dashboard.km_hoje.unwrap_or(0.0) + tx_km);
+            dashboard.km_ontem = Some(dashboard.km_ontem.unwrap_or(0.0) + tx_km);
+            dashboard.km_semana = Some(dashboard.km_semana.unwrap_or(0.0) + tx_km);
+            dashboard.km_mes = Some(dashboard.km_mes.unwrap_or(0.0) + tx_km);
         }
         "saida" => {
             // Adicionar aos gastos (valor já vem em centavos do frontend)
@@ -160,6 +166,10 @@ mod tests {
             corridas_ontem: Some(8),
             corridas_semana: Some(50),
             corridas_mes: Some(200),
+            km_hoje: Some(120.0),
+            km_ontem: Some(110.0),
+            km_semana: Some(700.0),
+            km_mes: Some(3200.0),
             ..Default::default()
         }
     }
@@ -171,6 +181,7 @@ mod tests {
             id_categoria: "cat1".to_string(),
             valor,
             eventos: 1,
+            km: Some(0.0),
             descricao: Some("Teste".to_string()),
             tipo: tipo.to_string(),
             data: Utc::now(),

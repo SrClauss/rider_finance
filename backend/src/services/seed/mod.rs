@@ -7,6 +7,16 @@ use crate::services::auth::register::{ RegisterPayload, register_user_handler };
 use crate::services::cpf;
 use axum::Json;
 
+// Calcula km proporcional ao valor em reais. Valor de entrada é passado em reais (ex: 80.0)
+// Fator por padrão = 0.6 km por real, pode ser sobrescrito pela env var KM_PER_REAL
+fn km_for_val(valor_reais: f32) -> Option<f64> {
+    if valor_reais <= 0.0 {
+        return None;
+    }
+    let per_real = std::env::var("KM_PER_REAL").ok().and_then(|s| s.parse::<f64>().ok()).unwrap_or(0.6);
+    Some((valor_reais as f64) * per_real)
+}
+
 pub fn create_fake_user() -> String {
     use crate::models::usuario::NewUsuario;
     use crate::schema::usuarios::dsl::*;
@@ -35,6 +45,13 @@ pub fn create_fake_user() -> String {
     cpfcnpj: cpf::gerar_cpf_valido(),
     };
     diesel::insert_into(usuarios).values(&new_user).execute(conn).expect("Erro ao inserir usuário");
+    // Após criar o usuário fake, garantir que as categorias essenciais existam
+    use diesel::pg::PgConnection;
+    use crate::services::categoria;
+    // Ensure default categories via shared helper
+    let conn_pg: &mut PgConnection = conn;
+    categoria::ensure_default_categories_for_user(conn_pg, &usuario_id);
+
     usuario_id
 }
 
@@ -102,10 +119,8 @@ pub async fn seed_movimentacao_robusta() {
     let _batch_sessoes: Vec<NewSessaoTrabalho> = Vec::new();
     let mut batch_transacoes: Vec<NewTransacao> = Vec::new();
 
-    // Criar 4 categorias para o usuário seed com IDs conhecidos (ULID)
+    // Criar IDs para categorias adicionais que podem ser necessárias pelo seed
     let now_ts = chrono::Utc::now();
-    let id_categoria_uber = ulid::Ulid::new().to_string();
-    let id_categoria_99 = ulid::Ulid::new().to_string();
     let id_categoria_abastecimento = ulid::Ulid::new().to_string();
     let id_categoria_alimentacao = ulid::Ulid::new().to_string();
 
@@ -116,32 +131,6 @@ pub async fn seed_movimentacao_robusta() {
         .select(cat_check_dsl::nome)
         .load::<String>(conn)
         .expect("Erro ao buscar categorias existentes");
-
-    if !existing_categories.contains(&"Corrida Uber".to_string()) {
-        batch_categorias.push(NewCategoria {
-            id: id_categoria_uber.clone(),
-            id_usuario: Some(id_user.clone()),
-            nome: "Corrida Uber".to_string(),
-            tipo: "entrada".to_string(),
-            icone: Some("icon-uber".to_string()),
-            cor: Some("#000000".to_string()),
-            criado_em: now_ts,
-            atualizado_em: now_ts,
-        });
-    }
-
-    if !existing_categories.contains(&"Corrida 99".to_string()) {
-        batch_categorias.push(NewCategoria {
-            id: id_categoria_99.clone(),
-            id_usuario: Some(id_user.clone()),
-            nome: "Corrida 99".to_string(),
-            tipo: "entrada".to_string(),
-            icone: Some("icon-99".to_string()),
-            cor: Some("#111111".to_string()),
-            criado_em: now_ts,
-            atualizado_em: now_ts,
-        });
-    }
 
     if !existing_categories.contains(&"Abastecimento".to_string()) {
         batch_categorias.push(NewCategoria { id: id_categoria_abastecimento.clone(), id_usuario: Some(id_user.clone()), nome: "Abastecimento".to_string(), tipo: "saida".to_string(), icone: Some("icon-gas-pump".to_string()), cor: Some("#FF9800".to_string()), criado_em: now_ts, atualizado_em: now_ts });
@@ -290,12 +279,14 @@ pub async fn seed_movimentacao_robusta() {
                 id_categoria_99_real.clone()
             };
             let now = chrono::Utc::now();
+            let km_val = km_for_val(valor_val);
             let new_tx = crate::models::NewTransacao {
                 id: ulid::Ulid::new().to_string(),
                 id_usuario: id_user.clone(),
                 id_categoria: categoria_id,
                 valor: (valor_val * 100.0).round() as i32,
                 eventos: 1,
+                km: km_val,
                 tipo: "entrada".to_string(),
                 descricao: Some("Seed entrada".to_string()),
                 data: inicio_val,
@@ -333,12 +324,14 @@ pub async fn seed_movimentacao_robusta() {
                 id_categoria_alimentacao_real.clone()
             };
             let now = chrono::Utc::now();
+            // Para transações de saída, não adicionar km
             let new_tx = crate::models::NewTransacao {
                 id: ulid::Ulid::new().to_string(),
                 id_usuario: id_user.clone(),
                 id_categoria: categoria_id,
                 valor: (valor_val * 100.0).round() as i32,
                 eventos: 1,
+                km: None,
                 tipo: "saida".to_string(),
                 descricao: Some("Seed saida".to_string()),
                 data: inicio_val,
@@ -410,6 +403,7 @@ pub async fn seed_movimentacao_robusta() {
                 id_categoria: tx.id_categoria.clone(),
                 valor: tx.valor,
                 eventos: tx.eventos,
+                km: tx.km,
                 descricao: tx.descricao.clone(),
                 tipo: tx.tipo.clone(),
                 data: tx.data,
@@ -636,7 +630,8 @@ pub async fn seed_movimentacao_handler(Json(req): Json<SeedRequest>) -> Json<See
             soma_entradas_val += valor_val;
             let categoria_id = if i % 2 == 0 { id_categoria_uber_real.clone() } else { id_categoria_99_real.clone() };
             let now = chrono::Utc::now();
-            let new_tx = NewTransacao { id: ulid::Ulid::new().to_string(), id_usuario: id_user.clone(), id_categoria: categoria_id, valor: (valor_val * 100.0).round() as i32, eventos: 1, tipo: "entrada".to_string(), descricao: Some("Seed entrada".to_string()), data: inicio_val, criado_em: now, atualizado_em: now };
+            let km_val = km_for_val(valor_val);
+            let new_tx = NewTransacao { id: ulid::Ulid::new().to_string(), id_usuario: id_user.clone(), id_categoria: categoria_id, valor: (valor_val * 100.0).round() as i32, eventos: 1, km: km_val, tipo: "entrada".to_string(), descricao: Some("Seed entrada".to_string()), data: inicio_val, criado_em: now, atualizado_em: now };
             batch_transacoes_day.push(new_tx);
         }
         historico_entradas.push(soma_entradas_val as f64);
@@ -657,7 +652,7 @@ pub async fn seed_movimentacao_handler(Json(req): Json<SeedRequest>) -> Json<See
                 categorias_dsl::categorias.filter(categorias_dsl::id_usuario.eq(Some(id_user.clone()))).filter(categorias_dsl::nome.eq("Alimentação")).select(categorias_dsl::id).first::<String>(conn).unwrap_or(id_categoria_alimentacao.clone())
             } else { id_categoria_alimentacao.clone() };
             let now = chrono::Utc::now();
-            let new_tx = NewTransacao { id: ulid::Ulid::new().to_string(), id_usuario: id_user.clone(), id_categoria: categoria_id, valor: (valor_val * 100.0).round() as i32, eventos: 1, tipo: "saida".to_string(), descricao: Some("Seed saida".to_string()), data: inicio_val, criado_em: now, atualizado_em: now };
+            let new_tx = NewTransacao { id: ulid::Ulid::new().to_string(), id_usuario: id_user.clone(), id_categoria: categoria_id, valor: (valor_val * 100.0).round() as i32, eventos: 1, km: None, tipo: "saida".to_string(), descricao: Some("Seed saida".to_string()), data: inicio_val, criado_em: now, atualizado_em: now };
             batch_transacoes_day.push(new_tx);
         }
         historico_saidas.push(soma_saidas_val as f64);
