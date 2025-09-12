@@ -47,7 +47,6 @@ export default function SummarySwiper({ data }: { data: DashboardResponse }) {
           ganhos_7dias={data.ganhos_7dias}
           gastos_7dias={data.gastos_7dias}
           corridas_7dias={data.corridas_7dias}
-          km_7dias={data.km_7dias}
           horas_7dias={data.horas_7dias}
           ganhos_semana_passada={data.ganhos_semana_passada}
           gastos_semana_passada={data.gastos_semana_passada}

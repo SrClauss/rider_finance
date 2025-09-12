@@ -10,7 +10,6 @@ export interface SummaryLast7DaysCardProps {
   gastos_7dias: number[];
   corridas_7dias: number[];
   horas_7dias: number[];
-  km_7dias?: number[];
   ganhos_semana_passada: number | null;
   gastos_semana_passada: number | null;
   corridas_semana_passada: number | null;
@@ -22,7 +21,6 @@ export default function SummaryLast7DaysCard({
   gastos_7dias,
   corridas_7dias,
   horas_7dias,
-  km_7dias = [],
   ganhos_semana_passada,
   gastos_semana_passada,
   corridas_semana_passada,
@@ -35,7 +33,6 @@ export default function SummaryLast7DaysCard({
   const totalGastos = gastos_7dias.reduce((sum, val) => sum + val, 0);
   const totalCorridas = corridas_7dias.reduce((sum, val) => sum + val, 0);
   const totalHoras = horas_7dias.reduce((sum, val) => sum + val, 0);
-  const totalKm = (km_7dias as number[]).reduce((sum: number, val: number) => sum + val, 0);
   const totalLucro = totalGanhos - totalGastos;
 
   const calculatePercentage = (current: number, previous: number | null) => {
@@ -156,11 +153,6 @@ export default function SummaryLast7DaysCard({
           value={totalCorridas.toString()}
           icon={<SpeedRounded sx={{ color: "info.main", fontWeight: "bold" }} />}
         />
-          <InfoCard
-            title="KM rodados"
-            value={(totalKm).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' km'}
-            icon={<DirectionsCarRounded sx={{ color: "info.main", fontWeight: "bold" }} />}
-          />
         <InfoCard
           title="Horas"
           value={totalHoras.toString()}
