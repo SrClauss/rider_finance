@@ -56,6 +56,7 @@ export default function Page() {
 
   return (
     <LoggedLayout>
+
       {/* título 'Resumo' com divider à direita, conforme modificações do usuário */}
       <Box sx={{ mb: 1, mt: 4 }}>
         <SectionTitle>Resumo</SectionTitle>

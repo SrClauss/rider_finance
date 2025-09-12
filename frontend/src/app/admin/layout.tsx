@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import { ThemeProvider } from "@/theme/ThemeProvider";
+import { GlobalConfigProvider } from '@/context/GlobalConfigContext';
 import { Box, AppBar, Toolbar, Typography, Button, CircularProgress, BottomNavigation, BottomNavigationAction, Container, useMediaQuery } from "@mui/material";
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import PeopleIcon from '@mui/icons-material/People';
@@ -48,6 +49,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <ThemeProvider>
+      <GlobalConfigProvider>
       <Container maxWidth={isLargeScreen ? 'lg' : false} sx={{ paddingBottom: 10 }}>
         <Box>
           {/* Apenas mostrar a AppBar quando NÃO estivermos na página de login */}
@@ -83,7 +85,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </Box>
           )}
         </Box>
-      </Container>
+          </Container>
+      </GlobalConfigProvider>
   <ChangePasswordDialog open={changeOpen} onClose={() => setChangeOpen(false)} />
     </ThemeProvider>
   );

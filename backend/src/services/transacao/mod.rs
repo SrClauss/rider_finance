@@ -265,7 +265,7 @@ pub async fn create_transacao_handler(
         id_categoria: payload.id_categoria,
         valor: payload.valor,
         eventos: payload.eventos.unwrap_or(1),
-    km: payload.km.or(Some(0.0)),
+    km: payload.km,
         tipo: payload.tipo,
         descricao: payload.descricao,
         data: nova_data,
@@ -375,6 +375,12 @@ pub async fn list_transacoes_handler(
         .unwrap_or_else(|_| Claims { sub: "".to_string(), email: "".to_string(), exp: 0 });
     let user_id = claims.sub.clone();
 
+    // DEBUG: logar informações úteis para diagnosticar carregamento de transações
+    println!("[DEBUG] list_transacoes_handler called - user_id: '{}', raw_token_present: {}", user_id, jar.get("auth_token").is_some());
+    println!("[DEBUG] filtro recebido: page={:?}, page_size={:?}, id_categoria={:?}, descricao={:?}, tipo={:?}, data_inicio={:?}, data_fim={:?}",
+        filtro.page, filtro.page_size, filtro.id_categoria, filtro.descricao, filtro.tipo, filtro.data_inicio, filtro.data_fim
+    );
+
     let page = filtro.page.unwrap_or(1).max(1);
     let page_size = filtro.page_size.unwrap_or(10).clamp(1, 100);
     let offset = (page - 1) * page_size;
@@ -388,6 +394,7 @@ pub async fn list_transacoes_handler(
         filtro.data_fim.is_none();
 
     if is_simple_query && page == 1 {
+    println!("[DEBUG] attempting to serve from cache for user {} page {}", user_id, page);
         if let Some(cached_transactions) = crate::cache::transacao::get_cached_transactions(
             &user_id,
             page,
@@ -419,6 +426,7 @@ pub async fn list_transacoes_handler(
             });
         }
     } else if is_simple_query && page == 2 {
+    println!("[DEBUG] simple query page 2, loading from DB for user {}", user_id);
         // Carregar diretamente do banco de dados para a página 2
         let count_query = transacoes.filter(id_usuario.eq(&user_id)).into_boxed();
         let total: i64 = count_query.count().get_result(conn).unwrap_or(0);
@@ -510,6 +518,8 @@ pub async fn list_transacoes_handler(
             data: t.data,
         })
         .collect();
+
+    println!("[DEBUG] query executed, items_loaded: {} for user {} (page {}, page_size {})", items.len(), user_id, page, page_size);
 
     Json(PaginatedTransacoes {
         total: total as usize,

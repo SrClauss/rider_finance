@@ -256,7 +256,7 @@ fn top_source_for_period(tipo: &str, inicio: DateTime<Utc>, fim: DateTime<Utc>, 
 // ALTERAÇÃO: removeu `params: DashboardFiltro`
 pub fn compute_dashboard_stats(conn: &mut diesel::PgConnection, id_usuario: &str) -> DashboardStats {
     // equivalente ao início do handler original
-    let now = Local::now().naive_local();
+    let now = Utc::now().naive_utc();
 
     // Buscar configurações do usuário
     let configs: Vec<Configuracao> = config_dsl::configuracoes
@@ -311,12 +311,21 @@ pub fn compute_dashboard_stats(conn: &mut diesel::PgConnection, id_usuario: &str
             .select(diesel::dsl::sum(sessao_dsl::total_minutos))
             .first::<Option<i64>>(conn).unwrap_or(Some(0)).unwrap_or(0) as i32 / 60;
         // quilometragem do dia
-        let km_dia: f64 = transacao_dsl::transacoes
+        let km_dia_result = transacao_dsl::transacoes
             .filter(transacao_dsl::id_usuario.eq(id_usuario))
             .filter(transacao_dsl::data.ge(inicio_dia))
             .filter(transacao_dsl::data.le(fim_dia))
             .select(diesel::dsl::sum(transacao_dsl::km))
-            .first::<Option<f64>>(conn).unwrap_or(Some(0.0)).unwrap_or(0.0);
+            .first::<Option<f64>>(conn);
+
+        let km_dia: f64 = match km_dia_result {
+            Ok(Some(val)) => val,
+            Ok(None) => 0.0,
+            Err(e) => {
+                println!("[DEBUG] Erro na query km_dia (7dias): {:?}", e);
+                0.0
+            }
+        };
 
         ganhos_7dias.push(ganhos_dia);
         gastos_7dias.push(gastos_dia);
@@ -365,12 +374,21 @@ pub fn compute_dashboard_stats(conn: &mut diesel::PgConnection, id_usuario: &str
             .filter(sessao_dsl::inicio.le(fim_dia))
             .select(diesel::dsl::sum(sessao_dsl::total_minutos))
             .first::<Option<i64>>(conn).unwrap_or(Some(0)).unwrap_or(0) as i32 / 60;
-        let km_dia: f64 = transacao_dsl::transacoes
+        let km_dia_result = transacao_dsl::transacoes
             .filter(transacao_dsl::id_usuario.eq(id_usuario))
             .filter(transacao_dsl::data.ge(inicio_dia))
             .filter(transacao_dsl::data.le(fim_dia))
             .select(diesel::dsl::sum(transacao_dsl::km))
-            .first::<Option<f64>>(conn).unwrap_or(Some(0.0)).unwrap_or(0.0);
+            .first::<Option<f64>>(conn);
+
+        let km_dia: f64 = match km_dia_result {
+            Ok(Some(val)) => val,
+            Ok(None) => 0.0,
+            Err(e) => {
+                println!("[DEBUG] Erro na query km_dia (30dias): {:?}", e);
+                0.0
+            }
+        };
 
         ganhos_30dias.push(ganhos_dia);
         gastos_30dias.push(gastos_dia);
@@ -611,48 +629,155 @@ pub fn compute_dashboard_stats(conn: &mut diesel::PgConnection, id_usuario: &str
     let inicio_mes_passado_ndt = Utc.from_utc_datetime(&inicio_mes_passado.and_hms_opt(0,0,0).unwrap());
     let fim_mes_passado_ndt = Utc.from_utc_datetime(&fim_mes_passado.and_hms_opt(23,59,59).unwrap());
 
+    // Debug: mostrar períodos de data para diagnóstico
+    println!("[DEBUG] Períodos de data calculados:");
+    println!("[DEBUG] Hoje: {} a {}", inicio_hoje, fim_hoje);
+    println!("[DEBUG] Semana: {} a {}", inicio_semana_ndt, fim_semana_ndt);
+    println!("[DEBUG] Mês: {} a {}", inicio_mes_ndt, fim_mes_ndt);
+
     // Soma de km para períodos agregados (agora que variáveis de data estão em escopo)
-    let km_hoje: f64 = transacao_dsl::transacoes
+    let km_hoje_result = transacao_dsl::transacoes
         .filter(transacao_dsl::id_usuario.eq(id_usuario))
         .filter(transacao_dsl::data.ge(inicio_hoje))
         .filter(transacao_dsl::data.le(fim_hoje))
         .select(diesel::dsl::sum(transacao_dsl::km))
-        .first::<Option<f64>>(conn).unwrap_or(Some(0.0)).unwrap_or(0.0);
+        .first::<Option<f64>>(conn);
 
-    let km_ontem: f64 = transacao_dsl::transacoes
+    let km_hoje: f64 = match km_hoje_result {
+        Ok(Some(val)) => val,
+        Ok(None) => 0.0,
+        Err(e) => {
+            println!("[DEBUG] Erro na query km_hoje: {:?}", e);
+            0.0
+        }
+    };
+
+    let km_ontem_result = transacao_dsl::transacoes
         .filter(transacao_dsl::id_usuario.eq(id_usuario))
         .filter(transacao_dsl::data.ge(inicio_ontem))
         .filter(transacao_dsl::data.le(fim_ontem))
         .select(diesel::dsl::sum(transacao_dsl::km))
-        .first::<Option<f64>>(conn).unwrap_or(Some(0.0)).unwrap_or(0.0);
+        .first::<Option<f64>>(conn);
 
-    let km_semana: f64 = transacao_dsl::transacoes
+    let km_ontem: f64 = match km_ontem_result {
+        Ok(Some(val)) => val,
+        Ok(None) => 0.0,
+        Err(e) => {
+            println!("[DEBUG] Erro na query km_ontem: {:?}", e);
+            0.0
+        }
+    };
+
+    let km_semana_result = transacao_dsl::transacoes
         .filter(transacao_dsl::id_usuario.eq(id_usuario))
         .filter(transacao_dsl::data.ge(inicio_semana_ndt))
         .filter(transacao_dsl::data.le(fim_semana_ndt))
         .select(diesel::dsl::sum(transacao_dsl::km))
-        .first::<Option<f64>>(conn).unwrap_or(Some(0.0)).unwrap_or(0.0);
+        .first::<Option<f64>>(conn);
 
-    let km_semana_passada: f64 = transacao_dsl::transacoes
+    let km_semana: f64 = match km_semana_result {
+        Ok(Some(val)) => val,
+        Ok(None) => 0.0,
+        Err(e) => {
+            println!("[DEBUG] Erro na query km_semana: {:?}", e);
+            0.0
+        }
+    };
+
+    let km_semana_passada_result = transacao_dsl::transacoes
         .filter(transacao_dsl::id_usuario.eq(id_usuario))
         .filter(transacao_dsl::data.ge(inicio_semana_passada_ndt))
         .filter(transacao_dsl::data.le(fim_semana_passada_ndt))
         .select(diesel::dsl::sum(transacao_dsl::km))
-        .first::<Option<f64>>(conn).unwrap_or(Some(0.0)).unwrap_or(0.0);
+        .first::<Option<f64>>(conn);
 
-    let km_mes: f64 = transacao_dsl::transacoes
+    let km_semana_passada: f64 = match km_semana_passada_result {
+        Ok(Some(val)) => val,
+        Ok(None) => 0.0,
+        Err(e) => {
+            println!("[DEBUG] Erro na query km_semana_passada: {:?}", e);
+            0.0
+        }
+    };
+
+    let km_mes_result = transacao_dsl::transacoes
         .filter(transacao_dsl::id_usuario.eq(id_usuario))
         .filter(transacao_dsl::data.ge(inicio_mes_ndt))
         .filter(transacao_dsl::data.le(fim_mes_ndt))
         .select(diesel::dsl::sum(transacao_dsl::km))
-        .first::<Option<f64>>(conn).unwrap_or(Some(0.0)).unwrap_or(0.0);
+        .first::<Option<f64>>(conn);
 
-    let km_mes_passado: f64 = transacao_dsl::transacoes
+    let km_mes: f64 = match km_mes_result {
+        Ok(Some(val)) => val,
+        Ok(None) => 0.0,
+        Err(e) => {
+            println!("[DEBUG] Erro na query km_mes: {:?}", e);
+            0.0
+        }
+    };
+
+    let km_mes_passado_result = transacao_dsl::transacoes
         .filter(transacao_dsl::id_usuario.eq(id_usuario))
         .filter(transacao_dsl::data.ge(inicio_mes_passado_ndt))
         .filter(transacao_dsl::data.le(fim_mes_passado_ndt))
         .select(diesel::dsl::sum(transacao_dsl::km))
-        .first::<Option<f64>>(conn).unwrap_or(Some(0.0)).unwrap_or(0.0);
+        .first::<Option<f64>>(conn);
+
+    let km_mes_passado: f64 = match km_mes_passado_result {
+        Ok(Some(val)) => val,
+        Ok(None) => 0.0,
+        Err(e) => {
+            println!("[DEBUG] Erro na query km_mes_passado: {:?}", e);
+            0.0
+        }
+    };
+
+    // Debug: contar quantas transações têm km não nulo
+    let total_transacoes_com_km: i64 = transacao_dsl::transacoes
+        .filter(transacao_dsl::id_usuario.eq(id_usuario))
+        .filter(transacao_dsl::km.is_not_null())
+        .count()
+        .first(conn)
+        .unwrap_or(0);
+
+    let total_transacoes: i64 = transacao_dsl::transacoes
+        .filter(transacao_dsl::id_usuario.eq(id_usuario))
+        .count()
+        .first(conn)
+        .unwrap_or(0);
+
+    // Debug: mostrar algumas transações de exemplo
+    let sample_transactions: Vec<(String, chrono::DateTime<Utc>, Option<f64>)> = transacao_dsl::transacoes
+        .filter(transacao_dsl::id_usuario.eq(id_usuario))
+        .filter(transacao_dsl::km.is_not_null())
+        .select((transacao_dsl::id, transacao_dsl::data, transacao_dsl::km))
+        .limit(5)
+        .load(conn)
+        .unwrap_or_default();
+
+    // Debug: mostrar intervalo de datas das transações
+    let data_min: Option<chrono::DateTime<Utc>> = transacao_dsl::transacoes
+        .filter(transacao_dsl::id_usuario.eq(id_usuario))
+        .select(diesel::dsl::min(transacao_dsl::data))
+        .first(conn)
+        .unwrap_or(None);
+    
+    let data_max: Option<chrono::DateTime<Utc>> = transacao_dsl::transacoes
+        .filter(transacao_dsl::id_usuario.eq(id_usuario))
+        .select(diesel::dsl::max(transacao_dsl::data))
+        .first(conn)
+        .unwrap_or(None);
+
+    println!("[DEBUG] Intervalo de datas das transações: {:?} a {:?}", data_min, data_max);
+    println!("[DEBUG] Exemplos de transações com km:");
+    for (id, data, km) in sample_transactions {
+        println!("[DEBUG]   ID: {}, Data: {}, KM: {:?}", id, data, km);
+    }
+
+    println!("[DEBUG] KM agregados para user {}: hoje={}, ontem={}, semana={}, mes={}", 
+        id_usuario, km_hoje, km_ontem, km_semana, km_mes);
+    println!("[DEBUG] Transações com km não nulo: {} de {} transações totais", 
+        total_transacoes_com_km, total_transacoes);
 
     // construir mapa de platforms
     let mut platforms_map: HashMap<String, PlatformResult> = HashMap::new();

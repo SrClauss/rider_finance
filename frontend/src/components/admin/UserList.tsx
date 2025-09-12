@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useCallback, useState } from "react";
+import { useGlobalConfig } from '@/context/GlobalConfigContext';
 import useFormReducer from '@/lib/useFormReducer';
 import { UsuarioListItem } from "@/interfaces/Usuario";
 import { Box, TextField, IconButton, Table, TableHead, TableRow, TableCell, TableBody, Button, CircularProgress, Pagination, Chip, Accordion, AccordionSummary, AccordionDetails, Typography, useTheme, useMediaQuery, Dialog, DialogTitle, DialogContent, DialogActions } from "@mui/material";
@@ -17,6 +18,10 @@ export default function UserList() {
   const page = Number(state.page ?? 1);
   const loading = Boolean(state.loading);
   const [data, setData] = useState<{ items: UsuarioListItem[]; total: number; page: number; per_page: number }>({ items: [] as UsuarioListItem[], total: 0, page: 1, per_page: 20 });
+  const { valor: globalValor, loading: globalLoading, updateValor, setValor } = useGlobalConfig();
+  // Estado para gestão do valor da assinatura (global)
+  const [assinaturaValor, setAssinaturaValor] = useState<string>('');
+  const [assinaturaLoading, setAssinaturaLoading] = useState(false);
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -28,6 +33,11 @@ export default function UserList() {
   }, [page, q, cpf, setLoading]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Sincroniza valor local com o valor global provido pelo GlobalConfigContext
+  useEffect(() => {
+    setAssinaturaValor(globalValor ?? '');
+  }, [globalValor]);
   
   const doBlock = async (id: string) => {
     setLoading(true);
@@ -77,6 +87,19 @@ export default function UserList() {
   const openCreateModal = () => {
   setCreateNome(''); setCreateNomeCompleto(''); setCreateEmail(''); setCreateSenha(''); setCreateMovPorDia(''); setCreateMeses(''); setCreateMesesAssinatura(1);
     setCreateOpen(true);
+  };
+
+  const saveAssinatura = async () => {
+    setAssinaturaLoading(true);
+    try {
+      await updateValor(assinaturaValor);
+      setToast({ open: true, severity: 'success', message: 'Valor da assinatura atualizado' });
+    } catch (err: unknown) {
+      const msg = String(err instanceof Error ? err.message : err);
+      setToast({ open: true, severity: 'error', message: msg });
+    } finally {
+      setAssinaturaLoading(false);
+    }
   };
 
   const createSeedUser = async () => {
@@ -184,6 +207,10 @@ export default function UserList() {
   <TextField label="CPF" value={cpf} onChange={(e) => setField('cpf', e.target.value)} />
   <IconButton color="primary" onClick={() => { setField('page', 1); load(); }}><SearchIcon /></IconButton>
   <Box sx={{ flex: 1 }} />
+  <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+    <TextField label="Valor assinatura (R$)" value={assinaturaValor} onChange={(e) => setAssinaturaValor(e.target.value)} size="small" sx={{ width: 160 }} />
+    <Button onClick={saveAssinatura} variant="outlined" disabled={assinaturaLoading}>{assinaturaLoading ? 'Salvando...' : 'Salvar assinatura'}</Button>
+  </Box>
   <Button variant="contained" onClick={openCreateModal}>Criar usuário seed</Button>
     </Box>
 
