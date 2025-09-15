@@ -25,7 +25,7 @@ export const GlobalConfigProvider = ({ children }: { children: ReactNode }) => {
       const res = await axios.get("/api/checkout-info", { withCredentials: true });
       setValor(res.data?.valor ?? "");
       setError(null);
-    } catch (e) {
+    } catch {
       setError("Erro ao carregar configuração global");
     } finally {
       setLoading(false);
@@ -50,7 +50,6 @@ export const GlobalConfigProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     // carrega automaticamente quando provider monta
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
