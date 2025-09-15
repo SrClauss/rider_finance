@@ -18,7 +18,7 @@ export default function UserList() {
   const page = Number(state.page ?? 1);
   const loading = Boolean(state.loading);
   const [data, setData] = useState<{ items: UsuarioListItem[]; total: number; page: number; per_page: number }>({ items: [] as UsuarioListItem[], total: 0, page: 1, per_page: 20 });
-  const { valor: globalValor, loading: globalLoading, updateValor, setValor } = useGlobalConfig();
+  const { valor: globalValor, updateValor } = useGlobalConfig();
   // Estado para gestão do valor da assinatura (global)
   const [assinaturaValor, setAssinaturaValor] = useState<string>('');
   const [assinaturaLoading, setAssinaturaLoading] = useState(false);

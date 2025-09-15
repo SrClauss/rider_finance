@@ -1,4 +1,4 @@
-import { DirectionsCarRounded, ShowChart, SpeedRounded, WatchLater } from "@mui/icons-material";
+import { DirectionsCarRounded, ShowChart, SpeedRounded } from "@mui/icons-material";
 import { Box, Card, Divider, Typography } from "@mui/material";
 import InfoCard from "./InfoCard";
 import { JSX } from "react";

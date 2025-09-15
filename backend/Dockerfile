@@ -1,4 +1,19 @@
-FROM rust:latest AS builder
+# Usar Ubuntu 24.04 com Rust para garantir compatibilidade GLIBC
+FROM ubuntu:24.04 AS builder
+
+# Instalar Rust e dependências de build
+RUN apt-get update && apt-get install -y \
+    curl \
+    build-essential \
+    libpq-dev \
+    pkg-config \
+    libssl-dev \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Instalar Rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
 
 WORKDIR /app
 COPY Cargo.toml ./
@@ -9,24 +24,18 @@ RUN cargo build --release
 # instalar diesel_cli no estágio builder para copiar o binário para a imagem final
 RUN cargo install diesel_cli --no-default-features --features postgres --locked || true
 
-FROM debian:bookworm-slim
+FROM ubuntu:24.04
 
-# Instalar bibliotecas necessárias para o binário Rust
+# Instalar apenas bibliotecas necessárias para runtime
 RUN apt-get update && apt-get install -y \
     libssl3 \
     libpq5 \
-    libpq-dev \
     postgresql-client \
-    build-essential \
-    pkg-config \
-    libssl-dev \
     ca-certificates \
     curl \
-    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
- 
 # copiar binário diesel (instalado no builder) e ajustar PATH
-COPY --from=builder /usr/local/cargo/bin/diesel /usr/local/bin/diesel
+COPY --from=builder /root/.cargo/bin/diesel /usr/local/bin/diesel
 ENV PATH="/usr/local/bin:${PATH}"
 
 COPY --from=builder /app/target/release/backend /usr/local/bin/backend

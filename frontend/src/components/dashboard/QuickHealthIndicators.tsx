@@ -1,6 +1,6 @@
 
 import React from "react";
-import { Box, Card, CardContent, Typography, Stack } from "@mui/material";
+import { Box, Card, Typography } from "@mui/material";
 import Image from 'next/image';
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
 import LocalTaxiIcon from '@mui/icons-material/LocalTaxi';
@@ -42,22 +42,7 @@ export default function QuickHealthIndicators({ data }: Props) {
   const icone99 = n99Data?.icone ?? null;
   const cor99 = n99Data?.cor ?? null;
 
-  // fallback usando DashboardResponse
-  const ganhosHoje = data.ganhos_hoje ?? 0;
-  const horasHoje = data.horas_hoje || 0;
-  const corridasHoje = data.corridas_hoje || 0;
-  const ganhosPorHora = horasHoje > 0 ? ganhosHoje / horasHoje : null;
-  const ganhoMedioPorCorrida = corridasHoje > 0 ? ganhosHoje / corridasHoje : null;
-
-  // quilometragem
-  const kmHoje = data.km_hoje ?? null;
-  const kmSemana = data.km_semana ?? null;
-  const kmMes = data.km_mes ?? null;
-
-  // ganho por km: usar ganhos / km quando disponível (checando zero)
-  const ganhoPorKmHoje = (ganhosHoje > 0 && kmHoje && kmHoje > 0) ? (ganhosHoje / kmHoje) : null;
-  const ganhoPorKmSemana = (data.ganhos_semana > 0 && kmSemana && kmSemana > 0) ? (data.ganhos_semana / kmSemana) : null;
-  const ganhoPorKmMes = (data.ganhos_mes > 0 && kmMes && kmMes > 0) ? (data.ganhos_mes / kmMes) : null;
+  // Variáveis calculadas removidas pois não estão sendo utilizadas no componente
 
   const renderIcon = (backendIcon: string | null, backendColor: string | null, fallbackName: string, fallbackMUI: React.ReactNode) => {
     const iconName = backendIcon || categorias.find(c => c.nome === fallbackName)?.icone || '';
@@ -143,28 +128,13 @@ export default function QuickHealthIndicators({ data }: Props) {
     };
   };
 
-  const MetricCard = ({ title, value, subtitle, icon }: { title: string; value: string; subtitle?: string; icon: React.ReactNode }) => (
-    <Card sx={cardSxColumn}>
-      <Typography sx={{ fontSize: '0.85rem', fontWeight: 700 }}>{title}</Typography>
-      <Box id="cc" sx={{ display: 'flex', gap: 2 }}>
-        <Box sx={{ alignItems: 'center', display: 'flex' }}>{icon}</Box>
-        <Box>
-          <Typography sx={{ fontSize: '1rem', color: 'success.main', fontWeight: 700 }}>{value}</Typography>
-          {subtitle && <Typography variant="caption" color="text.secondary">{subtitle}</Typography>}
-        </Box>
-      </Box>
-    </Card>
-  );
+  // MetricCard removido pois não está sendo utilizado
 
   return (
     <Box sx={{ my: 1 }}>
       <Swiper spaceBetween={12} slidesPerView={1}>
         {(['today', '7d', '30d'] as const).map((period) => {
-          const m = calcMetrics(period as any);
-          const eficienciaDisplay = m.eficiencia != null ? formatarMoeda(Math.round(m.eficiencia)) : '—';
-          const ticketDisplay = m.ticketMedio != null ? formatarMoeda(Math.round(m.ticketMedio)) : '—';
-          const kmPorCorridaDisplay = m.kmPorCorrida != null ? (m.kmPorCorrida >= 100 ? Math.round(m.kmPorCorrida).toLocaleString('pt-BR') : m.kmPorCorrida.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })) + ' km' : '—';
-          const ganhoPorKmDisplay = m.ganhoPorKm != null ? formatarMoeda(Number(m.ganhoPorKm.toFixed(2))) : '—';
+          const m = calcMetrics(period);
           return (
             <SwiperSlide key={period}>
             <Box sx={{ mb: 1, mt: 4 }}>

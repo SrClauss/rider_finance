@@ -126,15 +126,7 @@ export default function LoggedLayout({ children }: LoggedLayoutProps) {
               key={tab.path}
               label={tab.label.toUpperCase()}
               icon={tab.icon}
-              sx={{
-                minWidth: "auto",
 
-                padding: "6px 8px",
-                "& .MuiBottomNavigationAction-label": {
-                  fontSize: "0.5rem",
-                  fontWeight: 500,
-                },
-              }}
             />
           ))}
         </BottomNavigation>

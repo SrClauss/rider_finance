@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from 'react';
-import { Box, Typography, Button, Fab } from '@mui/material';
+import { Box, Typography, Fab } from '@mui/material';
 import CreateAdminModal from '@/modals/CreateAdminModal';
 import AdminsList from '@/components/admin/AdminsList';
 import AddIcon from '@mui/icons-material/Add';
